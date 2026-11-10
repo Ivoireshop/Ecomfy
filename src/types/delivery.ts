@@ -47,6 +47,7 @@ export type StructuredRejectionReasonCode =
   | 'DOCUMENT_UNREADABLE'
   | 'DUPLICATE_IDENTITY'
   | 'SUSPICIOUS_MANIPULATION'
+  | 'MISSING_BACK_SIDE'
   | 'OTHER';
 
 export const REJECTION_REASON_LABELS: Record<StructuredRejectionReasonCode, string> = {
@@ -60,6 +61,7 @@ export const REJECTION_REASON_LABELS: Record<StructuredRejectionReasonCode, stri
   DOCUMENT_UNREADABLE: "Document illisible ou flou",
   DUPLICATE_IDENTITY: "Usurpation ou pièce d'identité déjà enregistrée",
   SUSPICIOUS_MANIPULATION: "Image suspecte ou falsifiée",
+  MISSING_BACK_SIDE: "Verso de la pièce ou du permis manquant",
   OTHER: "Autre motif spécifié par l'administrateur",
 };
 
@@ -106,6 +108,16 @@ export interface DeliveryCompanyKyc {
   date_of_birth: string;
 }
 
+/** Position précise de l'entrepôt (table delivery_company_location, lisible du seul propriétaire et des administrateurs). */
+export interface DeliveryCompanyLocation {
+  company_id: string;
+  latitude: number;
+  longitude: number;
+  accuracy_m?: number | null;
+  source: 'gps' | 'map';
+  updated_at?: string;
+}
+
 export interface DeliveryCompany {
   id: string;
   user_id?: string | null;
@@ -123,6 +135,8 @@ export interface DeliveryCompany {
   /** Chemins dans le bucket privé « delivery-kyc » (jamais des URL publiques). */
   manager_photo_url?: string | null;
   manager_id_photo_url?: string | null;
+  /** Verso de la pièce d'identité (absent pour un passeport et pour les dossiers antérieurs au verso). */
+  manager_id_back_photo_url?: string | null;
   manager_selfie_with_id_url?: string | null;
   owner_photo_url?: string | null;
   warehouse_photo_url?: string | null;
@@ -159,6 +173,7 @@ export interface DeliveryCompany {
   hubs?: DeliveryHub[];
   drivers?: DeliveryDriver[];
   kyc?: DeliveryCompanyKyc | null;
+  location?: DeliveryCompanyLocation | null;
 }
 
 export interface DeliveryHub {
@@ -191,7 +206,9 @@ export interface DeliveryDriver {
   license_expiry?: string | null;
   photo_url: string;
   national_id_photo_url: string;
+  national_id_back_photo_url?: string | null;
   license_photo_url?: string | null;
+  license_back_photo_url?: string | null;
   selfie_with_id_url?: string | null;
   /** Actif = approuvé ET permis valable (invariant appliqué par la base). */
   is_active: boolean;

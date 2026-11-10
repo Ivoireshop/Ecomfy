@@ -24,7 +24,7 @@ interface GovernanceDocumentViewerModalProps {
   document: CorporateDocument | null;
   isOpen: boolean;
   onClose: () => void;
-  onApprove: (docId: string, version: string, statement: string) => Promise<void>;
+  onApprove: (docId: string, version: string, statement: string) => Promise<boolean>;
   onRecordView: (docId: string) => void;
 }
 
@@ -57,12 +57,13 @@ export function GovernanceDocumentViewerModal({
     if (!checkedRead || !checkedAware || !checkedLegal) return;
     setIsSubmitting(true);
     try {
-      await onApprove(
+      const ok = await onApprove(
         document.id,
         document.current_version,
         "J'ai lu, compris et approuvé ce document. Je reconnais que ce document s'interprète avec les statuts et formalités juridiques applicables d'Ecomfy."
       );
-      onClose();
+      // Signature refusée : la fenêtre reste ouverte (le hook a déjà expliqué pourquoi).
+      if (ok) onClose();
     } catch (e) {
       console.error(e);
     } finally {
@@ -105,7 +106,7 @@ export function GovernanceDocumentViewerModal({
             </div>
 
             <div className="flex items-center gap-2 text-xs text-slate-400">
-              <Eye className="w-3.5 h-3.5 text-blue-400" /> Vue Enregistrée (VIEWED)
+              <Eye className="w-3.5 h-3.5 text-blue-400" /> Consultation journalisée
             </div>
           </div>
 
@@ -115,7 +116,7 @@ export function GovernanceDocumentViewerModal({
           </DialogTitle>
 
           <DialogDescription className="text-xs text-slate-400 flex flex-wrap items-center gap-4">
-            <span className="flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-amber-400" /> Auteur : {document.author || "Direction Ecomfy"}</span>
+            <span className="flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-amber-400" /> Auteur : {document.author || "—"}</span>
             <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-purple-400" /> Mis à jour : {new Date(document.updated_at).toLocaleDateString("fr-FR")}</span>
           </DialogDescription>
         </div>
@@ -149,7 +150,7 @@ export function GovernanceDocumentViewerModal({
                 Document Lu et Approuvé
               </div>
               <p className="text-xs text-emerald-300/80">
-                Vous avez validé ce document le {new Date(document.user_acceptance?.timestamp || Date.now()).toLocaleString("fr-FR")}.
+                Vous avez validé la version {document.current_version} le {document.user_acceptance?.timestamp ? new Date(document.user_acceptance.timestamp).toLocaleString("fr-FR") : "—"}.
               </p>
               <div className="text-[11px] font-mono text-slate-400">
                 Déclaration : "{document.user_acceptance?.legal_statement}"
@@ -195,7 +196,7 @@ export function GovernanceDocumentViewerModal({
         {/* Modal Footer */}
         <DialogFooter className="p-4 bg-slate-900 border-t border-slate-800 flex items-center justify-between sm:justify-between gap-4">
           <span className="text-[11px] text-slate-400 font-mono truncate">
-            Réf: {document.id} | Horodatage sécurisé
+            Réf : {document.id}
           </span>
           <Button
             type="button"

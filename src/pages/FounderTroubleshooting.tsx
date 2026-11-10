@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { activateShopManually } from "@/lib/founderBilling";
+import { activateShopManually, SHOP_ACTIVATION_FEE_FCFA as ACTIVATION_FEE_FCFA } from "@/lib/founderBilling";
 import {
   AlertTriangle,
   Bug,
@@ -35,9 +35,6 @@ import {
   Radio
 } from "lucide-react";
 
-
-// Frais d'activation d'une boutique (voir FounderDashboard : « Frais d'Activation Boutique »).
-const ACTIVATION_FEE_FCFA = 1300;
 
 type DiagnosticCheck = {
   id: string;
@@ -73,7 +70,7 @@ const FounderTroubleshooting = () => {
     { id: "storage_buckets", name: "Stockage Supabase (Buckets Médias)", category: "storage", status: "pending", message: "En attente du test..." },
     { id: "rls_policies", name: "Politiques de Sécurité Row Level (RLS)", category: "database", status: "pending", message: "En attente du test..." },
     { id: "edge_share", name: "Edge Function : Partage OpenGraph (share-product)", category: "edge", status: "pending", message: "En attente du test..." },
-    { id: "payment_system", name: "Passerelle de Paiement (billing_history)", category: "payment", status: "pending", message: "En attente du test..." },
+    { id: "payment_system", name: "Table des paiements (payments)", category: "payment", status: "pending", message: "En attente du test..." },
   ]);
 
   const [shopsList, setShopsList] = useState<ShopDiag[]>([]);
@@ -86,18 +83,13 @@ const FounderTroubleshooting = () => {
       if (!session) {
         navigate("/auth");
       } else {
-        verifyFounderAccess(session.user.id, session.user.email);
+        verifyFounderAccess(session.user.id);
       }
     });
   }, [navigate]);
 
-  const verifyFounderAccess = async (userId: string, userEmail?: string) => {
-    const email = (userEmail || session?.user?.email || "").toLowerCase();
-    if (email === "djateulrich@gmail.com" || email.includes("djateulrich")) {
-      setIsFounder(true);
-      runFullDiagnostics();
-      return;
-    }
+  // Seul le rôle enregistré en base ouvre cette page (aucun raccourci par e-mail) ; en cas d'échec, l'accès reste fermé.
+  const verifyFounderAccess = async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from("user_roles")
@@ -121,12 +113,8 @@ const FounderTroubleshooting = () => {
       runFullDiagnostics();
     } catch (e) {
       console.error(e);
-      if (email === "djateulrich@gmail.com" || email.includes("djateulrich")) {
-        setIsFounder(true);
-        runFullDiagnostics();
-      } else {
-        navigate("/");
-      }
+      setIsFounder(false);
+      navigate("/");
     }
   };
 
@@ -199,15 +187,16 @@ const FounderTroubleshooting = () => {
     }
 
     // 6. Check Payment system
+    // Une vraie sonde : lecture de la table des paiements. Un échec est signalé comme tel, jamais présenté comme « prêt ».
     try {
-      const { data: billing, error: billErr } = await supabase.from("billing_history" as any).select("id").limit(1);
-      if (billErr) {
-        newChecks[5] = { ...newChecks[5], status: "warn", message: "Table billing_history prête" };
+      const { error: payErr } = await supabase.from("payments").select("id").limit(1);
+      if (payErr) {
+        newChecks[5] = { ...newChecks[5], status: "error", message: `Table des paiements illisible : ${payErr.message}` };
       } else {
-        newChecks[5] = { ...newChecks[5], status: "ok", message: "Table des règlements opérationnelle" };
+        newChecks[5] = { ...newChecks[5], status: "ok", message: "Table des paiements lisible" };
       }
     } catch (e: any) {
-      newChecks[5] = { ...newChecks[5], status: "ok", message: "Passerelle de paiements réels configurée" };
+      newChecks[5] = { ...newChecks[5], status: "error", message: `Table des paiements illisible : ${e?.message || "erreur inconnue"}` };
     }
 
     setChecks(newChecks);

@@ -12,6 +12,9 @@ import { DeliverySelfieCapture } from "@/components/delivery/DeliverySelfieCaptu
 import { DriverLicenseFields } from "@/components/delivery/DriverLicenseFields";
 import { licenseFormProblems, type LicenseFormState } from "@/lib/driverLicenseForm";
 import { DeliveryNotificationBell } from "@/components/delivery/DeliveryNotificationBell";
+import { WarehouseLocationPicker, type WarehouseLocationValue } from "@/components/delivery/WarehouseLocationPicker";
+import { allDossierGaps, idNeedsBackSide } from "@/lib/deliveryDossier";
+import { AlertTriangle } from "lucide-react";
 import { REJECTION_REASON_LABELS, type DeliveryCompany } from "@/types/delivery";
 
 /**
@@ -26,13 +29,16 @@ export default function DeliveryResubmissionPage() {
   const [company, setCompany] = useState<DeliveryCompany | null>(null);
 
   const [idPhoto, setIdPhoto] = useState("");
+  const [idPhotoBack, setIdPhotoBack] = useState("");
   const [selfie, setSelfie] = useState("");
   const [warehouse, setWarehouse] = useState("");
+  const [location, setLocation] = useState<WarehouseLocationValue | null>(null);
   const [taxDoc, setTaxDoc] = useState("");
   const [tradeDoc, setTradeDoc] = useState("");
   const [idNumber, setIdNumber] = useState("");
   const [idExpiry, setIdExpiry] = useState("");
   const [license, setLicense] = useState<LicenseFormState | null>(null);
+  const needsBack = idNeedsBackSide(company?.kyc?.id_type);
 
   useEffect(() => {
     (async () => {
@@ -41,6 +47,8 @@ export default function DeliveryResubmissionPage() {
         setCompany(data);
         if (data) {
           setIdPhoto(data.manager_id_photo_url ?? "");
+          setIdPhotoBack(data.manager_id_back_photo_url ?? "");
+          setLocation(data.location ? { latitude: data.location.latitude, longitude: data.location.longitude, accuracy_m: data.location.accuracy_m, source: data.location.source } : null);
           setSelfie(data.manager_selfie_with_id_url ?? "");
           setWarehouse(data.warehouse_photo_url ?? "");
           setTaxDoc(data.tax_document_url ?? "");
@@ -56,6 +64,7 @@ export default function DeliveryResubmissionPage() {
               categories: d.license_categories ?? [],
               licenseExpiry: d.license_expiry ?? "",
               licensePhoto: d.license_photo_url ?? "",
+              licenseBackPhoto: d.license_back_photo_url ?? "",
             });
           }
         }
@@ -70,7 +79,9 @@ export default function DeliveryResubmissionPage() {
   const handleResubmit = async () => {
     if (!company) return;
     const problems: string[] = [];
-    if (!idPhoto) problems.push("La photo de la pièce d'identité est requise.");
+    if (!idPhoto) problems.push(needsBack ? "La photo du recto de la pièce d'identité est requise." : "La photo de la page du passeport est requise.");
+    if (needsBack && !idPhotoBack) problems.push("La photo du verso de la pièce d'identité est requise.");
+    if (company.profile_type === "manager" && !location) problems.push("La localisation de l'entrepôt est requise : utilisez votre position ou placez le point sur la carte.");
     if (!selfie) problems.push("Le selfie avec la pièce d'identité est requis.");
     if (idExpiry && idExpiry < new Date().toISOString().slice(0, 10)) problems.push("Votre pièce d'identité est expirée : importez une pièce valable.");
     if (license) problems.push(...licenseFormProblems(license, idExpiry));
@@ -86,6 +97,10 @@ export default function DeliveryResubmissionPage() {
       await deliveryService.resubmitApplication(company.id, {
         company: {
           manager_id_photo_url: changed(idPhoto, company.manager_id_photo_url),
+          manager_id_back_photo_url: changed(idPhotoBack, company.manager_id_back_photo_url),
+          ...(location && (location.latitude !== company.location?.latitude || location.longitude !== company.location?.longitude)
+            ? { warehouse_latitude: location.latitude, warehouse_longitude: location.longitude, warehouse_accuracy_m: location.accuracy_m ?? undefined, warehouse_location_source: location.source }
+            : {}),
           manager_selfie_with_id_url: changed(selfie, company.manager_selfie_with_id_url),
           warehouse_photo_url: changed(warehouse, company.warehouse_photo_url),
           tax_document_url: changed(taxDoc, company.tax_document_url),
@@ -104,7 +119,9 @@ export default function DeliveryResubmissionPage() {
               license_categories: license.categories,
               license_expiry: license.licenseExpiry,
               license_photo_url: license.licensePhoto,
+              license_back_photo_url: license.licenseBackPhoto,
               national_id_photo_url: idPhoto,
+              national_id_back_photo_url: needsBack ? idPhotoBack : undefined,
               selfie_with_id_url: selfie,
               id_number: idNumber.trim() || undefined,
               id_expiry: idExpiry || undefined,
@@ -139,6 +156,7 @@ export default function DeliveryResubmissionPage() {
 
   const blocked = company.verification_status === "approved" || company.verification_status === "suspended";
   const message = company.verification_status === "action_required" ? company.reviewer_comments : company.rejection_reason;
+  const gaps = allDossierGaps(company);
   const inputCls = "bg-slate-950 border-slate-800 text-white text-xs";
 
   return (
@@ -167,7 +185,7 @@ export default function DeliveryResubmissionPage() {
                 {company.rejection_reason_code && company.verification_status !== "action_required" && (
                   <p className="font-semibold">{REJECTION_REASON_LABELS[company.rejection_reason_code]}</p>
                 )}
-                <p>{message}</p>
+                <p className="whitespace-pre-line">{message}</p>
               </div>
             )}
             {blocked && (
@@ -189,12 +207,25 @@ export default function DeliveryResubmissionPage() {
               </div>
             </div>
 
-            <DeliveryDocUpload label="Pièce d'identité" hint="Lisible, entière et en cours de validité." field="manager_id" category="national_id" required value={idPhoto} onChange={setIdPhoto} />
+            {gaps.length > 0 && (
+              <div role="status" className="p-3.5 rounded-xl bg-amber-950/30 border border-amber-500/40 text-amber-200 text-xs space-y-1">
+                <p className="font-bold flex items-center gap-1.5"><AlertTriangle className="w-4 h-4" /> Éléments à ajouter à votre dossier :</p>
+                {gaps.map((g) => <p key={g.label}>• {g.label}</p>)}
+              </div>
+            )}
+
+            <div className={`grid grid-cols-1 gap-4 ${needsBack ? "sm:grid-cols-2" : ""}`}>
+              <DeliveryDocUpload label={needsBack ? "Pièce d'identité — recto" : "Passeport — page photo"} hint="Lisible, entière et en cours de validité." field="manager_id" category="national_id" required value={idPhoto} onChange={setIdPhoto} />
+              {needsBack && (
+                <DeliveryDocUpload label="Pièce d'identité — verso" hint="Le dos de la carte, lisible et entier." field="manager_id_back" category="national_id" required value={idPhotoBack} onChange={setIdPhotoBack} />
+              )}
+            </div>
             <DeliverySelfieCapture field="manager_selfie" value={selfie} onChange={setSelfie} />
 
             {company.profile_type === "manager" && (
               <>
                 <DeliveryDocUpload label="Photo de l'entrepôt principal" field="warehouse" category="warehouse_photo" accept="image/*" value={warehouse} onChange={setWarehouse} />
+                <WarehouseLocationPicker required value={location} onChange={setLocation} />
                 {company.has_tax_registration && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <DeliveryDocUpload label="Attestation fiscale" field="tax_document" category="tax_document" value={taxDoc} onChange={setTaxDoc} />

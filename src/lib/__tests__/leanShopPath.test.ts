@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { getLeanShopKind, isCustomShopHostname } from "../leanShopPath";
-import { heroImageWidth } from "../imageUrl";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { heroImageWidth, HERO_IMAGE_QUALITY } from "../imageUrl";
 
 describe("getLeanShopKind", () => {
   const host = "ecomfy.cloud";
@@ -47,5 +49,12 @@ describe("heroImageWidth", () => {
     expect(heroImageWidth(641)).toBe(1000);
     expect(heroImageWidth(1024)).toBe(1000);
     expect(heroImageWidth(1025)).toBe(1200);
+  });
+
+  it("index.html précharge exactement la même URL que la page (mêmes seuils, même qualité)", () => {
+    // Si l'URL préchargée diffère de celle de l'<img>, le navigateur télécharge l'image deux fois.
+    const html = readFileSync(resolve(__dirname, "../../../index.html"), "utf8");
+    expect(html).toContain(`u.searchParams.set("quality", "${HERO_IMAGE_QUALITY}")`);
+    expect(html).toContain("return w <= 640 ? 800 : w <= 1024 ? 1000 : 1200;");
   });
 });

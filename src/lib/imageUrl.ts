@@ -37,3 +37,13 @@ export function heroImageWidth(viewportWidth?: number): number {
   if (w <= 1024) return 1000;
   return 1200;
 }
+
+/**
+ * Qualité de l'image principale d'une fiche produit. 75 au lieu de 85 : environ 25 à 30 % de moins à
+ * télécharger (mesuré sur de vraies fiches : 158 → 119 Ko, 128 → 91 Ko, 105 → 73 Ko), sans différence
+ * visible sur une photo de produit. Les vignettes gardent la qualité par défaut.
+ *
+ * ATTENTION : `index.html` répète cette valeur (75) pour le préchargement ; les deux doivent rester identiques,
+ * sinon le navigateur télécharge l'image deux fois.
+ */
+export const HERO_IMAGE_QUALITY = 75;

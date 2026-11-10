@@ -121,6 +121,8 @@ export interface CorporateVestingMilestone {
 
 export interface CorporateDocument {
   id: string;
+  /** Identifiant stable du document fondateur (null pour un document créé à la main). */
+  slug?: string | null;
   title: string;
   category: DocumentCategory;
   legal_status?: LegalStatus;

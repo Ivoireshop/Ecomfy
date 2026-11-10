@@ -1,5 +1,11 @@
 import { supabase } from "@/integrations/supabase/client";
 
+/**
+ * Frais d'activation d'une boutique, en FCFA. Doit rester identique à SHOP_ACTIVATION_FEE dans
+ * supabase/functions/_shared/pricing.ts (le serveur contrôle ce montant sur les paiements en ligne).
+ */
+export const SHOP_ACTIVATION_FEE_FCFA = 1300;
+
 export interface ManualCommissionPaymentParams {
   shopId: string;
   amount: number;

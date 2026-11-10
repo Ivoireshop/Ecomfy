@@ -1,181 +1,187 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { INITIAL_GOVERNANCE_DOCUMENTS } from "@/data/initialGovernanceDocs";
+import { checkAllocationRoom, countApprovers, sharesForPercentage } from "@/lib/governanceMetrics";
 import {
   CorporateCompany,
   CorporateShareholder,
-  CorporateShareAllocation,
-  CorporateVestingPlan,
   CorporateDocument,
   CorporateProposal,
   CorporateIPAsset,
   CorporateAuditLog,
   CorporateDocumentAcceptance,
   CorporateInvitation,
-  GovernanceInvitationStatus,
 } from "@/types/corporate";
+
+const AUDIT_PAGE = 50;
+
+/** Les tables corporate_* ne sont pas dans les types générés. */
+const table = (name: string) => supabase.from(name as never) as any;
+
+/** Table absente du schéma (migration non appliquée) : code Postgres 42P01 ou PGRST205 côté API. */
+const isMissingTable = (err: { code?: string; message?: string } | null | undefined) =>
+  !!err && (err.code === "42P01" || err.code === "PGRST205" || /does not exist|schema cache/i.test(err.message ?? ""));
+
+export interface SessionActor {
+  id: string;
+  email: string;
+}
+
+const getActor = async (): Promise<SessionActor | null> => {
+  const { data } = await supabase.auth.getSession();
+  const u = data?.session?.user;
+  return u?.email ? { id: u.id, email: u.email } : null;
+};
 
 export const useCorporateGovernance = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [company, setCompany] = useState<CorporateCompany | null>(null);
   const [shareholders, setShareholders] = useState<CorporateShareholder[]>([]);
   const [invitations, setInvitations] = useState<CorporateInvitation[]>([]);
+  const [invitationsAvailable, setInvitationsAvailable] = useState(true);
   const [documents, setDocuments] = useState<CorporateDocument[]>([]);
   const [proposals, setProposals] = useState<CorporateProposal[]>([]);
   const [ipAssets, setIpAssets] = useState<CorporateIPAsset[]>([]);
   const [auditLogs, setAuditLogs] = useState<CorporateAuditLog[]>([]);
-  const [viewedDocs, setViewedDocs] = useState<Set<string>>(new Set());
+  const [auditTotal, setAuditTotal] = useState(0);
+  const [actor, setActor] = useState<SessionActor | null>(null);
+  /** Fondateur ou cofondateur : seuls rôles que les politiques d'écriture acceptent. */
+  const [canWrite, setCanWrite] = useState(false);
+  /** Documents que l'utilisateur connecté a consultés (journal d'audit), tous appareils confondus. */
+  const [viewedByMe, setViewedByMe] = useState<Set<string>>(new Set());
+  const viewedThisSession = useRef<Set<string>>(new Set());
 
   const fetchCorporateData = useCallback(async () => {
     setLoading(true);
+    const problems: string[] = [];
+    const note = (label: string, err: { message?: string } | null | undefined) => {
+      if (err) problems.push(`${label} : ${err.message ?? "erreur de lecture"}`);
+    };
     try {
-      // 1. Fetch Company Metadata
-      const { data: companyData } = await supabase
-        .from("corporate_companies" as any)
-        .select("*")
-        .maybeSingle();
+      const me = await getActor();
+      setActor(me);
 
-      if (companyData) setCompany(companyData as any);
-
-      // 2. Fetch Shareholders & Allocations & Vesting Plans
-      const { data: shData } = await supabase
-        .from("corporate_shareholders" as any)
-        .select("*")
-        .order("is_main_founder", { ascending: false });
-
-      if (shData) {
-        const { data: allocData } = await supabase
-          .from("corporate_share_allocations" as any)
-          .select("*");
-
-        const { data: vestingData } = await supabase
-          .from("corporate_vesting_plans" as any)
-          .select("*");
-
-        const allocMap = new Map((allocData || []).map((a: any) => [a.shareholder_id, a]));
-        const vestingMap = new Map((vestingData || []).map((v: any) => [v.shareholder_id, v]));
-
-        const combined: CorporateShareholder[] = shData.map((s: any) => ({
-          ...s,
-          allocation: allocMap.get(s.id),
-          vesting_plan: vestingMap.get(s.id),
-        }));
-
-        setShareholders(combined);
-
-        // Fallback invitation state from shareholders
-        const derivedInv: CorporateInvitation[] = shData.map((s: any) => ({
-          id: `inv-${s.id}`,
-          invite_token: `inv-tok-${s.id}`,
-          email: s.email,
-          full_name: s.full_name,
-          corporate_role: s.corporate_role,
-          target_percentage: allocMap.get(s.id)?.target_percentage || 10,
-          target_shares: allocMap.get(s.id)?.target_shares || 100000,
-          status: s.is_main_founder || s.onboarding_completed ? "ACTIVE" : "INVITATION_SENT",
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          created_at: s.created_at,
-          updated_at: s.updated_at,
-          shareholder_id: s.id,
-        }));
-        setInvitations(derivedInv);
+      if (me) {
+        const { data: roles, error: rolesErr } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", me.id);
+        note("Rôles", rolesErr);
+        setCanWrite(((roles || []) as Array<{ role: string }>).some((r) => r.role === "founder" || r.role === "co_founder"));
+      } else {
+        setCanWrite(false);
       }
 
-      // 2b. Fetch Corporate Invitations (override derived if table exists)
-      try {
-        const { data: inviteData } = await supabase
-          .from("corporate_invitations" as any)
-          .select("*")
-          .order("created_at", { ascending: false });
+      // 1. Société
+      const { data: companyData, error: companyErr } = await table("corporate_companies").select("*").limit(1).maybeSingle();
+      note("Société", companyErr);
+      setCompany((companyData as CorporateCompany) ?? null);
 
-        if (inviteData && inviteData.length > 0) {
-          setInvitations(inviteData as any);
+      // 2. Membres, participations, plans de vesting
+      const [shRes, allocRes, vestRes] = await Promise.all([
+        table("corporate_shareholders").select("*").order("is_main_founder", { ascending: false }).order("created_at", { ascending: true }),
+        table("corporate_share_allocations").select("*"),
+        table("corporate_vesting_plans").select("*"),
+      ]);
+      note("Membres", shRes.error);
+      note("Participations", allocRes.error);
+      note("Vesting", vestRes.error);
+
+      const allocMap = new Map<string, any>((allocRes.data || []).map((a: any) => [a.shareholder_id, a]));
+      const vestingMap = new Map<string, any>((vestRes.data || []).map((v: any) => [v.shareholder_id, v]));
+      const combined: CorporateShareholder[] = (shRes.data || []).map((s: any) => ({
+        ...s,
+        allocation: allocMap.get(s.id),
+        vesting_plan: vestingMap.get(s.id),
+      }));
+      setShareholders(combined);
+
+      // 2b. Invitations : seules les lignes enregistrées comptent. Aucune invitation n'est déduite des membres.
+      const invRes = await table("corporate_invitations").select("*").order("created_at", { ascending: false });
+      if (invRes.error) {
+        if (isMissingTable(invRes.error)) {
+          setInvitationsAvailable(false);
+        } else {
+          note("Invitations", invRes.error);
         }
-      } catch (e) {
-        console.warn("Could not fetch corporate_invitations:", e);
+        setInvitations([]);
+      } else {
+        setInvitationsAvailable(true);
+        setInvitations((invRes.data as CorporateInvitation[]) || []);
       }
 
-      // 3. Fetch Documents & Merge with 10 Initial Foundational Docs
-      const { data: docsData } = await supabase
-        .from("corporate_documents" as any)
-        .select("*")
-        .order("created_at", { ascending: true });
+      // 3. Documents (la base est la seule source) + signatures
+      const [docsRes, accRes] = await Promise.all([
+        table("corporate_documents").select("*").order("created_at", { ascending: true }),
+        table("corporate_document_acceptances").select("*").eq("action", "approved").order("timestamp", { ascending: false }),
+      ]);
+      note("Documents", docsRes.error);
+      note("Signatures", accRes.error);
 
-      const dbDocsMap = new Map((docsData || []).map((d: any) => [d.id, d]));
-      
-      const mergedDocs: CorporateDocument[] = INITIAL_GOVERNANCE_DOCUMENTS.map((seed) => {
-        const existing = dbDocsMap.get(seed.id);
-        return {
-          id: seed.id,
-          title: existing?.title || seed.title,
-          category: seed.category,
-          legal_status: seed.legal_status,
-          summary: seed.summary,
-          author: seed.author,
-          is_mandatory: seed.is_mandatory,
-          target_roles: ["shareholder", "founder", "corporate_admin"],
-          current_version: existing?.current_version || seed.current_version,
-          storage_path: existing?.storage_path || null,
-          content_markdown: seed.content_markdown,
-          created_at: existing?.created_at || new Date().toISOString(),
-          updated_at: existing?.updated_at || new Date().toISOString(),
-          views_count: 1,
-          approvals_count: existing?.is_mandatory ? 1 : 0,
-        };
-      });
+      const acceptances = (accRes.data || []) as CorporateDocumentAcceptance[];
+      const mine = new Map<string, CorporateDocumentAcceptance>();
+      for (const a of acceptances) {
+        if (me && a.user_id === me.id && !mine.has(`${a.document_id}|${a.version}`)) mine.set(`${a.document_id}|${a.version}`, a);
+      }
 
-      (docsData || []).forEach((d: any) => {
-        if (!mergedDocs.some((m) => m.id === d.id)) {
-          mergedDocs.push({
-            id: d.id,
-            title: d.title,
-            category: d.category || "governance",
-            legal_status: "INTERNAL POLICY",
-            summary: d.title,
-            author: "Fondation Ecomfy",
-            is_mandatory: d.is_mandatory ?? true,
-            target_roles: ["shareholder"],
-            current_version: d.current_version || "v1.0",
-            storage_path: d.storage_path || null,
-            content_markdown: d.content_markdown || "",
-            created_at: d.created_at,
-            updated_at: d.updated_at,
-          });
-        }
-      });
+      setDocuments(
+        (docsRes.data || []).map((d: any): CorporateDocument => ({
+          id: d.id,
+          slug: d.slug ?? null,
+          title: d.title,
+          category: d.category,
+          legal_status: d.legal_status ?? undefined,
+          summary: d.summary ?? undefined,
+          author: d.author ?? undefined,
+          is_mandatory: d.is_mandatory ?? true,
+          target_roles: d.target_roles ?? [],
+          current_version: d.current_version,
+          storage_path: d.storage_path ?? null,
+          content_markdown: d.content_markdown ?? null,
+          created_at: d.created_at,
+          updated_at: d.updated_at,
+          approvals_count: countApprovers(acceptances, d.id, d.current_version),
+          user_acceptance: mine.get(`${d.id}|${d.current_version}`) ?? null,
+        })),
+      );
 
-      setDocuments(mergedDocs);
+      // 4. Propositions
+      const propRes = await table("corporate_proposals").select("*").order("created_at", { ascending: false });
+      note("Propositions", propRes.error);
+      setProposals((propRes.data as CorporateProposal[]) || []);
 
-      // 4. Fetch Proposals
-      const { data: propData } = await supabase
-        .from("corporate_proposals" as any)
-        .select("*")
-        .order("created_at", { ascending: false });
+      // 5. Propriété intellectuelle
+      const ipRes = await table("corporate_intellectual_property").select("*").order("created_at", { ascending: false });
+      note("Propriété intellectuelle", ipRes.error);
+      setIpAssets((ipRes.data as CorporateIPAsset[]) || []);
 
-      if (propData) setProposals(propData as any);
-
-      // 5. Fetch IP Assets
-      const { data: ipData } = await supabase
-        .from("corporate_intellectual_property" as any)
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (ipData) setIpAssets(ipData as any);
-
-      // 6. Fetch Audit Logs
-      const { data: logsData } = await supabase
-        .from("corporate_audit_logs" as any)
-        .select("*")
+      // 6. Journal d'audit : total exact + dernières lignes
+      const logsRes = await table("corporate_audit_logs")
+        .select("*", { count: "exact" })
         .order("timestamp", { ascending: false })
-        .limit(50);
+        .limit(AUDIT_PAGE);
+      note("Journal d'audit", logsRes.error);
+      setAuditLogs((logsRes.data as CorporateAuditLog[]) || []);
+      setAuditTotal(logsRes.count ?? (logsRes.data?.length || 0));
 
-      if (logsData) setAuditLogs(logsData as any);
-
+      // 6b. Consultations de l'utilisateur connecté
+      if (me) {
+        const viewRes = await table("corporate_audit_logs")
+          .select("entity_id")
+          .eq("user_id", me.id)
+          .eq("action", "DOCUMENT_VIEWED")
+          .eq("target_entity", "corporate_documents");
+        setViewedByMe(new Set(((viewRes.data || []) as Array<{ entity_id: string | null }>).map((r) => r.entity_id).filter(Boolean) as string[]));
+      } else {
+        setViewedByMe(new Set());
+      }
     } catch (err: any) {
       console.error("Error fetching corporate governance data:", err);
+      problems.push(err?.message ?? "erreur inattendue");
     } finally {
+      setLoadError(problems.length ? problems.join(" · ") : null);
       setLoading(false);
     }
   }, []);
@@ -184,35 +190,44 @@ export const useCorporateGovernance = () => {
     fetchCorporateData();
   }, [fetchCorporateData]);
 
-  // Log Audit Action Helper
-  const logAudit = async (action: string, targetEntity: string, entityId?: string, oldVals?: any, newVals?: any) => {
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData?.session?.user;
-      await supabase.from("corporate_audit_logs" as any).insert({
-        user_id: user?.id || null,
-        user_email: user?.email || "system",
-        action,
-        target_entity: targetEntity,
-        entity_id: entityId || null,
-        old_values: oldVals || null,
-        new_values: newVals || null,
-        ip_address: "127.0.0.1",
-        timestamp: new Date().toISOString(),
-      });
-    } catch (e) {
-      console.warn("Could not log corporate audit:", e);
+  /**
+   * Écrit une ligne dans le journal d'audit au nom de l'utilisateur connecté. L'adresse IP n'est pas
+   * connue du navigateur : elle reste vide plutôt que d'être inventée. Retourne false si l'écriture
+   * a échoué (le journal est en ajout seul : un échec ne doit pas passer inaperçu).
+   */
+  const logAudit = async (action: string, targetEntity: string, entityId?: string, oldVals?: unknown, newVals?: unknown): Promise<boolean> => {
+    const who = await getActor();
+    if (!who) {
+      console.warn(`Audit non écrit (${action}) : aucune session ouverte.`);
+      return false;
     }
+    const { error } = await table("corporate_audit_logs").insert({
+      user_id: who.id,
+      user_email: who.email,
+      action,
+      target_entity: targetEntity,
+      entity_id: entityId ?? null,
+      old_values: oldVals ?? null,
+      new_values: newVals ?? null,
+      ip_address: null,
+    });
+    if (error) {
+      console.warn(`Audit non écrit (${action}) :`, error.message);
+      return false;
+    }
+    return true;
   };
 
-  // Record document view event (VIEWED)
+  /** Consultation d'un document : une ligne par document et par session, seulement si elle est écrite pour de bon. */
   const recordDocumentView = async (documentId: string) => {
-    if (viewedDocs.has(documentId)) return;
-    setViewedDocs((prev) => new Set(prev).add(documentId));
-    await logAudit("DOCUMENT_VIEWED", "corporate_documents", documentId, null, { timestamp: new Date().toISOString() });
+    if (viewedThisSession.current.has(documentId)) return;
+    viewedThisSession.current.add(documentId);
+    const ok = await logAudit("DOCUMENT_VIEWED", "corporate_documents", documentId, null, { at: new Date().toISOString() });
+    if (ok) setViewedByMe((prev) => new Set(prev).add(documentId));
+    else viewedThisSession.current.delete(documentId);
   };
 
-  // Create new document (+ NOUVEAU DOCUMENT)
+  /** Crée un document (fondateur / cofondateur : la politique d'écriture refuse les autres). */
   const createDocument = async (payload: {
     title: string;
     category: any;
@@ -220,213 +235,226 @@ export const useCorporateGovernance = () => {
     summary: string;
     content_markdown: string;
     is_mandatory: boolean;
-  }) => {
+  }): Promise<CorporateDocument | undefined> => {
     try {
-      const newDoc: CorporateDocument = {
-        id: `doc-custom-${Date.now()}`,
-        title: payload.title,
-        category: payload.category,
-        legal_status: payload.legal_status,
-        summary: payload.summary,
-        author: "Ulrich DJATÉ YAPI (Fondateur)",
-        is_mandatory: payload.is_mandatory,
-        target_roles: ["shareholder", "founder"],
-        current_version: "v1.0",
-        storage_path: null,
-        content_markdown: payload.content_markdown,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        views_count: 0,
-        approvals_count: 0,
-      };
+      const who = await getActor();
+      if (!who) throw new Error("Connectez-vous pour créer un document.");
+      const me = shareholders.find((s) => s.user_id === who.id || s.email.toLowerCase() === who.email.toLowerCase());
 
-      try {
-        await supabase.from("corporate_documents" as any).insert({
+      const { data, error } = await table("corporate_documents")
+        .insert({
           title: payload.title,
           category: payload.category,
           is_mandatory: payload.is_mandatory,
           content_markdown: payload.content_markdown,
           current_version: "v1.0",
-        });
-      } catch (e) {
-        console.warn("DB insert fallback local state for corporate_documents", e);
+          legal_status: payload.legal_status ?? null,
+          summary: payload.summary || null,
+          author: me?.full_name ?? who.email,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        // Colonnes du seed absentes (migration 20261109100000 non appliquée) : on réessaie sans elles.
+        if (/legal_status|summary|author|column/i.test(error.message ?? "")) {
+          const retry = await table("corporate_documents")
+            .insert({
+              title: payload.title,
+              category: payload.category,
+              is_mandatory: payload.is_mandatory,
+              content_markdown: payload.content_markdown,
+              current_version: "v1.0",
+            })
+            .select()
+            .single();
+          if (retry.error) throw retry.error;
+          await logAudit("DOCUMENT_CREATED", "corporate_documents", retry.data.id, null, { title: payload.title });
+          toast({ title: "Document créé", description: `« ${payload.title} » a été ajouté au Centre documentaire.` });
+          await fetchCorporateData();
+          return retry.data as CorporateDocument;
+        }
+        throw error;
       }
 
-      setDocuments((prev) => [newDoc, ...prev]);
-      await logAudit("DOCUMENT_CREATED", "corporate_documents", newDoc.id, null, newDoc);
-
-      toast({
-        title: "✨ Nouveau document créé !",
-        description: `Le document "${payload.title}" a été ajouté au Centre Documentaire.`,
-      });
-
-      return newDoc;
+      await logAudit("DOCUMENT_CREATED", "corporate_documents", data.id, null, { title: payload.title, category: payload.category });
+      toast({ title: "Document créé", description: `« ${payload.title} » a été ajouté au Centre documentaire.` });
+      await fetchCorporateData();
+      return data as CorporateDocument;
     } catch (err: any) {
       toast({
-        title: "Erreur de création",
-        description: err?.message || "Impossible de créer le document",
+        title: "Création impossible",
+        description: err?.message || "Le document n'a pas pu être enregistré.",
         variant: "destructive",
       });
     }
   };
 
-  // Submit Cap Table Change Proposal
+  /** Dépose une proposition de changement de cap table au nom de l'utilisateur connecté. */
   const createProposal = async (payload: {
     title: string;
     beneficiary_shareholder_id: string;
     proposed_percentage: number;
     rationale: string;
-    proposed_by: string;
   }) => {
     try {
-      const beneficiary = shareholders.find(s => s.id === payload.beneficiary_shareholder_id);
-      const currentPct = beneficiary?.allocation?.target_percentage || 0;
-      const totalShares = company?.total_authorized_shares || 1000000;
-      const currentShares = (currentPct / 100) * totalShares;
-      const proposedShares = (payload.proposed_percentage / 100) * totalShares;
+      const who = await getActor();
+      if (!who) throw new Error("Connectez-vous pour déposer une proposition.");
+      if (!company) throw new Error("Capital de référence introuvable : la société n'est pas enregistrée.");
 
-      const { data, error } = await supabase.from("corporate_proposals" as any).insert({
-        title: payload.title,
-        beneficiary_shareholder_id: payload.beneficiary_shareholder_id,
-        proposed_by: payload.proposed_by,
-        current_percentage: currentPct,
-        proposed_percentage: payload.proposed_percentage,
-        current_shares: currentShares,
-        proposed_shares: proposedShares,
-        rationale: payload.rationale,
-        status: "proposed",
-      }).select().single();
+      const beneficiary = shareholders.find((s) => s.id === payload.beneficiary_shareholder_id);
+      if (!beneficiary) throw new Error("Bénéficiaire introuvable.");
 
+      const room = checkAllocationRoom(shareholders, beneficiary.id, payload.proposed_percentage);
+      if (!room.ok) {
+        throw new Error(
+          `La participation proposée doit être comprise entre 0 et ${room.maxPct} % (les autres membres détiennent déjà ${room.othersPct} %).`,
+        );
+      }
+
+      const totalShares = Number(company.total_authorized_shares);
+      const currentPct = Number(beneficiary.allocation?.target_percentage ?? 0);
+
+      const { data, error } = await table("corporate_proposals")
+        .insert({
+          title: payload.title,
+          beneficiary_shareholder_id: beneficiary.id,
+          proposed_by: who.id,
+          current_percentage: currentPct,
+          proposed_percentage: payload.proposed_percentage,
+          current_shares: sharesForPercentage(currentPct, totalShares),
+          proposed_shares: sharesForPercentage(payload.proposed_percentage, totalShares),
+          rationale: payload.rationale,
+          status: "proposed",
+        })
+        .select()
+        .single();
       if (error) throw error;
 
-      await logAudit("PROPOSAL_CREATED", "corporate_proposals", (data as any)?.id, null, data);
-
-      toast({
-        title: "Proposal créée",
-        description: "La proposition d'attribution a été soumise au workflow de validation.",
+      await logAudit("PROPOSAL_CREATED", "corporate_proposals", data.id, null, {
+        beneficiary: beneficiary.email,
+        from: currentPct,
+        to: payload.proposed_percentage,
       });
-
-      fetchCorporateData();
+      toast({ title: "Proposition enregistrée", description: "Elle est soumise au workflow de validation." });
+      await fetchCorporateData();
       return data;
     } catch (err: any) {
       toast({
-        title: "Erreur proposal",
-        description: err?.message || "Impossible de créer la proposition",
+        title: "Proposition refusée",
+        description: err?.message || "La proposition n'a pas pu être enregistrée.",
         variant: "destructive",
       });
       throw err;
     }
   };
 
-  // Advance Proposal Workflow Status (9 Steps)
+  /** Fait avancer une proposition. Au passage « cap_table_updated », la participation est réellement modifiée. */
   const updateProposalStatus = async (proposalId: string, nextStatus: string, legalDocPath?: string) => {
     try {
-      const currentProp = proposals.find(p => p.id === proposalId);
-      const updateData: any = { status: nextStatus, updated_at: new Date().toISOString() };
+      const currentProp = proposals.find((p) => p.id === proposalId);
+      if (!currentProp) throw new Error("Proposition introuvable.");
+      const updateData: Record<string, unknown> = { status: nextStatus, updated_at: new Date().toISOString() };
       if (legalDocPath) updateData.legal_document_path = legalDocPath;
 
-      const { error } = await supabase
-        .from("corporate_proposals" as any)
-        .update(updateData)
-        .eq("id", proposalId);
-
+      const { error } = await table("corporate_proposals").update(updateData).eq("id", proposalId);
       if (error) throw error;
 
-      if (nextStatus === "cap_table_updated" && currentProp) {
-        if (currentProp.beneficiary_shareholder_id) {
-          const totalShares = company?.total_authorized_shares || 1000000;
-          const newShares = (currentProp.proposed_percentage / 100) * totalShares;
+      if (nextStatus === "cap_table_updated" && currentProp.beneficiary_shareholder_id) {
+        if (!company) throw new Error("Capital de référence introuvable.");
+        const newShares = sharesForPercentage(Number(currentProp.proposed_percentage), Number(company.total_authorized_shares));
+        const { error: allocErr } = await table("corporate_share_allocations")
+          .update({
+            target_percentage: currentProp.proposed_percentage,
+            target_shares: newShares,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("shareholder_id", currentProp.beneficiary_shareholder_id);
+        if (allocErr) throw allocErr;
 
-          await supabase
-            .from("corporate_share_allocations" as any)
-            .update({
-              target_percentage: currentProp.proposed_percentage,
-              target_shares: newShares,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("shareholder_id", currentProp.beneficiary_shareholder_id);
-        }
-
-        await supabase.from("corporate_cap_table_snapshots" as any).insert({
+        const { error: snapErr } = await table("corporate_cap_table_snapshots").insert({
           proposal_id: proposalId,
           snapshot_data: { shareholders, company },
-          total_shares: company?.total_authorized_shares || 1000000,
-          reason: `Approbation formelle proposition: ${currentProp.title}`,
+          total_shares: company.total_authorized_shares,
+          reason: `Approbation formelle proposition : ${currentProp.title}`,
+          created_by: (await getActor())?.id ?? null,
         });
+        if (snapErr) throw snapErr;
       }
 
-      await logAudit(`PROPOSAL_${nextStatus.toUpperCase()}`, "corporate_proposals", proposalId, { status: currentProp?.status }, { status: nextStatus });
-
-      toast({
-        title: "Statut mis à jour",
-        description: `La proposition est maintenant au statut : ${nextStatus}`,
-      });
-
-      fetchCorporateData();
+      await logAudit(`PROPOSAL_${nextStatus.toUpperCase()}`, "corporate_proposals", proposalId, { status: currentProp.status }, { status: nextStatus });
+      toast({ title: "Statut mis à jour", description: `La proposition est maintenant au statut : ${nextStatus}` });
+      await fetchCorporateData();
     } catch (err: any) {
       toast({
-        title: "Erreur de mise à jour",
+        title: "Mise à jour impossible",
         description: err?.message || "Échec de l'avancement du workflow",
         variant: "destructive",
       });
     }
   };
 
-  // Sign & Approve Document
-  const approveDocument = async (documentId: string, version: string, legalStatement: string) => {
+  /**
+   * Signature électronique d'un document par l'utilisateur connecté. La ligne est écrite en base ;
+   * le succès n'est annoncé qu'une fois l'écriture confirmée. Retourne true si la signature est enregistrée.
+   */
+  const approveDocument = async (documentId: string, version: string, legalStatement: string): Promise<boolean> => {
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData?.session?.user;
-      
-      const userId = user?.id || "anon-user";
-      const userEmail = user?.email || "associe@ecomfy.cloud";
+      const who = await getActor();
+      if (!who) throw new Error("Connectez-vous pour signer ce document.");
 
-      try {
-        await supabase.from("corporate_document_acceptances" as any).insert({
-          document_id: documentId,
-          version,
-          user_id: userId,
-          email: userEmail,
-          action: "approved",
-          legal_statement: legalStatement,
-          ip_address: "127.0.0.1",
-          user_agent: navigator.userAgent,
-          timestamp: new Date().toISOString(),
-        });
-      } catch (e) {
-        console.warn("Acceptance insert fallback to audit log", e);
+      const doc = documents.find((d) => d.id === documentId);
+      if (doc?.user_acceptance && doc.current_version === version) {
+        toast({ title: "Déjà signé", description: "Votre signature de cette version est déjà enregistrée." });
+        return true;
       }
 
-      setDocuments((prev) =>
-        prev.map((d) => (d.id === documentId ? { ...d, user_viewed: true, user_acceptance: { id: `acc-${Date.now()}`, document_id: documentId, version, user_id: userId, email: userEmail, action: "approved", legal_statement: legalStatement, ip_address: "127.0.0.1", user_agent: navigator.userAgent, timestamp: new Date().toISOString() } } : d))
-      );
-
-      await logAudit("DOCUMENT_APPROVED", "corporate_documents", documentId, null, { version, user_email: userEmail });
-
-      toast({
-        title: "✨ Document approuvé !",
-        description: "Votre signature et déclaration d'engagement ont été enregistrées avec succès.",
+      const { error } = await table("corporate_document_acceptances").insert({
+        document_id: documentId,
+        version,
+        user_id: who.id,
+        email: who.email,
+        action: "approved",
+        legal_statement: legalStatement,
+        ip_address: null,
+        user_agent: navigator.userAgent,
       });
+      if (error) throw error;
 
-      fetchCorporateData();
+      const audited = await logAudit("DOCUMENT_APPROVED", "corporate_documents", documentId, null, { version, user_email: who.email });
+      toast({
+        title: "Document approuvé",
+        description: audited
+          ? "Votre signature a été enregistrée."
+          : "Votre signature est enregistrée, mais la ligne du journal d'audit n'a pas pu être écrite.",
+      });
+      await fetchCorporateData();
+      return true;
     } catch (err: any) {
       toast({
-        title: "Erreur d'approbation",
-        description: err?.message || "Impossible d'enregistrer votre signature",
+        title: "Signature non enregistrée",
+        description: err?.message || "Impossible d'enregistrer votre signature.",
         variant: "destructive",
       });
+      return false;
     }
   };
 
   return {
     loading,
+    loadError,
+    actor,
+    canWrite,
     company,
     shareholders,
     invitations,
+    invitationsAvailable,
     documents,
     proposals,
     ipAssets,
     auditLogs,
+    auditTotal,
+    viewedByMe,
     fetchCorporateData,
     recordDocumentView,
     createDocument,
@@ -436,5 +464,3 @@ export const useCorporateGovernance = () => {
     logAudit,
   };
 };
-
-

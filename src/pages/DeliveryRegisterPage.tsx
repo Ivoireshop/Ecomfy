@@ -1,8 +1,43 @@
-import React from "react";
-import { Truck, ShieldCheck } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { RefreshCw, Truck, ShieldCheck } from "lucide-react";
 import { DeliveryOnboardingWizard } from "@/components/delivery/DeliveryOnboardingWizard";
+import { deliveryService } from "@/lib/deliveryService";
 
 export default function DeliveryRegisterPage() {
+  const navigate = useNavigate();
+  const [checking, setChecking] = useState(true);
+
+  // Un compte = un dossier : quelqu'un qui a déjà déposé sa demande va sur le suivi de celle-ci, pas sur un formulaire vide.
+  useEffect(() => {
+    let active = true;
+    deliveryService
+      .getMyCompany()
+      .then((company) => {
+        if (!active) return;
+        if (company) navigate("/delivery/status", { replace: true });
+        else setChecking(false);
+      })
+      .catch(() => {
+        // Lecture impossible : on garde le formulaire, le serveur refuse de toute façon un second dossier.
+        if (active) setChecking(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [navigate]);
+
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <RefreshCw className="w-8 h-8 text-emerald-400 animate-spin" />
+          <p className="text-slate-400 text-sm">Recherche de votre dossier…</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 py-10 px-4 sm:px-6 lg:px-8 font-sans">
       {/* Header Banner */}

@@ -5,7 +5,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { GENIUSPAY_API_URL } from "../_shared/geniuspayConfig.ts";
-import { checkAmount } from "../_shared/pricing.ts";
+import { checkAmount, planPricesFromRows, type PlanPrices } from "../_shared/pricing.ts";
 import { APP_URL } from "../_shared/email-sender.ts";
 
 const corsHeaders = {
@@ -236,8 +236,34 @@ serve(async (req) => {
         || ["STORE_RESTRICTED", "locked", "PAYMENT_OVERDUE", "final_suspension"].includes(commissionShop.shop_payment_status || "");
     }
 
+    // Prix des plans réglés par le fondateur (table subscription_plans, plans actifs). Table absente (migration pas
+    // encore appliquée) : repli sur les tarifs de _shared/pricing.ts. Toute autre erreur : on refuse plutôt que de
+    // valider un montant contre des tarifs peut-être périmés.
+    let planPrices: PlanPrices | null = null;
+    let planName: string | null = null;
+    if (payment_type === "shop_subscription" || payment_type === "subscription") {
+      const { data: planRows, error: planRowsError } = await supabase
+        .from("subscription_plans")
+        .select("code, name, price_monthly, price_annual")
+        .eq("is_active", true);
+      if (planRowsError) {
+        const missingTable = planRowsError.code === "42P01" || planRowsError.code === "PGRST205";
+        if (!missingTable) {
+          console.error("subscription_plans unreadable:", planRowsError);
+          return new Response(
+            JSON.stringify({ success: false, error: "Tarifs momentanément indisponibles. Réessayez dans un instant." }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      } else {
+        planPrices = planPricesFromRows(planRows);
+        const wanted = plan || (payment_type === "subscription" ? "pro_monthly" : "starter");
+        planName = (planRows || []).find((p: { code?: string; name?: string }) => p.code === wanted)?.name ?? null;
+      }
+    }
+
     const priceCheck = checkAmount(
-      { paymentType: payment_type, plan, billingCycle: billing_cycle, creditsPack: credits_pack, commissionBalanceDue, commissionRequireFull },
+      { paymentType: payment_type, plan, billingCycle: billing_cycle, planPrices, creditsPack: credits_pack, commissionBalanceDue, commissionRequireFull },
       amount,
     );
     if (!priceCheck.ok) {
@@ -478,7 +504,7 @@ serve(async (req) => {
       : payment_type === 'commission_payment'
         ? "Règlement commission Ecomfy"
         : payment_type === 'shop_subscription'
-          ? `Abonnement Boutique ${plan === 'business' ? 'Business' : plan === 'premium' ? 'Premium' : 'Starter'} - Ecomfy`
+          ? `Abonnement Boutique ${planName ?? (plan === 'business' ? 'Business' : plan === 'premium' ? 'Premium' : 'Starter')} - Ecomfy`
           : payment_type === 'credits' && credits_pack
             ? `Achat de ${credits_pack.size} crédits - Ecomfy`
             : "Abonnement Ecomfy";
@@ -524,6 +550,10 @@ serve(async (req) => {
     const verifiedShopId = payment_type === "shop_subscription" ? targetShopId : shop_id;
     if (verifiedShopId) metadata.shop_id = verifiedShopId;
     if (plan) metadata.plan = plan;
+    // Cycle de facturation (mensuel/annuel) : apply_shop_subscription s'en sert pour la durée, plutôt que de la
+    // deviner d'après le montant (les prix sont désormais modifiables).
+    if (billing_cycle === "monthly" || billing_cycle === "annual") metadata.billing_cycle = billing_cycle;
+    else if (payment_type === "shop_subscription" || payment_type === "subscription") metadata.billing_cycle = "monthly";
     if (promoCodeId) metadata.promo_code_id = promoCodeId;
     if (discountPercentage) metadata.discount_percentage = discountPercentage;
 

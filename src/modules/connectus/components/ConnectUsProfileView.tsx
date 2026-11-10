@@ -1,17 +1,16 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
 import { ConnectUsProfile, ConnectUsPost } from "../types/connectus.types";
-import { Button } from "@/components/ui/button";
+import { Button } from "./CUButton";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { readFileAsDataUrl } from "../utils/fileUploader";
+import { ConnectUsService } from "../services/connectus.service";
 import { formatExternalUrl } from "../utils/linkScraper";
 import {
-  MapPin, Link2, Store, CheckCircle2, Users, Grid, ShoppingBag, Edit3, Save, X, Globe, ShieldCheck, Camera, MessageCircle, Upload
+  MapPin, Link2, Store, CheckCircle2, Grid, ShoppingBag, Edit3, Save, Camera, MessageCircle, Upload
 } from "lucide-react";
-import { PostCard } from "./PostCard";
 import { toast } from "@/hooks/use-toast";
 
 interface ConnectUsProfileViewProps {
@@ -21,8 +20,9 @@ interface ConnectUsProfileViewProps {
   onToggleFollow?: (targetUserId: string) => void;
   isFollowing?: boolean;
   onOpenDirectMessage?: (targetUser: ConnectUsProfile) => void;
-  onUpdateProfile?: (updatedData: Partial<ConnectUsProfile>) => void | Promise<any>;
-  onDeletePost?: (postId: string) => void;
+  onUpdateProfile?: (updatedData: Partial<ConnectUsProfile>) => Promise<ConnectUsProfile | null>;
+  renderPost: (post: ConnectUsPost) => ReactNode;
+  loadingPosts?: boolean;
 }
 
 export function ConnectUsProfileView({
@@ -33,7 +33,8 @@ export function ConnectUsProfileView({
   isFollowing = false,
   onOpenDirectMessage,
   onUpdateProfile,
-  onDeletePost,
+  renderPost,
+  loadingPosts = false,
 }: ConnectUsProfileViewProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [fullName, setFullName] = useState(profile?.full_name || "");
@@ -42,7 +43,7 @@ export function ConnectUsProfileView({
   const [location, setLocation] = useState(profile?.location || "");
   const [websiteUrl, setWebsiteUrl] = useState(profile?.website_url || "");
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || "");
-  const [coverUrl, setCoverUrl] = useState(profile?.cover_url || "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&auto=format&fit=crop&q=80");
+  const [coverUrl, setCoverUrl] = useState(profile?.cover_url || "");
   const [showShopOnProfile, setShowShopOnProfile] = useState<boolean>(profile?.show_shop_on_profile || false);
   const [activeSubTab, setActiveSubTab] = useState<"posts" | "products">("posts");
 
@@ -58,52 +59,30 @@ export function ConnectUsProfileView({
       setLocation(profile.location || "");
       setWebsiteUrl(profile.website_url || "");
       setAvatarUrl(profile.avatar_url || "");
-      setCoverUrl(profile.cover_url || "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&auto=format&fit=crop&q=80");
+      setCoverUrl(profile.cover_url || "");
       setShowShopOnProfile(profile.show_shop_on_profile || false);
     }
   }, [profile]);
 
-  const isOwnProfile = Boolean(
-    !currentUserId ||
-    currentUserId === profile.user_id ||
-    currentUserId === profile.id ||
-    profile.user_id === "guest_visitor" ||
-    profile.id === "guest_visitor" ||
-    currentUserId === "guest_visitor"
-  );
-  
-  const userPosts = posts.filter(p => p.user_id === profile.user_id || p.author.id === profile.id);
-  const productPosts = userPosts.filter(p => !!p.attached_product);
+  const isOwnProfile = Boolean(currentUserId && currentUserId === profile.user_id);
 
-  const handleAvatarFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const userPosts = posts;
+  const productPosts = userPosts.filter((p) => !!p.attached_product);
+
+  const uploadAndSave = (field: "avatar_url" | "cover_url", setter: (url: string) => void) => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    e.target.value = "";
+    if (!file || !onUpdateProfile) return;
     try {
-      const dataUrl = await readFileAsDataUrl(file);
-      setAvatarUrl(dataUrl);
-      if (onUpdateProfile) {
-        await onUpdateProfile({ avatar_url: dataUrl });
-      }
-      toast({ title: "Photo de profil mise à jour et enregistrée ! ✓" });
+      const url = await ConnectUsService.uploadMedia(profile.user_id, file);
+      const saved = await onUpdateProfile({ [field]: url });
+      if (saved) setter(url);
     } catch (err) {
-      toast({ title: "Erreur lors de l'importation de la photo", variant: "destructive" });
+      toast({ title: "Image non enregistrée", description: err instanceof Error ? err.message : "Réessayez.", variant: "destructive" });
     }
   };
-
-  const handleCoverFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const dataUrl = await readFileAsDataUrl(file);
-      setCoverUrl(dataUrl);
-      if (onUpdateProfile) {
-        await onUpdateProfile({ cover_url: dataUrl });
-      }
-      toast({ title: "Photo de couverture mise à jour et enregistrée ! ✓" });
-    } catch (err) {
-      toast({ title: "Erreur lors de l'importation de la couverture", variant: "destructive" });
-    }
-  };
+  const handleAvatarFileSelect = uploadAndSave("avatar_url", setAvatarUrl);
+  const handleCoverFileSelect = uploadAndSave("cover_url", setCoverUrl);
 
   const handleSaveProfile = async () => {
     const updated: Partial<ConnectUsProfile> = {
@@ -117,14 +96,9 @@ export function ConnectUsProfileView({
       show_shop_on_profile: showShopOnProfile,
     };
 
-    if (onUpdateProfile) {
-      await onUpdateProfile(updated);
-    } else {
-      Object.assign(profile, updated);
-    }
-
-    setIsEditing(false);
-    toast({ title: "Profil ConnectUs enregistré et conservé avec succès ✓" });
+    if (!onUpdateProfile) return;
+    const saved = await onUpdateProfile(updated);
+    if (saved) setIsEditing(false);
   };
 
   return (
@@ -132,7 +106,7 @@ export function ConnectUsProfileView({
       {/* Cover Banner & Avatar Header */}
       <Card className="rounded-3xl overflow-hidden border border-slate-200 shadow-sm bg-white">
         <div className="h-44 sm:h-56 w-full bg-gradient-to-r from-[#0E7C66] via-teal-600 to-emerald-700 relative">
-          <img src={coverUrl} alt="" className="h-full w-full object-cover opacity-90" />
+          {coverUrl && <img src={coverUrl} alt="" className="h-full w-full object-cover opacity-90" />}
           <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent" />
           
           {isOwnProfile && (
@@ -204,13 +178,6 @@ export function ConnectUsProfileView({
               {isOwnProfile ? (
                 <>
                   <Button
-                    onClick={() => avatarInputRef.current?.click()}
-                    variant="outline"
-                    className="rounded-full border-slate-300 font-bold text-xs h-10 px-4 gap-1.5"
-                  >
-                    <Upload className="h-4 w-4 text-[#0E7C66]" /> Importer Photo
-                  </Button>
-                  <Button
                     onClick={() => setIsEditing(!isEditing)}
                     variant="outline"
                     className="rounded-full border-slate-300 font-bold text-xs h-10 px-5 gap-1.5 flex-1 sm:flex-none"
@@ -222,7 +189,7 @@ export function ConnectUsProfileView({
                 <>
                   {onToggleFollow && (
                     <Button
-                      onClick={() => onToggleFollow(profile.id)}
+                      onClick={() => onToggleFollow(profile.user_id)}
                       className={`rounded-full font-bold text-xs h-10 px-6 flex-1 sm:flex-none ${
                         isFollowing ? "bg-slate-200 text-slate-800 hover:bg-slate-300" : "bg-[#0E7C66] hover:bg-[#0A6352] text-white shadow-md"
                       }`}
@@ -231,13 +198,7 @@ export function ConnectUsProfileView({
                     </Button>
                   )}
                   <Button
-                    onClick={() => {
-                      if (onOpenDirectMessage) {
-                        onOpenDirectMessage(profile);
-                      } else {
-                        toast({ title: "Messagerie Privée Ecomfy 💬", description: `Ouverture du chat avec ${profile.full_name || profile.username}.` });
-                      }
-                    }}
+                    onClick={() => onOpenDirectMessage?.(profile)}
                     variant="outline"
                     className="rounded-full border-slate-300 text-slate-700 font-bold text-xs h-10 px-5 gap-1.5 hover:border-[#0E7C66] hover:text-[#0E7C66]"
                   >
@@ -314,28 +275,28 @@ export function ConnectUsProfileView({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <Label className="text-[11px] font-bold text-slate-700">Nom Complet :</Label>
-                    <Input value={fullName} onChange={(e) => setFullName(e.target.value)} className="text-xs rounded-xl h-9 bg-white" />
+                    <Label htmlFor="pf-name" className="text-[11px] font-bold text-slate-700">Nom complet</Label>
+                    <Input id="pf-name" maxLength={80} value={fullName} onChange={(e) => setFullName(e.target.value)} className="text-xs rounded-xl h-9 bg-white" />
                   </div>
                   <div>
-                    <Label className="text-[11px] font-bold text-slate-700">Nom d'utilisateur (@username) :</Label>
-                    <Input value={username} onChange={(e) => setUsername(e.target.value)} className="text-xs rounded-xl h-9 bg-white" />
+                    <Label htmlFor="pf-username" className="text-[11px] font-bold text-slate-700">Identifiant (@)</Label>
+                    <Input id="pf-username" value={username} maxLength={30} onChange={(e) => setUsername(e.target.value.toLowerCase())} className="text-xs rounded-xl h-9 bg-white" />
                   </div>
                 </div>
 
                 <div>
-                  <Label className="text-[11px] font-bold text-slate-700">Biographie :</Label>
-                  <Textarea value={bio} onChange={(e) => setBio(e.target.value)} className="text-xs rounded-xl bg-white min-h-[60px]" />
+                  <Label htmlFor="pf-bio" className="text-[11px] font-bold text-slate-700">Biographie</Label>
+                  <Textarea id="pf-bio" maxLength={300} value={bio} onChange={(e) => setBio(e.target.value)} className="text-xs rounded-xl bg-white min-h-[60px]" />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <Label className="text-[11px] font-bold text-slate-700">Localisation :</Label>
-                    <Input value={location} onChange={(e) => setLocation(e.target.value)} className="text-xs rounded-xl h-9 bg-white" />
+                    <Label htmlFor="pf-location" className="text-[11px] font-bold text-slate-700">Localisation</Label>
+                    <Input id="pf-location" value={location} onChange={(e) => setLocation(e.target.value)} className="text-xs rounded-xl h-9 bg-white" />
                   </div>
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <Label className="text-[11px] font-bold text-slate-700">Lien Web / Boutique / Produit :</Label>
+                      <Label htmlFor="pf-website" className="text-[11px] font-bold text-slate-700">Site web ou boutique</Label>
                       {websiteUrl && (
                         <button
                           type="button"
@@ -347,6 +308,7 @@ export function ConnectUsProfileView({
                       )}
                     </div>
                     <Input
+                      id="pf-website"
                       value={websiteUrl}
                       onChange={(e) => setWebsiteUrl(e.target.value)}
                       placeholder="https://votre-boutique.ecomfy.cloud ou lien de produit"
@@ -362,22 +324,6 @@ export function ConnectUsProfileView({
                           className="h-7 text-[10px] font-bold rounded-lg border-amber-300 text-amber-900 bg-amber-50 hover:bg-amber-100 gap-1"
                         >
                           <Store className="h-3 w-3 text-amber-600" /> Insérer ma Boutique
-                        </Button>
-                      )}
-                      {profile.shop_slug && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const prodUrl = prompt("Saisissez le nom ou lien direct de votre produit :");
-                            if (prodUrl) {
-                              setWebsiteUrl(prodUrl.startsWith("http") ? prodUrl : `https://ecomfy.cloud/shop/${profile.shop_slug}?product=${encodeURIComponent(prodUrl)}`);
-                            }
-                          }}
-                          className="h-7 text-[10px] font-bold rounded-lg border-emerald-300 text-emerald-900 bg-emerald-50 hover:bg-emerald-100 gap-1"
-                        >
-                          <ShoppingBag className="h-3 w-3 text-emerald-600" /> Insérer Fiche Produit
                         </Button>
                       )}
                     </div>
@@ -442,7 +388,7 @@ export function ConnectUsProfileView({
             {/* Stats Row */}
             <div className="flex items-center gap-6 pt-4 border-t border-slate-100 text-slate-900 font-space">
               <div>
-                <span className="text-lg font-extrabold">{userPosts.length}</span>
+                <span className="text-lg font-extrabold">{profile.posts_count}</span>
                 <span className="text-xs text-slate-500 block">Publications</span>
               </div>
               <div className="border-l border-slate-200 pl-6">
@@ -467,7 +413,7 @@ export function ConnectUsProfileView({
               activeSubTab === "posts" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
             }`}
           >
-            <Grid className="h-4 w-4" /> Publications ({userPosts.length})
+            <Grid className="h-4 w-4" /> Publications ({profile.posts_count})
           </button>
           <button
             onClick={() => setActiveSubTab("products")}
@@ -481,17 +427,9 @@ export function ConnectUsProfileView({
 
         {activeSubTab === "posts" ? (
           userPosts.length > 0 ? (
-            <div className="space-y-4">
-              {userPosts.map(p => (
-                <PostCard
-                  key={p.id}
-                  post={p}
-                  currentUserId={currentUserId}
-                  onToggleReaction={() => {}}
-                  onDeletePost={onDeletePost}
-                />
-              ))}
-            </div>
+            <div className="space-y-4">{userPosts.map((p) => renderPost(p))}</div>
+          ) : loadingPosts ? (
+            <Card className="p-10 text-center text-slate-500 text-xs">Chargement des publications…</Card>
           ) : (
             <Card className="p-10 text-center text-slate-500 text-xs">
               Aucune publication sur ce profil pour l'instant.
@@ -499,17 +437,7 @@ export function ConnectUsProfileView({
           )
         ) : (
           productPosts.length > 0 ? (
-            <div className="space-y-4">
-              {productPosts.map(p => (
-                <PostCard
-                  key={p.id}
-                  post={p}
-                  currentUserId={currentUserId}
-                  onToggleReaction={() => {}}
-                  onDeletePost={onDeletePost}
-                />
-              ))}
-            </div>
+            <div className="space-y-4">{productPosts.map((p) => renderPost(p))}</div>
           ) : (
             <Card className="p-10 text-center text-slate-500 text-xs">
               Aucun produit e-commerce rattaché dans les publications de ce profil.

@@ -5,6 +5,8 @@ import { formatRemaining, supportWhatsappLink, type ShopPaymentInfo } from "@/li
 import { PayCommissionDialog } from "./PayCommissionDialog";
 import { startShopSubscriptionPayment } from "@/lib/shopSubscription";
 import { toast } from "@/hooks/use-toast";
+import { useBillingSettings, useMyShopCoverage, useInvalidateBillingConfig } from "@/hooks/useSubscriptionPlans";
+import { releaseShopToCommission } from "@/lib/subscriptionPlans";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.max(0, Math.round(n)));
 
@@ -18,6 +20,14 @@ export function ShopPaymentGate({ shopId, info, children }: Props) {
   const [now, setNow] = useState(() => Date.now());
   const [payOpen, setPayOpen] = useState(false);
   const [renewing, setRenewing] = useState(false);
+  const [releasing, setReleasing] = useState(false);
+  const { settings } = useBillingSettings();
+  const locked = info.status === "locked" || info.status === "final_suspension";
+  const { coverage } = useMyShopCoverage(locked && info.isSubscriptionLock);
+  const invalidateBillingConfig = useInvalidateBillingConfig();
+  // Boutique fermée pour abonnement échu mais hors des boutiques incluses du plan (limite réduite depuis) :
+  // renouveler ne la couvrirait pas, elle repasse à la commission.
+  const outsidePlan = coverage?.shops?.find((s) => s.id === shopId)?.within_plan === false;
 
   useEffect(() => {
     if (info.status !== "locked" && info.status !== "final_suspension") return;
@@ -40,6 +50,17 @@ export function ShopPaymentGate({ shopId, info, children }: Props) {
         setRenewing(false);
       }
     };
+    const release = async () => {
+      setReleasing(true);
+      try {
+        await releaseShopToCommission(shopId);
+        invalidateBillingConfig();
+        window.location.reload();
+      } catch (e) {
+        toast({ title: "Action impossible", description: e instanceof Error ? e.message : "Réessayez dans un instant.", variant: "destructive" });
+        setReleasing(false);
+      }
+    };
     const expiredOn = sub.activeUntil?.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
     const waMsg = "Bonjour Ecomfy, mon abonnement a expiré et ma boutique est fermée. Je souhaite la rouvrir.";
     return (
@@ -57,7 +78,18 @@ export function ShopPaymentGate({ shopId, info, children }: Props) {
                 {expiredOn ? <> le <span className="font-semibold">{expiredOn}</span></> : null}. L'espace de gestion de votre boutique
                 est fermé tant que l'abonnement n'est pas renouvelé. Votre boutique publique reste visible et vos clients peuvent toujours commander.
               </p>
-              {sub.renewalAmount ? (
+              {outsidePlan ? (
+                <>
+                  <p className="text-sm rounded-lg bg-amber-50 border border-amber-200 p-3 text-amber-900">
+                    Le plan de votre compte n'inclut plus cette boutique : un renouvellement ne la couvrirait pas. Elle peut continuer
+                    à vendre avec la commission de {fmt(settings.commission_per_order)} FCFA par commande.
+                  </p>
+                  <Button size="lg" onClick={release} disabled={releasing} className="w-full gap-2 bg-red-600 hover:bg-red-700 text-white">
+                    {releasing ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+                    Rouvrir avec la commission de {fmt(settings.commission_per_order)} FCFA
+                  </Button>
+                </>
+              ) : sub.renewalAmount ? (
                 <Button size="lg" onClick={renew} disabled={renewing} className="w-full gap-2 bg-red-600 hover:bg-red-700 text-white">
                   {renewing ? <Loader2 className="h-5 w-5 animate-spin" /> : <RefreshCw className="h-5 w-5" />}
                   Renouveler pour {fmt(sub.renewalAmount)} FCFA
@@ -70,7 +102,7 @@ export function ShopPaymentGate({ shopId, info, children }: Props) {
                 </a>
               </Button>
               <p className="text-[11px] text-center text-gray-500">
-                Le renouvellement rouvre votre boutique dès la confirmation du paiement et vous évite la commission de 50 FCFA par commande.
+                Le renouvellement rouvre votre boutique dès la confirmation du paiement et vous évite la commission de {fmt(settings.commission_per_order)} FCFA par commande.
               </p>
             </div>
           </div>
@@ -113,7 +145,7 @@ export function ShopPaymentGate({ shopId, info, children }: Props) {
               <>
                 <p className="text-sm">
                   Votre boutique est actuellement verrouillée. Un <span className="font-semibold">dernier délai de 2 jours</span> vous a été accordé pour effectuer le paiement de{" "}
-                  <span className="font-bold text-red-600">{fmt(info.amountDue > 0 ? info.amountDue : 12000)} FCFA</span>.
+                  <span className="font-bold text-red-600">{fmt(info.amountDue > 0 ? info.amountDue : settings.commission_threshold)} FCFA</span>.
                 </p>
                 {extraExpired ? (
                   <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-center">

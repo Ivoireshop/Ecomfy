@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, RefreshCw, ShieldCheck, Lock, AlertOctagon, Clock, Search, CalendarClock } from "lucide-react";
 import { formatRemaining, computeShopPaymentInfo } from "@/lib/shopPaymentStatus";
+import { useBillingSettings } from "@/hooks/useSubscriptionPlans";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.max(0, Math.round(n)));
 
@@ -21,6 +22,7 @@ const STATUS_META: Record<string, { label: string; icon: any; className: string 
 
 export default function ShopPaymentControl() {
   const navigate = useNavigate();
+  const { settings: billingSettings } = useBillingSettings();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<any[]>([]);
   const [q, setQ] = useState("");
@@ -112,7 +114,7 @@ export default function ShopPaymentControl() {
         <Button variant="ghost" size="icon" onClick={() => navigate("/founder")}><ArrowLeft className="h-5 w-5" /></Button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold">Contrôle de paiement des boutiques</h1>
-          <p className="text-sm text-muted-foreground">Boutiques ayant atteint le seuil de 12 000 FCFA</p>
+          <p className="text-sm text-muted-foreground">Boutiques ayant atteint le seuil de {fmt(billingSettings.commission_threshold)} FCFA</p>
         </div>
         <Button variant="outline" onClick={load} disabled={loading}>
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} /> Actualiser

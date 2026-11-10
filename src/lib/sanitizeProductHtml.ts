@@ -18,7 +18,7 @@ const ALLOWED_TAGS = [
 ];
 
 const ALLOWED_ATTR = [
-  "href", "src", "alt", "title", "class", "style", "target", "rel", "width", "height", "loading",
+  "href", "src", "alt", "title", "class", "style", "target", "rel", "width", "height", "loading", "decoding",
   "color", "size", "face", "allowfullscreen", "frameborder",
 ];
 
@@ -41,6 +41,13 @@ function installHooks() {
     }
     if (node.tagName === "A" && node.getAttribute("target") === "_blank") {
       node.setAttribute("rel", "noopener noreferrer");
+    }
+    // Une description peut contenir des dizaines d'images (mesuré : 12 à 40). Sans cet attribut, elles se
+    // téléchargent toutes au chargement de la page et ralentissent l'image principale, surtout sur mobile.
+    // Un marchand qui a explicitement demandé `loading="eager"` garde son choix.
+    if (node.tagName === "IMG") {
+      if (!node.getAttribute("loading")) node.setAttribute("loading", "lazy");
+      node.setAttribute("decoding", "async");
     }
   });
 }

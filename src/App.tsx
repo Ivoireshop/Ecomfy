@@ -84,6 +84,7 @@ const ConnectUsPage = lazyWithRetry(() => import("./pages/ConnectUsPage"));
 const SeoPreview = lazyWithRetry(() => import("./pages/founder/SeoPreview"));
 const ShopPaymentControl = lazyWithRetry(() => import("./pages/founder/ShopPaymentControl"));
 const KycReview = lazyWithRetry(() => import("./pages/founder/KycReview"));
+const SubscriptionPlansAdmin = lazyWithRetry(() => import("./pages/founder/SubscriptionPlansAdmin"));
 const PricingDashboard = lazyWithRetry(() => import("./pages/PricingDashboard"));
 const DriverApp = lazyWithRetry(() => import("./pages/driver/DriverApp"));
 const DriverHome = lazyWithRetry(() => import("./pages/driver/DriverHome"));
@@ -312,6 +313,14 @@ const AppContent = () => {
             element={
               <FounderRoute>
                 <KycReview />
+              </FounderRoute>
+            }
+          />
+          <Route
+            path="/founder/subscription-plans"
+            element={
+              <FounderRoute>
+                <SubscriptionPlansAdmin />
               </FounderRoute>
             }
           />

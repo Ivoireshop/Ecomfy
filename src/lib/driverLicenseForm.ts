@@ -10,6 +10,8 @@ export interface LicenseFormState {
   licenseExpiry: string;
   /** Chemin du permis dans le bucket privé. */
   licensePhoto: string;
+  /** Chemin du verso du permis dans le bucket privé. */
+  licenseBackPhoto: string;
 }
 
 export const emptyLicenseForm = (): LicenseFormState => ({
@@ -19,6 +21,7 @@ export const emptyLicenseForm = (): LicenseFormState => ({
   categories: [],
   licenseExpiry: "",
   licensePhoto: "",
+  licenseBackPhoto: "",
 });
 
 /** Anomalies bloquantes (mêmes messages que la base) + champs manquants. */
@@ -30,6 +33,7 @@ export function licenseFormProblems(value: LicenseFormState, idExpiry?: string |
     idExpiry: idExpiry || null,
   });
   if (!value.licenseNumber.trim()) problems.push("Numéro de permis requis.");
-  if (!value.licensePhoto) problems.push("Photo du permis requise.");
+  if (!value.licensePhoto) problems.push("Photo du permis (recto) requise.");
+  if (!value.licenseBackPhoto) problems.push("Photo du verso du permis requise.");
   return problems;
 }

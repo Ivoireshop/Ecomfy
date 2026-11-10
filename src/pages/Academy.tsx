@@ -31,6 +31,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PREMIUM_ACADEMY_PLAN } from "@/config/pricingPlans";
+import { useSubscriptionPlans } from "@/hooks/useSubscriptionPlans";
+import { annualMonthlyEquivalent } from "@/lib/subscriptionPlans";
 
 export interface TutorialVideo {
   id: string;
@@ -249,6 +251,11 @@ const PLAYABLE_VIDEO_IDS = new Set(PLAYABLE_VIDEOS.map((v) => v.id));
 
 export default function Academy() {
   const navigate = useNavigate();
+  // Prix du Pass Premium réglés par le fondateur ; repli sur la configuration statique
+  const { plans: sellablePlans } = useSubscriptionPlans();
+  const premiumPlan = sellablePlans.find((p) => p.code === PREMIUM_ACADEMY_PLAN.id);
+  const premiumMonthly = premiumPlan?.price_monthly ?? PREMIUM_ACADEMY_PLAN.monthlyPrice;
+  const premiumAnnualEquivalent = premiumPlan ? annualMonthlyEquivalent(premiumPlan) : PREMIUM_ACADEMY_PLAN.annualPriceMonthlyEquivalent;
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [activeVideo, setActiveVideo] = useState<TutorialVideo | null>(null);
@@ -312,7 +319,7 @@ export default function Academy() {
                 Académie Ecomfy • Formations & Tutoriels
               </div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-400/20 border border-amber-300/40 text-amber-200 text-xs font-bold">
-                👑 Pass Premium Académie : {PREMIUM_ACADEMY_PLAN.monthlyPrice.toLocaleString("fr-FR")} FCFA / mois (ou {PREMIUM_ACADEMY_PLAN.annualPriceMonthlyEquivalent?.toLocaleString("fr-FR")} FCFA / mois en annuel)
+                👑 Pass Premium Académie : {premiumMonthly.toLocaleString("fr-FR")} FCFA / mois{premiumAnnualEquivalent ? ` (ou ${premiumAnnualEquivalent.toLocaleString("fr-FR")} FCFA / mois en annuel)` : ""}
               </div>
             </div>
             

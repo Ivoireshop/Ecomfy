@@ -114,6 +114,7 @@ Deno.serve(async (req) => {
               p_amount: Number(p.amount) || 0,
               p_transaction_reference: reference,
               p_payment_method: remote?.payment_method || "geniuspay",
+              p_billing_cycle: (meta.billing_cycle as string) || null,
             });
             if (subError || subResult?.success === false) {
               // Payé mais non appliqué : à rejouer (apply_shop_subscription est idempotente par référence)

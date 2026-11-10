@@ -18,7 +18,7 @@ const mainNav: NavItemDef[] = [
   { title: "Accueil", url: "/dashboard", icon: Home },
   { title: "Boutique", url: "/shop-manager", icon: Store },
   { title: "Académie", url: "/academy", icon: GraduationCap },
-  { title: "ConnectUs", url: "/connectus", icon: Globe, comingSoon: true },
+  { title: "ConnectUs", url: "/connectus", icon: Globe },
 ];
 
 const activeItems: NavItemDef[] = [
@@ -33,7 +33,6 @@ const activeItems: NavItemDef[] = [
 ];
 
 const comingSoonItems: NavItemDef[] = [
-  { title: "ConnectUs 🌐", url: "/connectus", icon: Globe, comingSoon: true },
   { title: "Ecomfy Pay 💳", url: "/ecomfy-pay", icon: CreditCard, comingSoon: true },
   { title: "Studio IA", url: "/studio", icon: Image, comingSoon: true },
   { title: "Livraison 🚚", url: "/delivery-dashboard", icon: Truck, comingSoon: true },
@@ -50,6 +49,8 @@ export function MobileBottomNav() {
   const isShowcaseView = location.pathname.startsWith("/showcase/");
   const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/");
   const isOrderConfirmed = location.pathname.startsWith("/order-confirmed");
+  // ConnectUs a sa propre barre de navigation mobile (et un retour au tableau de bord) : pas de double barre.
+  const isConnectUs = location.pathname.startsWith("/connectus");
   const isPublicPage = PUBLIC_PAGES.includes(location.pathname);
 
   const handleSignOut = async () => {
@@ -61,7 +62,7 @@ export function MobileBottomNav() {
     }
   };
 
-  if (isShowcaseView || isShopView || isPublicPage || isOrderConfirmed) return null;
+  if (isShowcaseView || isShopView || isPublicPage || isOrderConfirmed || isConnectUs) return null;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur-sm md:hidden">

@@ -66,7 +66,7 @@ export const ProductsGridSection: React.FC<ProductsGridSectionProps> = ({
     settings.columns_mobile === 1 ? "grid-cols-1" : "grid-cols-2";
 
   return (
-    <section className="py-12 md:py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <section data-products-section="true" className="py-12 md:py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       {(settings.title || settings.subtitle) && (
         <div className="text-center max-w-2xl mx-auto mb-8 md:mb-12 space-y-2">
           {settings.title && (

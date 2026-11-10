@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AlertTriangle, CalendarClock, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { SUBSCRIPTION_REMINDER_DAYS, startShopSubscriptionPayment, type ShopSubscriptionState } from "@/lib/shopSubscription";
+import { getSubscriptionReminderDays, startShopSubscriptionPayment, type ShopSubscriptionState } from "@/lib/shopSubscription";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.max(0, Math.round(n)));
 const fmtDate = (d: Date) => d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
@@ -20,7 +20,7 @@ export function SubscriptionRenewalBanner({ shopId, subscription }: Props) {
   const [loading, setLoading] = useState(false);
   const { hasSubscribed, isActive, inGrace, daysLeft, activeUntil, graceEndsAt, renewalAmount, plan } = subscription;
 
-  const showReminder = hasSubscribed && isActive && daysLeft !== null && daysLeft <= SUBSCRIPTION_REMINDER_DAYS;
+  const showReminder = hasSubscribed && isActive && daysLeft !== null && daysLeft <= getSubscriptionReminderDays();
   if (!showReminder && !inGrace) return null;
 
   const renew = async () => {

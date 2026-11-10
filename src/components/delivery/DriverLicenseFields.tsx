@@ -90,16 +90,28 @@ export function DriverLicenseFields({ value, onChange, idExpiry, showProblems = 
         <p className="text-[11px] text-slate-500">Cochez uniquement ce qui est écrit sur le permis : l'équipe le compare à la photo.</p>
       </div>
 
-      <DeliveryDocUpload
-        label="Photo du permis de conduire"
-        hint="Recto lisible, entier, non expiré."
-        field="driver_license"
-        category="driver_license"
-        accept="image/*"
-        required
-        value={value.licensePhoto}
-        onChange={(licensePhoto) => set({ licensePhoto })}
-      />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <DeliveryDocUpload
+          label="Permis de conduire — recto"
+          hint="Face avec la photo et l'état civil, lisible, entière, non expirée."
+          field="driver_license"
+          category="driver_license"
+          accept="image/*"
+          required
+          value={value.licensePhoto}
+          onChange={(licensePhoto) => set({ licensePhoto })}
+        />
+        <DeliveryDocUpload
+          label="Permis de conduire — verso"
+          hint="Face avec les catégories et les dates, lisible et entière."
+          field="driver_license_back"
+          category="driver_license"
+          accept="image/*"
+          required
+          value={value.licenseBackPhoto}
+          onChange={(licenseBackPhoto) => set({ licenseBackPhoto })}
+        />
+      </div>
 
       {showProblems && touched && (
         issues.length === 0 ? (

@@ -1,17 +1,19 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuthReady } from "@/hooks/useAuthReady";
-import { supabase } from "@/integrations/supabase/client";
 import { ConnectUsService } from "../services/connectus.service";
 import {
   ConnectUsProfile,
   ConnectUsPost,
   ConnectUsNotification,
+  ConnectUsComment,
   AttachedProduct,
   VisibilityType,
-  ReactionType
+  ReactionType,
 } from "../types/connectus.types";
 import { LinkMetadata } from "../utils/linkScraper";
 import { toast } from "@/hooks/use-toast";
+
+const errorText = (e: unknown, fallback: string) => (e instanceof Error && e.message ? e.message : fallback);
 
 export function useConnectUs() {
   const { session, user, isReady } = useAuthReady();
@@ -20,131 +22,113 @@ export function useConnectUs() {
   const [profile, setProfile] = useState<ConnectUsProfile | null>(null);
   const [posts, setPosts] = useState<ConnectUsPost[]>([]);
   const [merchantProducts, setMerchantProducts] = useState<AttachedProduct[]>([]);
+  const [notifications, setNotifications] = useState<ConnectUsNotification[]>([]);
+  const [suggestions, setSuggestions] = useState<ConnectUsProfile[]>([]);
+  const [followingMap, setFollowingMap] = useState<Record<string, boolean>>({});
+  const [unreadMessages, setUnreadMessages] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  const [notifications, setNotifications] = useState<ConnectUsNotification[]>([]);
+  const postsRef = useRef<ConnectUsPost[]>([]);
+  postsRef.current = posts;
 
-  // 1. Initial Load & Ecomfy Account Auto-Binding
   const loadConnectUsData = useCallback(async () => {
+    if (!userId) return;
     setLoading(true);
+    setLoadError(null);
     try {
-      const activeId = userId || "guest_visitor";
-      const [userProfile, feedPosts, products, notifs] = await Promise.all([
-        ConnectUsService.getProfile(activeId),
-        ConnectUsService.getFeedPosts(activeId),
-        ConnectUsService.getMerchantProducts(activeId),
-        ConnectUsService.getNotifications(activeId),
+      const userProfile = await ConnectUsService.getProfile(userId);
+      setProfile(userProfile);
+      setShowOnboarding(userProfile.is_onboarded === false);
+
+      const [feed, products, notifs, following, suggested, unread] = await Promise.allSettled([
+        ConnectUsService.getFeedPosts(userId),
+        ConnectUsService.getMerchantProducts(userId),
+        ConnectUsService.getNotifications(userId),
+        ConnectUsService.getFollowingIds(userId),
+        ConnectUsService.getSuggestedMembers(userId),
+        ConnectUsService.getUnreadMessagesCount(userId),
       ]);
 
-      setProfile(userProfile);
-      setPosts(feedPosts || []);
-      setMerchantProducts(products || []);
-      setNotifications(notifs || []);
-
-      if (userProfile && !userProfile.is_onboarded && userId) {
-        setShowOnboarding(true);
+      if (feed.status === "fulfilled") setPosts(feed.value);
+      else setLoadError(errorText(feed.reason, "Impossible de charger le fil d'actualité."));
+      if (products.status === "fulfilled") setMerchantProducts(products.value);
+      if (notifs.status === "fulfilled") setNotifications(notifs.value);
+      if (following.status === "fulfilled") {
+        setFollowingMap(Object.fromEntries(following.value.map((id) => [id, true])));
       }
+      if (suggested.status === "fulfilled") setSuggestions(suggested.value);
+      if (unread.status === "fulfilled") setUnreadMessages(unread.value);
     } catch (e) {
-      console.error("Failed to load ConnectUs data:", e);
+      console.error("Chargement ConnectUs impossible :", e);
+      setLoadError(errorText(e, "Impossible de charger ConnectUs."));
     } finally {
       setLoading(false);
     }
   }, [userId]);
 
   useEffect(() => {
-    if (isReady) {
-      loadConnectUsData();
+    if (isReady && userId) loadConnectUsData();
+    else if (isReady) setLoading(false);
+  }, [isReady, userId, loadConnectUsData]);
 
-      // Realtime listener for live post updates across ConnectUs accounts
-      const channel = supabase
-        .channel("connectus_live_messages")
-        .on(
-          "postgres_changes",
-          { event: "INSERT", schema: "public", table: "community_messages" },
-          (payload: any) => {
-            const newRecord = payload.new;
-            if (!newRecord || !newRecord.body) return;
-            try {
-              const parsed = typeof newRecord.body === "string" ? JSON.parse(newRecord.body) : newRecord.body;
-              // Avoid refetching for own actions that were already applied optimistically
-              if (newRecord.user_id === userId || parsed?.user_id === userId) {
-                return;
-              }
-              // If another user created a new post, merge it at top of feed
-              if (parsed?.connectus_type === "post" && parsed?.id) {
-                setPosts((prev) => {
-                  if (prev.some((p) => p.id === parsed.id)) return prev;
-                  return [parsed, ...prev];
-                });
-              }
-            } catch (e) {}
-          }
-        )
-        .subscribe();
+  // Temps réel : nouvelles publications des autres membres, notifications reçues, messages reçus
+  useEffect(() => {
+    if (!isReady || !userId) return;
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
+    const stopPosts = ConnectUsService.subscribeToPosts(
+      async (postId, authorId) => {
+        if (authorId === userId || postsRef.current.some((p) => p.id === postId)) return;
+        const post = await ConnectUsService.getPostById(postId, userId);
+        if (post) setPosts((prev) => (prev.some((p) => p.id === post.id) ? prev : [post, ...prev]));
+      },
+      (postId) => setPosts((prev) => prev.filter((p) => p.id !== postId))
+    );
+    const stopNotifs = ConnectUsService.subscribeToNotifications(userId, async () => {
+      try {
+        setNotifications(await ConnectUsService.getNotifications(userId));
+      } catch {
+        /* le prochain rechargement corrigera */
+      }
+    });
+    const stopMessages = ConnectUsService.subscribeToMessages(userId, () => setUnreadMessages((n) => n + 1));
+
+    return () => {
+      stopPosts();
+      stopNotifs();
+      stopMessages();
+    };
+  }, [isReady, userId]);
+
+  const refreshNotifications = useCallback(async () => {
+    if (!userId) return;
+    try {
+      setNotifications(await ConnectUsService.getNotifications(userId));
+    } catch {
+      /* conservé tel quel */
     }
-  }, [isReady, loadConnectUsData, userId]);
+  }, [userId]);
 
-  // 2. Accept / Decline Invitation Handlers
-  const handleAcceptInvitation = async (notifId: string, actorUserId: string) => {
-    if (!userId) return false;
-    const ok = await ConnectUsService.acceptFollowInvitation(userId, notifId, actorUserId);
-    if (ok) {
-      toast({
-        title: "Invitation acceptée ✓",
-        description: "Vous vous suivez mutuellement à présent !",
-      });
-      const updatedNotifs = await ConnectUsService.getNotifications(userId);
-      setNotifications(updatedNotifs);
-      loadConnectUsData();
-    }
-    return ok;
-  };
-
-  const handleDeclineInvitation = async (notifId: string) => {
-    if (!userId) return false;
-    const ok = await ConnectUsService.declineFollowInvitation(userId, notifId);
-    if (ok) {
-      toast({ title: "Invitation refusée" });
-      const updatedNotifs = await ConnectUsService.getNotifications(userId);
-      setNotifications(updatedNotifs);
-    }
-    return ok;
-  };
-
-  // 3. Persistent Profile Update Handler with Supabase DB Sync & Live Feed Update
-  const handleUpdateProfile = async (updatedData: Partial<ConnectUsProfile>) => {
+  // ---- Profil ---------------------------------------------------------------------------------------------
+  const updateProfile = async (updatedData: Partial<ConnectUsProfile>, options?: { silent?: boolean }) => {
     if (!profile) return null;
     const merged = { ...profile, ...updatedData };
-    setProfile(merged);
-
-    setPosts(prev => prev.map(p => {
-      if (p.user_id === merged.user_id || p.author.id === merged.id || p.author.user_id === merged.user_id) {
-        return { ...p, author: { ...p.author, ...merged } };
-      }
-      return p;
-    }));
-
-    const success = await ConnectUsService.saveProfile(merged);
-    if (success) {
-      toast({ title: "Profil ConnectUs enregistré avec succès ✓" });
-    } else {
-      toast({
-        title: "Erreur de sauvegarde",
-        description: "Impossible d'enregistrer les modifications. Veuillez réessayer.",
-        variant: "destructive",
-      });
+    const result = await ConnectUsService.saveProfile(merged);
+    if (!result.ok) {
+      toast({ title: "Profil non enregistré", description: result.error, variant: "destructive" });
+      return null;
     }
+    setProfile(merged);
+    setShowOnboarding(merged.is_onboarded === false);
+    setPosts((prev) => prev.map((p) => (p.user_id === merged.user_id ? { ...p, author: { ...p.author, ...merged } } : p)));
+    if (!options?.silent) toast({ title: "Profil enregistré ✓" });
     return merged;
   };
 
-  // 4. Create Post Handler
-  const handleCreatePost = async (postData: {
+  // ---- Publications ---------------------------------------------------------------------------------------
+  const createPost = async (postData: {
     content: string;
     media_urls: string[];
     video_url?: string | null;
@@ -152,164 +136,176 @@ export function useConnectUs() {
     attached_product?: AttachedProduct | null;
     visibility: VisibilityType;
   }) => {
-    const activeUserId = userId || profile?.id || profile?.user_id || "guest_user";
-
+    if (!userId) return null;
     setSubmitting(true);
     try {
-      const created = await ConnectUsService.createPost(activeUserId, postData);
-      setPosts(prev => [created, ...prev.filter(p => p.id !== created.id)]);
-      toast({
-        title: "Publication publiée sur ConnectUs ! 🚀",
-        description: "Votre contenu a été diffusé à la communauté.",
-      });
+      const created = await ConnectUsService.createPost(userId, postData);
+      setPosts((prev) => [created, ...prev.filter((p) => p.id !== created.id)]);
+      setProfile((prev) => (prev ? { ...prev, posts_count: prev.posts_count + 1 } : prev));
+      toast({ title: "Publication en ligne 🚀", description: "Elle est visible par la communauté." });
       return created;
-    } catch (e: any) {
-      toast({
-        title: "Erreur lors de la publication",
-        description: e?.message || "Impossible de publier.",
-        variant: "destructive",
-      });
+    } catch (e) {
+      toast({ title: "Publication impossible", description: errorText(e, "Réessayez dans un instant."), variant: "destructive" });
       return null;
     } finally {
       setSubmitting(false);
     }
   };
 
-  // 5. Delete Post
-  const handleDeletePost = async (postId: string) => {
-    if (!userId) {
-      toast({ title: "Veuillez vous connecter pour supprimer", variant: "destructive" });
+  const deletePost = async (postId: string) => {
+    if (!userId) return false;
+    const target = postsRef.current.find((p) => p.id === postId);
+    if (target && target.user_id !== userId) {
+      toast({ title: "Suppression non autorisée", description: "Vous ne pouvez supprimer que vos publications.", variant: "destructive" });
       return false;
     }
-
-    const postToDelete = posts.find(p => p.id === postId);
-    if (postToDelete) {
-      const authorId = postToDelete.user_id || postToDelete.author?.id;
-      if (authorId && authorId !== userId && !userId.startsWith("guest_")) {
-        toast({
-          title: "Suppression non autorisée",
-          description: "Vous ne pouvez supprimer que vos propres publications.",
-          variant: "destructive",
-        });
-        return false;
-      }
-    }
-
-    setPosts(prev => prev.filter(p => p.id !== postId));
-
-    const success = await ConnectUsService.deletePost(postId, userId);
-    if (success) {
-      toast({ title: "Publication supprimée avec succès ✓" });
-      return true;
+    const ok = await ConnectUsService.deletePost(postId, userId);
+    if (ok) {
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
+      setProfile((prev) => (prev ? { ...prev, posts_count: Math.max(0, prev.posts_count - 1) } : prev));
+      toast({ title: "Publication supprimée ✓" });
     } else {
-      toast({ title: "Erreur lors de la suppression en base de données", variant: "destructive" });
-      return false;
+      toast({ title: "Suppression impossible", description: "Réessayez dans un instant.", variant: "destructive" });
+    }
+    return ok;
+  };
+
+  const toggleReaction = async (postId: string, reactionType: ReactionType = "like") => {
+    if (!userId) return;
+    const before = postsRef.current.find((p) => p.id === postId);
+    if (!before) return;
+
+    // Affichage immédiat : poser = +1, changer de réaction = 0, retirer = -1
+    const removing = before.user_reaction === reactionType;
+    const adding = !before.user_reaction;
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId
+          ? { ...p, user_reaction: removing ? null : reactionType, likes_count: Math.max(0, p.likes_count + (removing ? -1 : adding ? 1 : 0)) }
+          : p
+      )
+    );
+    try {
+      const { likesCount, userReaction } = await ConnectUsService.toggleReaction(postId, userId, reactionType);
+      setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, likes_count: likesCount, user_reaction: userReaction } : p)));
+    } catch (e) {
+      setPosts((prev) => prev.map((p) => (p.id === postId ? before : p)));
+      toast({ title: "Réaction non enregistrée", description: errorText(e, "Réessayez."), variant: "destructive" });
     }
   };
 
-  // 6. Toggle Reaction
-  const handleToggleReaction = async (postId: string, reactionType: ReactionType = "like") => {
-    if (!userId) return;
-    
-    setPosts(prev => prev.map(p => {
-      if (p.id === postId) {
-        const isAlready = p.user_reaction === reactionType;
-        return {
-          ...p,
-          user_reaction: isAlready ? null : reactionType,
-          likes_count: Math.max(0, p.likes_count + (isAlready ? -1 : 1))
-        };
-      }
-      return p;
-    }));
+  // ---- Commentaires ---------------------------------------------------------------------------------------
+  const loadComments = (postId: string): Promise<ConnectUsComment[]> => ConnectUsService.getComments(postId, userId);
 
-    await ConnectUsService.toggleReaction(postId, userId, reactionType);
-  };
-
-  // 7. Add Comment Handler
-  const handleAddComment = async (postId: string, text: string) => {
+  const addComment = async (postId: string, text: string, parentId?: string | null) => {
     if (!userId || !text.trim()) return null;
-    const authorData = profile || { full_name: "Membre Ecomfy", avatar_url: null, username: "membre" };
-    const newComment = await ConnectUsService.addComment(postId, userId, authorData, text);
-
-    setPosts(prev => prev.map(p => {
-      if (p.id === postId) {
-        const currentComments = p.comments || [];
-        return {
-          ...p,
-          comments_count: (p.comments_count || 0) + 1,
-          comments: [...currentComments, newComment],
-        };
-      }
-      return p;
-    }));
-
-    return newComment;
-  };
-
-  // 8. Toggle Follow
-  const handleToggleFollow = async (targetUserId: string) => {
-    if (!userId) return false;
-    const nowFollowing = await ConnectUsService.toggleFollow(userId, targetUserId);
-    
-    toast({
-      title: nowFollowing ? "Abonnement réussi ✓" : "Abonnement retiré",
-      description: nowFollowing ? "Vous suivrez les actualités de ce membre." : undefined
-    });
-
-    return nowFollowing;
-  };
-
-  // 9. Add Comment Reply Handler
-  const handleAddCommentReply = async (
-    postId: string,
-    parentCommentId: string,
-    text: string,
-    parentAuthorId?: string
-  ) => {
-    if (!userId || !text.trim()) return null;
-    const authorData = profile || { full_name: "Membre Ecomfy", avatar_url: null, username: "membre" };
-    return await ConnectUsService.addCommentReply(postId, parentCommentId, userId, authorData, text, parentAuthorId);
-  };
-
-  // 10. Toggle Comment Like
-  const handleToggleCommentLike = async (postId: string, commentId: string) => {
-    if (!userId) return { likes_count: 0, user_liked: false };
-    return await ConnectUsService.toggleCommentLike(postId, commentId, userId);
-  };
-
-  // 11. Check Mutual Follow
-  const handleIsMutualFollow = (targetUserId: string) => {
-    if (!userId) return false;
-    return ConnectUsService.isMutualFollow(userId, targetUserId);
-  };
-
-  // 12. Send Direct Message
-  const handleSendDirectMessage = async (receiverId: string, content: string, mediaUrl?: string | null) => {
-    if (!userId) {
-      toast({ title: "Connectez-vous à Ecomfy pour envoyer un message", variant: "destructive" });
+    try {
+      const comment = await ConnectUsService.addComment(postId, userId, text, parentId);
+      setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments_count: p.comments_count + 1 } : p)));
+      return comment;
+    } catch (e) {
+      toast({ title: "Commentaire non envoyé", description: errorText(e, "Réessayez."), variant: "destructive" });
       return null;
     }
-    return await ConnectUsService.sendPrivateMessage(userId, receiverId, content, mediaUrl);
   };
 
-  // 13. Story Actions (Like, Reply, View)
-  const handleToggleStoryLike = async (storyId: string) => {
-    if (!userId) return { likes_count: 0, user_liked: false };
-    return await ConnectUsService.toggleStoryLike(storyId, userId);
+  const deleteComment = async (postId: string, commentId: string, removedCount = 1) => {
+    if (!userId) return false;
+    const ok = await ConnectUsService.deleteComment(commentId, userId);
+    if (ok) {
+      setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, comments_count: Math.max(0, p.comments_count - removedCount) } : p)));
+    } else {
+      toast({ title: "Suppression impossible", variant: "destructive" });
+    }
+    return ok;
   };
 
-  const handleReplyToStory = async (storyId: string, targetUserId: string, text: string, storyMediaUrl?: string) => {
-    if (!userId || !text.trim()) return null;
-    return await ConnectUsService.replyToStory(storyId, userId, targetUserId, text, storyMediaUrl);
-  };
-
-  const handleViewStory = (storyId: string) => {
+  const toggleCommentLike = async (commentId: string) => {
     if (!userId) return null;
-    return ConnectUsService.viewStory(storyId, userId, profile);
+    try {
+      return await ConnectUsService.toggleCommentLike(commentId, userId);
+    } catch (e) {
+      toast({ title: "J'aime non enregistré", description: errorText(e, "Réessayez."), variant: "destructive" });
+      return null;
+    }
   };
 
-  const unreadNotifCount = notifications.filter(n => !n.read).length;
+  // ---- Abonnements ----------------------------------------------------------------------------------------
+  const toggleFollow = async (targetUserId: string) => {
+    if (!userId || targetUserId === userId) return false;
+    const wasFollowing = Boolean(followingMap[targetUserId]);
+    setFollowingMap((prev) => ({ ...prev, [targetUserId]: !wasFollowing }));
+    try {
+      const nowFollowing = await ConnectUsService.toggleFollow(userId, targetUserId);
+      setFollowingMap((prev) => ({ ...prev, [targetUserId]: nowFollowing }));
+      setProfile((prev) => (prev ? { ...prev, following_count: Math.max(0, prev.following_count + (nowFollowing ? 1 : -1)) } : prev));
+      if (nowFollowing) setSuggestions((prev) => prev.filter((s) => s.user_id !== targetUserId));
+      toast({ title: nowFollowing ? "Abonnement ajouté ✓" : "Abonnement retiré" });
+      return nowFollowing;
+    } catch (e) {
+      setFollowingMap((prev) => ({ ...prev, [targetUserId]: wasFollowing }));
+      toast({ title: "Abonnement impossible", description: errorText(e, "Réessayez."), variant: "destructive" });
+      return wasFollowing;
+    }
+  };
+
+  const sendInvitation = async (targetId: string, message: string) => {
+    if (!userId) return false;
+    const result = await ConnectUsService.sendInvitation(userId, targetId, message);
+    if (!result.ok) {
+      toast({ title: "Invitation non envoyée", description: result.error, variant: "destructive" });
+      return false;
+    }
+    setFollowingMap((prev) => ({ ...prev, [targetId]: true }));
+    toast(
+      result.alreadySent
+        ? { title: "Invitation déjà envoyée", description: "Ce membre doit d'abord y répondre." }
+        : { title: "Invitation envoyée 🎉", description: "Vous suivez ce membre et il en a été informé." }
+    );
+    return true;
+  };
+
+  const acceptInvitation = async (notifId: string, actorUserId: string) => {
+    if (!userId) return false;
+    const ok = await ConnectUsService.acceptFollowInvitation(userId, notifId, actorUserId);
+    if (ok) {
+      setFollowingMap((prev) => ({ ...prev, [actorUserId]: true }));
+      toast({ title: "Invitation acceptée ✓", description: "Vous vous suivez mutuellement." });
+      await refreshNotifications();
+    } else {
+      toast({ title: "Impossible d'accepter l'invitation", variant: "destructive" });
+    }
+    return ok;
+  };
+
+  const declineInvitation = async (notifId: string) => {
+    if (!userId) return false;
+    const ok = await ConnectUsService.declineFollowInvitation(userId, notifId);
+    if (ok) {
+      toast({ title: "Invitation refusée" });
+      await refreshNotifications();
+    }
+    return ok;
+  };
+
+  const markAllNotificationsRead = async () => {
+    if (!userId) return;
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    await ConnectUsService.markAllNotificationsRead(userId);
+  };
+
+  // ---- Messagerie -----------------------------------------------------------------------------------------
+  const sendDirectMessage = async (receiverId: string, content: string, mediaFile?: File | null) => {
+    if (!userId) return null;
+    try {
+      return await ConnectUsService.sendPrivateMessage(userId, receiverId, content, mediaFile);
+    } catch (e) {
+      toast({ title: "Message non envoyé", description: errorText(e, "Réessayez."), variant: "destructive" });
+      return null;
+    }
+  };
+
+  const unreadNotifCount = notifications.filter((n) => !n.read).length;
 
   return {
     userId,
@@ -317,28 +313,30 @@ export function useConnectUs() {
     posts,
     merchantProducts,
     notifications,
+    suggestions,
+    followingMap,
     unreadNotifCount,
+    unreadMessages,
+    setUnreadMessages,
     loading,
+    loadError,
     submitting,
     showOnboarding,
     setShowOnboarding,
-    updateProfile: handleUpdateProfile,
-    createPost: handleCreatePost,
-    deletePost: handleDeletePost,
-    toggleReaction: handleToggleReaction,
-    addComment: handleAddComment,
-    addCommentReply: handleAddCommentReply,
-    toggleCommentLike: handleToggleCommentLike,
-    toggleFollow: handleToggleFollow,
-    isMutualFollow: handleIsMutualFollow,
-    sendDirectMessage: handleSendDirectMessage,
-    toggleStoryLike: handleToggleStoryLike,
-    replyToStory: handleReplyToStory,
-    viewStory: handleViewStory,
-    getConversations: () => ConnectUsService.getConversations(userId),
-    getMessages: (conversationId: string) => ConnectUsService.getMessages(conversationId),
-    acceptInvitation: handleAcceptInvitation,
-    declineInvitation: handleDeclineInvitation,
+    updateProfile,
+    createPost,
+    deletePost,
+    toggleReaction,
+    loadComments,
+    addComment,
+    deleteComment,
+    toggleCommentLike,
+    toggleFollow,
+    sendInvitation,
+    sendDirectMessage,
+    acceptInvitation,
+    declineInvitation,
+    markAllNotificationsRead,
     refresh: loadConnectUsData,
   };
 }

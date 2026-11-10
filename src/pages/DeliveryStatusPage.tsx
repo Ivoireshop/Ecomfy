@@ -21,6 +21,7 @@ import { DeliveryCompany } from "@/types/delivery";
 import { DeliveryNotificationBell } from "@/components/delivery/DeliveryNotificationBell";
 import { DeliveryDriversPanel } from "@/components/delivery/DeliveryDriversPanel";
 import { DeliveryAuditTimeline } from "@/components/delivery/DeliveryAuditTimeline";
+import { DeliveryApplicationProgress } from "@/components/delivery/DeliveryApplicationProgress";
 
 export default function DeliveryStatusPage() {
   const navigate = useNavigate();
@@ -108,7 +109,7 @@ export default function DeliveryStatusPage() {
         <Card className="bg-slate-900/90 border-slate-800 shadow-2xl backdrop-blur-xl">
           <CardHeader className="text-center border-b border-slate-800 pb-6">
             {isPending && (
-              <div className="space-y-3">
+              <div className="space-y-3 text-center">
                 <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400 animate-pulse">
                   <Clock className="w-8 h-8" />
                 </div>
@@ -125,7 +126,7 @@ export default function DeliveryStatusPage() {
             )}
 
             {isApproved && (
-              <div className="space-y-3">
+              <div className="space-y-3 text-center">
                 <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400">
                   <ShieldCheck className="w-8 h-8" />
                 </div>
@@ -142,7 +143,7 @@ export default function DeliveryStatusPage() {
             )}
 
             {isRejected && (
-              <div className="space-y-3">
+              <div className="space-y-3 text-center">
                 <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto text-red-400">
                   <XCircle className="w-8 h-8" />
                 </div>
@@ -153,7 +154,7 @@ export default function DeliveryStatusPage() {
                   Dossier Refusé par la Fondation
                 </CardTitle>
                 {company.rejection_reason && (
-                  <div className="p-3 rounded-lg bg-red-950/40 border border-red-900 text-red-200 text-xs text-left">
+                  <div className="p-3 rounded-lg bg-red-950/40 border border-red-900 text-red-200 text-xs text-left whitespace-pre-line">
                     <span className="font-semibold">Motif du refus :</span> {company.rejection_reason}
                   </div>
                 )}
@@ -161,7 +162,7 @@ export default function DeliveryStatusPage() {
             )}
 
             {isActionReq && (
-              <div className="space-y-3">
+              <div className="space-y-3 text-center">
                 <div className="w-16 h-16 rounded-full bg-purple-500/10 border border-purple-500/30 flex items-center justify-center mx-auto text-purple-400">
                   <AlertTriangle className="w-8 h-8" />
                 </div>
@@ -172,7 +173,7 @@ export default function DeliveryStatusPage() {
                   Action Requise de votre Part
                 </CardTitle>
                 {company.reviewer_comments && (
-                  <div className="p-3 rounded-lg bg-purple-950/40 border border-purple-900 text-purple-200 text-xs text-left">
+                  <div className="p-3 rounded-lg bg-purple-950/40 border border-purple-900 text-purple-200 text-xs text-left whitespace-pre-line">
                     <span className="font-semibold">Ce que l'équipe attend de vous :</span> {company.reviewer_comments}
                   </div>
                 )}
@@ -180,7 +181,7 @@ export default function DeliveryStatusPage() {
             )}
 
             {isSuspended && (
-              <div className="space-y-3">
+              <div className="space-y-3 text-center">
                 <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto text-red-400">
                   <XCircle className="w-8 h-8" />
                 </div>
@@ -191,7 +192,7 @@ export default function DeliveryStatusPage() {
                   Votre structure ne peut plus recevoir de livraisons
                 </CardTitle>
                 {company.rejection_reason && (
-                  <div className="p-3 rounded-lg bg-red-950/40 border border-red-900 text-red-200 text-xs text-left">
+                  <div className="p-3 rounded-lg bg-red-950/40 border border-red-900 text-red-200 text-xs text-left whitespace-pre-line">
                     <span className="font-semibold">Motif :</span> {company.rejection_reason}
                   </div>
                 )}
@@ -218,7 +219,7 @@ export default function DeliveryStatusPage() {
             </div>
           </CardContent>
 
-          <CardFooter className="flex items-center justify-between border-t border-slate-800 pt-4">
+          <CardFooter className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-4">
             <Button
               variant="outline"
               onClick={fetchStatus}
@@ -233,7 +234,7 @@ export default function DeliveryStatusPage() {
                 onClick={() => navigate("/delivery/partner-dashboard")}
                 className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold"
               >
-                Accéder au Espace Livreur <ArrowRight className="w-4 h-4 ml-2" />
+                Accéder à l'espace livreur <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             ) : (isRejected || isActionReq) ? (
               <Button
@@ -247,6 +248,7 @@ export default function DeliveryStatusPage() {
           </CardFooter>
         </Card>
 
+        <DeliveryApplicationProgress company={company} />
         <DeliveryDriversPanel company={company} onChanged={fetchStatus} />
         <DeliveryAuditTimeline companyId={company.id} />
       </div>

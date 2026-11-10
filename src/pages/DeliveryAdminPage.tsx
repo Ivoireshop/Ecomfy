@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   BadgeCheck,
   CheckCircle2,
+  ExternalLink,
   Eye,
   MapPin,
   RefreshCw,
@@ -24,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast";
 import { deliveryService } from "@/lib/deliveryService";
 import { getDriverLicenseIssues, VEHICLE_LICENSE_REQUIREMENTS } from "@/lib/vehicleLicenseMatcher";
+import { allDossierGaps, companyDossierGaps, driverDossierGaps, formatCoordinates, idNeedsBackSide, mapsUrl, missingItemsMessage } from "@/lib/deliveryDossier";
 import { DeliveryDocThumb } from "@/components/delivery/DeliveryDocThumb";
 import { DeliveryAuditTimeline } from "@/components/delivery/DeliveryAuditTimeline";
 import { DeliveryNotificationBell } from "@/components/delivery/DeliveryNotificationBell";
@@ -195,6 +197,15 @@ export default function DeliveryAdminPage() {
     setDriverNote("");
   };
 
+  /** Ouvre le refus d'un livreur avec le motif « verso manquant » déjà renseigné : l'administrateur n'a qu'à confirmer. */
+  const requestDriverBack = (driver: DeliveryDriver) => {
+    const what = driverDossierGaps(driver).map((g) => g.label.replace(`${driver.full_name} : `, "")).join(" et ");
+    setDriverTarget({ driver, decision: "rejected" });
+    setDriverCode("MISSING_BACK_SIDE");
+    setDriverReason(`Merci d'importer : ${what}.`);
+    setDriverNote("");
+  };
+
   const submitDriverDecision = async () => {
     if (!driverTarget) return;
     const { driver, decision } = driverTarget;
@@ -233,6 +244,7 @@ export default function DeliveryAdminPage() {
     );
   }, [applications, searchTerm]);
 
+  const selectedGaps = selected ? companyDossierGaps(selected) : [];
   const idExpired = !!selected?.kyc?.id_expiry && selected.kyc.id_expiry < new Date().toISOString().slice(0, 10);
   const tabs: Array<{ key: TabKey; label: string; style: string }> = [
     { key: "pending_verification", label: "En attente", style: "data-[state=active]:bg-amber-500 data-[state=active]:text-slate-950" },
@@ -324,9 +336,12 @@ export default function DeliveryAdminPage() {
                       <div className="flex justify-between text-slate-400"><span>Livreurs approuvés :</span><span className="text-white font-bold">{approved}/{drivers.length}</span></div>
                       <div className="flex justify-between text-slate-400"><span>Reçu le :</span><span className="text-white">{new Date(app.verification_requested_at ?? app.created_at).toLocaleDateString("fr-FR")}</span></div>
                     </div>
+                    {app.verification_status !== "approved" && allDossierGaps(app).length > 0 && (
+                      <p className="flex items-start gap-1.5 text-[11px] text-amber-300"><AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" /> Dossier incomplet : {allDossierGaps(app).length} élément(s) à demander (verso, localisation).</p>
+                    )}
                   </CardContent>
                   <CardFooter className="pt-3 border-t border-slate-800">
-                    <Button onClick={() => void handleInspect(app)} variant="outline" size="sm" className="w-full border-slate-700 text-emerald-400 hover:bg-slate-800">
+                    <Button onClick={() => void handleInspect(app)} variant="outline" size="sm" className="w-full bg-slate-900 border-slate-700 text-emerald-400 hover:bg-slate-800 hover:text-emerald-300">
                       <Eye className="w-4 h-4 mr-2" /> Examiner le dossier
                     </Button>
                   </CardFooter>
@@ -349,7 +364,7 @@ export default function DeliveryAdminPage() {
                         {selected.profile_type === "driver" ? "Livreur indépendant" : "Société de livraison"} · {selected.city}, {selected.country} · {selected.manager_phone}
                       </DialogDescription>
                     </div>
-                    <Badge className={STATUS_STYLE[selected.verification_status] ?? ""}>{STATUS_LABEL[selected.verification_status] ?? selected.verification_status}</Badge>
+                    <Badge className={`shrink-0 whitespace-nowrap ${STATUS_STYLE[selected.verification_status] ?? ""}`}>{STATUS_LABEL[selected.verification_status] ?? selected.verification_status}</Badge>
                   </div>
                 </DialogHeader>
 
@@ -379,11 +394,34 @@ export default function DeliveryAdminPage() {
                   <section>
                     <h3 className="text-sm font-semibold text-emerald-400 mb-3">Pièces du responsable</h3>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <DeliveryDocThumb path={selected.manager_id_photo_url} label="Pièce d'identité" />
+                      <DeliveryDocThumb path={selected.manager_id_photo_url} label={idNeedsBackSide(selected.kyc?.id_type) ? "Pièce d'identité — recto" : "Passeport"} />
+                      {idNeedsBackSide(selected.kyc?.id_type) && <DeliveryDocThumb path={selected.manager_id_back_photo_url} label="Pièce d'identité — verso" />}
                       <DeliveryDocThumb path={selected.manager_selfie_with_id_url} label="Selfie avec la pièce" />
                       {selected.profile_type === "manager" && <DeliveryDocThumb path={selected.warehouse_photo_url} label="Entrepôt principal" />}
                     </div>
                   </section>
+
+                  {/* Localisation de l'entrepôt */}
+                  {selected.profile_type === "manager" && (
+                    <section>
+                      <h3 className="text-sm font-semibold text-emerald-400 mb-3 flex items-center gap-2"><MapPin className="w-4 h-4" /> Localisation de l'entrepôt</h3>
+                      {selected.location ? (
+                        <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 text-xs space-y-1.5">
+                          <p className="text-white font-medium">{formatCoordinates(selected.location)}</p>
+                          <p className="text-slate-400">
+                            {selected.location.source === "gps" ? "Position GPS du téléphone ou de l'ordinateur" : "Point placé sur la carte par le candidat"}
+                            {selected.location.source === "gps" && selected.location.accuracy_m ? ` · précision ≈ ${selected.location.accuracy_m} m` : ""}
+                            {" · adresse déclarée : "}{selected.headquarters_address}
+                          </p>
+                          <a href={mapsUrl(selected.location)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-emerald-300 hover:text-emerald-200 underline font-semibold">
+                            Ouvrir dans Google Maps (itinéraire) <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        </div>
+                      ) : (
+                        <p className="p-3 rounded-lg bg-amber-950/30 border border-amber-500/30 text-xs text-amber-200 flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5 shrink-0" /> Localisation non renseignée : demandez-la au candidat avant de valider.</p>
+                      )}
+                    </section>
+                  )}
 
                   {/* KYB */}
                   {selected.profile_type === "manager" && (
@@ -420,6 +458,8 @@ export default function DeliveryAdminPage() {
                           });
                           if (!drv.license_number) issues.push("Numéro de permis manquant.");
                           if (!drv.license_photo_url || !drv.national_id_photo_url || !drv.photo_url) issues.push("Photo, pièce d'identité ou permis manquant.");
+                          const backGaps = driverDossierGaps(drv);
+                          issues.push(...backGaps.map((g) => g.label.replace(`${drv.full_name} : `, "Manquant : ")));
                           return (
                             <div key={drv.id} className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
                               <div className="flex flex-wrap items-start justify-between gap-2">
@@ -447,15 +487,20 @@ export default function DeliveryAdminPage() {
                                 <p className="text-xs text-emerald-300 flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Catégories compatibles et dates valables. Comparez la photo du permis aux données déclarées.</p>
                               )}
 
-                              <div className="grid grid-cols-3 gap-3">
-                                <DeliveryDocThumb path={drv.national_id_photo_url} label="Pièce" />
-                                <DeliveryDocThumb path={drv.license_photo_url} label="Permis" />
+                              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                                <DeliveryDocThumb path={drv.national_id_photo_url} label={idNeedsBackSide(drv.id_type) ? "Pièce — recto" : "Passeport"} />
+                                {idNeedsBackSide(drv.id_type) && <DeliveryDocThumb path={drv.national_id_back_photo_url} label="Pièce — verso" />}
+                                <DeliveryDocThumb path={drv.license_photo_url} label="Permis — recto" />
+                                <DeliveryDocThumb path={drv.license_back_photo_url} label="Permis — verso" />
                                 <DeliveryDocThumb path={drv.selfie_with_id_url ?? drv.photo_url} label="Selfie" />
                               </div>
 
                               <div className="flex flex-wrap gap-2">
                                 {drv.verification_status !== "approved" && (
                                   <Button size="sm" disabled={issues.length > 0} onClick={() => openDriverDecision(drv, "approved")} className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs">Approuver</Button>
+                                )}
+                                {drv.verification_status !== "approved" && backGaps.length > 0 && (
+                                  <Button size="sm" variant="outline" onClick={() => requestDriverBack(drv)} className="bg-slate-900 hover:text-white border-purple-500/40 text-purple-300 hover:bg-purple-950 text-xs">Demander le verso</Button>
                                 )}
                                 {drv.verification_status !== "rejected" && (
                                   <Button size="sm" variant="outline" onClick={() => openDriverDecision(drv, "rejected")} className="bg-slate-900 hover:text-white border-red-500/40 text-red-400 hover:bg-red-950 text-xs">Refuser</Button>
@@ -515,6 +560,18 @@ export default function DeliveryAdminPage() {
                       </div>
                     </div>
 
+                    {allDossierGaps(selected).length > 0 && selected.verification_status !== "approved" && (
+                      <div role="status" className="p-3 rounded-lg bg-amber-950/30 border border-amber-500/30 text-xs text-amber-200 space-y-2">
+                        <p className="font-semibold flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" /> Éléments absents du dossier :</p>
+                        {allDossierGaps(selected).map((g) => <p key={g.label}>• {g.label}</p>)}
+                        <Button type="button" size="sm" variant="outline" onClick={() => setMessage(missingItemsMessage(allDossierGaps(selected)))}
+                          className="bg-slate-900 hover:text-white border-purple-500/40 text-purple-300 hover:bg-purple-950 text-xs">
+                          Pré-remplir la demande (verso, localisation…)
+                        </Button>
+                        <p className="text-amber-300/80">Relisez le message ci-dessous puis cliquez sur « Demander un complément ». Le serveur refuse de valider tant que ces éléments manquent.</p>
+                      </div>
+                    )}
+
                     <div className="space-y-2">
                       <Label htmlFor="adm-msg" className="text-xs text-slate-300">Message au candidat (complément demandé) — visible de lui</Label>
                       <Textarea id="adm-msg" placeholder="Ex: Merci d'envoyer un selfie où la pièce est entièrement visible." value={message} onChange={(e) => setMessage(e.target.value)} className="bg-slate-900 border-slate-800 text-xs text-white" />
@@ -534,7 +591,7 @@ export default function DeliveryAdminPage() {
                     <Button type="button" variant="outline" onClick={() => void decide("suspended")} disabled={submitting} className="bg-slate-900 hover:text-white border-amber-500/40 text-amber-300 hover:bg-amber-950">Suspendre</Button>
                   )}
                   {selected.verification_status !== "approved" && (
-                    <Button type="button" onClick={() => void decide("approved")} disabled={submitting || !allChecked} className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold"><CheckCircle2 className="w-4 h-4 mr-1" /> Valider et attribuer le badge</Button>
+                    <Button type="button" onClick={() => void decide("approved")} disabled={submitting || !allChecked || selectedGaps.length > 0} title={selectedGaps.length > 0 ? "Verso ou localisation manquant : demandez-le d'abord au candidat." : undefined} className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold"><CheckCircle2 className="w-4 h-4 mr-1" /> Valider et attribuer le badge</Button>
                   )}
                 </DialogFooter>
               </>

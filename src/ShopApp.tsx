@@ -6,6 +6,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 import { isCustomShopHostname } from "@/lib/leanShopPath";
 import { captureAffiliateRefFromUrl } from "@/lib/affiliateRef";
+import { ProductSkeleton } from "@/components/shop/ProductSkeleton";
 
 /**
  * Application allégée pour les pages publiques de boutique (fiche produit, vitrine, confirmation).
@@ -23,6 +24,15 @@ const isCustomShopHost = isCustomShopHostname(
 );
 
 const Blank = () => <div className="min-h-screen bg-white" />;
+
+/**
+ * Pendant le téléchargement du code de la page : le squelette de la fiche produit (le même que pendant le chargement
+ * de la fiche, pour qu'il n'y ait aucun saut), un écran blanc ailleurs.
+ */
+const RouteFallback = () => {
+  const { pathname } = useLocation();
+  return /^\/shop\/[^/]+\/(p\/[^/]+|product)\/?$/.test(pathname) ? <ProductSkeleton /> : <Blank />;
+};
 
 /** Chemin hors boutique (ex. lien « /auth » d'une page d'accueil personnalisée) : le site complet prend le relais. */
 const LeaveToFullApp = () => {
@@ -72,7 +82,7 @@ const ShopApp = () => (
         <AffiliateRefCapture />
         <SessionExtras />
         <main className="w-full">
-          <Suspense fallback={<Blank />}>
+          <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/" element={isCustomShopHost ? <ShopView /> : <LeaveToFullApp />} />
               <Route path="/shop/:slug" element={<ShopView />} />

@@ -29,7 +29,7 @@ import { ShopPaymentCountdown } from "@/components/shop/ShopPaymentCountdown";
 import { ShopPaymentGate } from "@/components/shop/ShopPaymentGate";
 import { computeShopPaymentInfo } from "@/lib/shopPaymentStatus";
 import { SubscriptionRenewalBanner } from "@/components/shop/SubscriptionRenewalBanner";
-import { computeShopSubscription, enforceShopSubscriptionExpiry } from "@/lib/shopSubscription";
+import { computeShopSubscription, enforceShopSubscriptionExpiry, loadBillingRuntimeConfig } from "@/lib/shopSubscription";
 import { saveProductVideos, fetchProductVideos, fetchProductThemeSettings, upsertProductThemeSettings } from "@/lib/productAppearance";
 
 // Lazy-load heavy section panels (only one section is visible at a time).
@@ -390,6 +390,12 @@ const ShopEditor = () => {
 
   // Alertes de livraison en direct (échec, livraison, argent reversé), puis rechargement des commandes.
   useDeliveryEvents("shop_id", id, "shop", fetchData);
+
+  // Délai de grâce, rappel et tarifs de renouvellement réglés par le fondateur : chargés une fois, puis l'écran se redessine.
+  const [, setBillingConfigTick] = useState(0);
+  useEffect(() => {
+    void loadBillingRuntimeConfig().then(() => setBillingConfigTick((t) => t + 1));
+  }, []);
 
   // Abonnement échu : demande au serveur de le constater (taux de commission rétabli, fermeture après le délai de grâce)
   // sans attendre la tâche planifiée. Une seule fois par boutique et par échéance ; la mise à jour de la boutique

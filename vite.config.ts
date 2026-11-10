@@ -1,4 +1,5 @@
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
+import type { OutputChunk } from "rollup";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
@@ -23,6 +24,60 @@ function assertBuildEnv(mode: string) {
   }
 }
 
+/**
+ * Préchargement du code de la fiche produit, dès le <head>.
+ *
+ * Sans cela, le navigateur télécharge d'abord le point d'entrée, l'exécute (≈ 0,5 s de plus sur un téléphone d'entrée de
+ * gamme), puis seulement découvre `ProductView` et ses ~50 modules. En listant ces fichiers dans le <head>, ils partent
+ * en même temps que la requête de la fiche. Le script ne fait rien hors des URL de fiche produit : les autres pages
+ * (tableau de bord, accueil) ne téléchargent rien en plus.
+ *
+ * La liste est calculée au build à partir des vrais fichiers générés (noms avec empreinte), jamais écrite à la main.
+ * Son chemin de détection répète `getLeanShopKind` (src/lib/leanShopPath.ts) pour les fiches produit.
+ */
+function preloadProductChunks(): Plugin {
+  return {
+    name: "ecomfy-preload-product-chunks",
+    transformIndexHtml: {
+      order: "post",
+      handler(html, ctx) {
+        const bundle = ctx.bundle;
+        if (!bundle) return html; // serveur de développement : rien à préchauffer
+        const chunks = Object.values(bundle).filter((c): c is OutputChunk => c.type === "chunk");
+        const byFile = new Map(chunks.map((c) => [c.fileName, c]));
+        const facade = (suffix: string) =>
+          chunks.find((c) => c.facadeModuleId && c.facadeModuleId.replace(/\\/g, "/").endsWith(suffix));
+        const closure = (start: OutputChunk | undefined, into: Set<string>) => {
+          const walk = (file: string) => {
+            if (into.has(file)) return;
+            const chunk = byFile.get(file);
+            if (!chunk) return;
+            into.add(file);
+            chunk.imports.forEach(walk);
+          };
+          if (start) walk(start.fileName);
+        };
+        const entry = chunks.find((c) => c.isEntry && c.facadeModuleId?.replace(/\\/g, "/").endsWith("/index.html"));
+        const alreadyPreloaded = new Set<string>();
+        closure(entry, alreadyPreloaded); // déjà préchargé par Vite lui-même
+        const wanted = new Set<string>();
+        closure(facade("src/pages/ProductView.tsx"), wanted);
+        closure(facade("src/boot/bootShop.tsx"), wanted);
+        const files = [...wanted].filter((f) => !alreadyPreloaded.has(f));
+        if (files.length === 0) return html;
+        const script =
+          `(function(){try{var p=location.pathname;` +
+          `if(!/^\\/shop\\/[^\\/]+\\/p\\/[^\\/?#]+/.test(p)&&!/^\\/shop\\/[^\\/]+\\/product\\/?$/.test(p))return;` +
+          `var f=${JSON.stringify(files.map((f) => `/${f}`))};` +
+          `for(var i=0;i<f.length;i++){var l=document.createElement("link");l.rel="modulepreload";l.crossOrigin="";l.href=f[i];document.head.appendChild(l);}` +
+          `}catch(e){}})();`;
+        // « head-prepend » : un script placé après la feuille de style attendrait la fin de son téléchargement.
+        return [{ tag: "script", children: script, injectTo: "head-prepend" as const }];
+      },
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ command, mode }) => {
   if (command === "build") assertBuildEnv(mode);
@@ -33,6 +88,7 @@ export default defineConfig(({ command, mode }) => {
   },
   plugins: [
     react(),
+    preloadProductChunks(),
     VitePWA({
       strategies: 'injectManifest',
       srcDir: 'src',

@@ -1,6 +1,5 @@
-import { useParams, Link, useNavigate } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { useCorporateGovernance } from "@/hooks/useCorporateGovernance";
-import { INITIAL_GOVERNANCE_DOCUMENTS } from "@/data/initialGovernanceDocs";
 import { CorporateDocument } from "@/types/corporate";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,7 +16,6 @@ import {
   Eye,
   FileCheck,
   Loader2,
-  ShieldCheck
 } from "lucide-react";
 
 export default function GovernanceDocumentPage() {
@@ -30,46 +28,16 @@ export default function GovernanceDocumentPage() {
   const [checkedLegal, setCheckedLegal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const decodedParam = decodeURIComponent(documentId || "").toLowerCase().trim();
-
-  // Try matching against loaded documents first, or fallback to initial seed docs
-  const foundInDocs = documents.find((d) => {
-    const idLower = d.id.toLowerCase();
-    const titleLower = d.title.toLowerCase();
-    return (
-      idLower === decodedParam ||
-      idLower.includes(decodedParam) ||
-      decodedParam.includes(idLower) ||
-      titleLower.includes(decodedParam)
-    );
-  });
-
-  const seedFallback = INITIAL_GOVERNANCE_DOCUMENTS.find((s) => {
-    const seedId = s.id.toLowerCase();
-    const seedTitle = s.title.toLowerCase();
-    return (
-      seedId === decodedParam ||
-      seedId.includes(decodedParam) ||
-      decodedParam.includes(seedId) ||
-      seedTitle.includes(decodedParam)
-    );
-  });
-
-  const doc: CorporateDocument | undefined = foundInDocs || (seedFallback ? {
-    id: seedFallback.id,
-    title: seedFallback.title,
-    category: seedFallback.category,
-    legal_status: seedFallback.legal_status,
-    summary: seedFallback.summary,
-    author: seedFallback.author,
-    is_mandatory: seedFallback.is_mandatory,
-    target_roles: ["shareholder"],
-    current_version: seedFallback.current_version,
-    storage_path: null,
-    content_markdown: seedFallback.content_markdown,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  } : undefined);
+  // Le document vient uniquement de la base : identifiant exact ou identifiant stable (slug), sans correspondance approximative.
+  let wanted = "";
+  try {
+    wanted = decodeURIComponent(documentId || "").toLowerCase().trim();
+  } catch {
+    wanted = "";
+  }
+  const doc: CorporateDocument | undefined = wanted
+    ? documents.find((d) => d.id.toLowerCase() === wanted || (d.slug ?? "").toLowerCase() === wanted)
+    : undefined;
 
   useEffect(() => {
     if (doc) {
@@ -104,11 +72,16 @@ export default function GovernanceDocumentPage() {
     if (!checkedRead || !checkedAware || !checkedLegal) return;
     setIsSubmitting(true);
     try {
-      await approveDocument(
+      const ok = await approveDocument(
         doc.id,
         doc.current_version,
         "J'ai lu, compris et approuvé ce document. Je reconnais que ce document s'interprète avec les statuts et formalités juridiques applicables d'Ecomfy."
       );
+      if (ok) {
+        setCheckedRead(false);
+        setCheckedAware(false);
+        setCheckedLegal(false);
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -146,13 +119,13 @@ export default function GovernanceDocumentPage() {
           {doc.title}
         </h1>
         <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-          {doc.summary || "Document officiel de gouvernance de la plateforme SaaS Ecomfy."}
+          {doc.summary || ""}
         </p>
 
         <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 pt-2 border-t border-slate-800">
-          <span className="flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-amber-400" /> Auteur : {doc.author || "Direction Ecomfy"}</span>
+          <span className="flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-amber-400" /> Auteur : {doc.author || "—"}</span>
           <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-purple-400" /> Mis à jour : {new Date(doc.updated_at).toLocaleDateString("fr-FR")}</span>
-          <span className="flex items-center gap-1.5 text-emerald-400 font-medium"><Eye className="w-3.5 h-3.5" /> Consultation Tracée</span>
+          <span className="flex items-center gap-1.5 text-emerald-400 font-medium"><Eye className="w-3.5 h-3.5" /> Consultation journalisée</span>
         </div>
       </Card>
 
@@ -182,7 +155,7 @@ export default function GovernanceDocumentPage() {
             Document Lu et Approuvé
           </div>
           <p className="text-xs text-emerald-300">
-            Vous avez validé ce document le {new Date(doc.user_acceptance?.timestamp || Date.now()).toLocaleString("fr-FR")}.
+            Vous avez validé la version {doc.current_version} de ce document le {doc.user_acceptance?.timestamp ? new Date(doc.user_acceptance.timestamp).toLocaleString("fr-FR") : "—"}.
           </p>
           <div className="text-xs font-mono text-slate-400 pt-1">
             Déclaration enregistrée : "{doc.user_acceptance?.legal_statement}"

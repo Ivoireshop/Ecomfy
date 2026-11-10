@@ -1,9 +1,9 @@
 import { priceLine } from "@/lib/bundlePricing";
-import { useEffect, useState, useRef, lazy, Suspense, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, useRef, lazy, Suspense, type CSSProperties } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 const LazyThemeRenderer = lazy(() => import("@/lib/productThemes/ThemeRenderer"));
-import { thumbUrl, heroImageWidth } from "@/lib/imageUrl";
+import { thumbUrl, heroImageWidth, HERO_IMAGE_QUALITY } from "@/lib/imageUrl";
 import { isPremiumShop } from "@/lib/premium";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +23,8 @@ import { ShopReviewBar } from "@/components/shop/ShopReviewBar";
 import { useProductReviewStats } from "@/hooks/useProductReviewStats";
 import { isAbidjanZone } from "@/lib/abidjanZones";
 import { initShopPixels, trackEvent } from "@/lib/tracking";
+import { runAfterFirstPaint } from "@/lib/afterFirstPaint";
+import { ProductSkeleton } from "@/components/shop/ProductSkeleton";
 import { PhoneInput } from "@/components/shop/PhoneInput";
 import { isValidFullPhone, normalizeToE164, parseFullPhone } from "@/lib/phoneCountries";
 import { normalizeSectionOrder, type ProductSectionKey } from "@/lib/productSections";
@@ -183,6 +185,9 @@ const ProductView = () => {
   const [quantity, setQuantity] = useState(1);
   const [selectedBundleIdx, setSelectedBundleIdx] = useState<number | null>(null);
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
+  // Le nettoyage du HTML de la description est coûteux (DOMPurify) : on ne le refait que si le texte change,
+  // pas à chaque rendu (quantité, variante, compte à rebours...).
+  const descriptionHtml = useMemo(() => sanitizeProductHtml(product?.description), [product?.description]);
 
   // Cart state
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -365,8 +370,8 @@ const ProductView = () => {
             if (productData.slug) cacheSet(productKey(shopData.id, productData.slug), productData);
             cacheSet(productKey(shopData.id, productData.id), productData);
             setLoading(false);
-            // Fire pixels / analytics asynchronously without blocking.
-            queueMicrotask(() => {
+            // Pixels et analytique : après le premier affichage (voir lib/afterFirstPaint.ts), pas avant.
+            runAfterFirstPaint(() => {
               try {
                 let sid = sessionStorage.getItem("vp_visit_session");
                 if (!sid) {
@@ -439,17 +444,19 @@ const ProductView = () => {
               });
             } catch {}
 
-            try {
-              initShopPixels(shopData);
-              trackEvent(shopData, "PageView");
-              trackEvent(shopData, "ViewContent", {
-                value: productData.price,
-                content_ids: [productData.id],
-                content_name: productData.name,
-                content_type: "product",
-                contents: [{ id: productData.id, quantity: 1, item_price: productData.price }],
-              });
-            } catch {}
+            runAfterFirstPaint(() => {
+              try {
+                initShopPixels(shopData);
+                trackEvent(shopData, "PageView");
+                trackEvent(shopData, "ViewContent", {
+                  value: productData.price,
+                  content_ids: [productData.id],
+                  content_name: productData.name,
+                  content_type: "product",
+                  contents: [{ id: productData.id, quantity: 1, item_price: productData.price }],
+                });
+              } catch {}
+            });
             setLoading(false);
             return;
           }
@@ -565,19 +572,21 @@ const ProductView = () => {
 
 
       if (!shopData._isPreview && productData) {
-        try {
-          initShopPixels(shopData);
-          trackEvent(shopData, "PageView");
-          trackEvent(shopData, "ViewContent", {
-            value: productData.price,
-            content_ids: [productData.id],
-            content_name: productData.name,
-            content_type: "product",
-            contents: [{ id: productData.id, quantity: 1, item_price: productData.price }],
-          });
-        } catch (e) {
-          console.warn("[tracking] product page init failed", e);
-        }
+        runAfterFirstPaint(() => {
+          try {
+            initShopPixels(shopData);
+            trackEvent(shopData, "PageView");
+            trackEvent(shopData, "ViewContent", {
+              value: productData.price,
+              content_ids: [productData.id],
+              content_name: productData.name,
+              content_type: "product",
+              contents: [{ id: productData.id, quantity: 1, item_price: productData.price }],
+            });
+          } catch (e) {
+            console.warn("[tracking] product page init failed", e);
+          }
+        });
       }
     } catch (error) {
       console.warn("[ProductView] load failed", error);
@@ -821,37 +830,7 @@ const ProductView = () => {
 
 
 
-  if (loading) return (
-    <div className="min-h-screen bg-white">
-      {/* Header skeleton */}
-      <div className="border-b sticky top-0 z-40 bg-white">
-        <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="h-8 w-8 rounded-lg bg-gray-200 animate-pulse" />
-            <div className="h-4 w-32 rounded bg-gray-200 animate-pulse" />
-          </div>
-          <div className="h-9 w-20 rounded-lg bg-gray-200 animate-pulse" />
-        </div>
-      </div>
-      {/* Product hero skeleton */}
-      <section className="max-w-6xl mx-auto px-3 sm:px-6 py-6 sm:py-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
-          <div className="aspect-square rounded-xl bg-gray-100 animate-pulse" />
-          <div className="space-y-4">
-            <div className="h-7 w-3/4 rounded bg-gray-200 animate-pulse" />
-            <div className="h-5 w-1/2 rounded bg-gray-200 animate-pulse" />
-            <div className="h-10 w-40 rounded bg-gray-200 animate-pulse" />
-            <div className="space-y-2 pt-2">
-              <div className="h-3 w-full rounded bg-gray-100 animate-pulse" />
-              <div className="h-3 w-11/12 rounded bg-gray-100 animate-pulse" />
-              <div className="h-3 w-10/12 rounded bg-gray-100 animate-pulse" />
-            </div>
-            <div className="h-12 w-full rounded-xl bg-gray-200 animate-pulse mt-4" />
-          </div>
-        </div>
-      </section>
-    </div>
-  );
+  if (loading) return <ProductSkeleton />;
 
   if (!shop || !product) return (
     <div className="min-h-screen flex items-center justify-center flex-col gap-4 bg-white">
@@ -1709,7 +1688,7 @@ const ProductView = () => {
             <div className="aspect-square rounded-2xl overflow-hidden bg-gray-50 mb-3 relative group shadow-sm border border-gray-100">
               {images.length > 0 ? (
                 <img 
-                  src={thumbUrl(images[selectedImageIdx]?.image_url, heroImageWidth())} 
+                  src={thumbUrl(images[selectedImageIdx]?.image_url, heroImageWidth(), HERO_IMAGE_QUALITY)}
                   alt={product.name} 
                   loading="eager"
                   decoding="async"
@@ -1916,7 +1895,7 @@ const ProductView = () => {
                   <div
                     key="long_description"
                     className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-p:leading-relaxed prose-img:rounded-xl prose-img:mx-auto prose-img:shadow-sm prose-a:text-blue-600 prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700"
-                    dangerouslySetInnerHTML={{ __html: sanitizeProductHtml(product.description) }}
+                    dangerouslySetInnerHTML={{ __html: descriptionHtml }}
                     style={{ whiteSpace: "pre-wrap" }}
                   />
                 ) : null;
@@ -1952,7 +1931,7 @@ const ProductView = () => {
                             <Volume2 className="h-4 w-4 text-emerald-600" />
                             <span className="font-semibold text-sm">{a.title || "Témoignage client"}</span>
                           </div>
-                          {a.audio_url && <audio controls src={a.audio_url} className="w-full h-8" />}
+                          {a.audio_url && <audio controls preload="none" src={a.audio_url} className="w-full h-8" />}
                         </div>
                       ))}
                     </div>

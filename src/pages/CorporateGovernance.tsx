@@ -1,9 +1,17 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { useCorporateGovernance } from "@/hooks/useCorporateGovernance";
 import { GovernanceDocumentViewerModal } from "@/components/governance/GovernanceDocumentViewerModal";
 import { CreateDocumentModal } from "@/components/governance/CreateDocumentModal";
 import { CorporateDocument } from "@/types/corporate";
+import {
+  NO_INVITATION,
+  checkAllocationRoom,
+  computeVestingProgress,
+  invitationRank,
+  resolveMemberStatus,
+  sharesForPercentage,
+  summarizeCapTable,
+} from "@/lib/governanceMetrics";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,55 +22,83 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Crown,
-  ShieldCheck,
   Building2,
-  FileText,
-  TrendingUp,
-  PieChart,
-  Users,
-  Briefcase,
-  AlertTriangle,
   Clock,
-  Sparkles,
   Loader2,
   PlusCircle,
   FileCheck,
-  History,
-  Lock,
-  ArrowRight,
-  ShieldAlert,
-  UserX,
-  Code,
   CheckCircle2,
-  AlertCircle,
-  Eye,
   Mail,
-  Copy,
   Send,
   UserCheck,
-  XCircle,
   RefreshCw,
   Ban,
-  Activity
+  Activity,
+  PieChart,
+  Users,
+  AlertTriangle,
+  Scale,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+const fmtDate = (v?: string | null) => (v ? new Date(v).toLocaleDateString("fr-FR") : "—");
+const fmtPct = (n: number) => `${Number(n.toFixed(2))} %`;
+
+const PROPOSAL_STATUS_LABELS: Record<string, string> = {
+  proposed: "Proposée",
+  documentation_required: "Documents requis",
+  documentation_verified: "Documents vérifiés",
+  approval_required: "Approbation requise",
+  approved: "Approuvée",
+  rejected: "Rejetée",
+  changes_requested: "Modifications demandées",
+  legal_formalization_required: "Formalisation juridique requise",
+  legal_formalization_completed: "Formalisation juridique terminée",
+  cap_table_updated: "Cap table mise à jour",
+};
+
+const AUDIT_ACTION_LABELS: Record<string, string> = {
+  DOCUMENT_VIEWED: "Document consulté",
+  DOCUMENT_APPROVED: "Document signé",
+  DOCUMENT_CREATED: "Document créé",
+  PROPOSAL_CREATED: "Proposition créée",
+  INVITATION_CREATED: "Invitation créée",
+  INVITATION_SENT: "Invitation envoyée",
+  RESEND_INVITATION: "Invitation renvoyée",
+  INVITATION_REVOKED: "Invitation révoquée",
+  ROLE_ACTIVATED: "Rôle activé",
+};
+
+const roleLabels: Record<string, string> = {
+  co_founder: "Cofondateur",
+  cofounder: "Cofondateur",
+  shareholder: "Associé",
+  investor: "Investisseur",
+  corporate_admin: "Administrateur",
+  founder: "Fondateur",
+};
+
+const newToken = () => `inv-sec-${crypto.randomUUID()}`;
+
 export default function CorporateGovernance() {
   const {
     loading,
+    loadError,
+    actor,
+    canWrite,
     company,
     shareholders,
     invitations,
+    invitationsAvailable,
     documents,
     proposals,
-    ipAssets,
     auditLogs,
+    auditTotal,
     fetchCorporateData,
     recordDocumentView,
     createDocument,
     createProposal,
-    updateProposalStatus,
     approveDocument,
     logAudit,
   } = useCorporateGovernance();
@@ -76,7 +112,7 @@ export default function CorporateGovernance() {
   const [isProposalDialogOpen, setIsProposalDialogOpen] = useState(false);
   const [proposalTitle, setProposalTitle] = useState("");
   const [beneficiaryId, setBeneficiaryId] = useState("");
-  const [proposedPct, setProposedPct] = useState<number>(5.0);
+  const [proposedPct, setProposedPct] = useState("");
   const [proposalRationale, setProposalRationale] = useState("");
   const [isSubmittingProposal, setIsSubmittingProposal] = useState(false);
 
@@ -85,286 +121,326 @@ export default function CorporateGovernance() {
   const [inviteFullName, setInviteFullName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("shareholder");
-  const [invitePct, setInvitePct] = useState<number>(10.0);
+  const [invitePct, setInvitePct] = useState("");
   const [isSendingInvite, setIsSendingInvite] = useState(false);
 
-  // Electronic Signature Audit Modal
-  const [selectedAuditShareholder, setSelectedAuditShareholder] = useState<any>(null);
+  const totalShares = company ? Number(company.total_authorized_shares) : null;
+  const cap = summarizeCapTable(shareholders);
+  const me = actor
+    ? shareholders.find((s) => s.user_id === actor.id || s.email.toLowerCase() === actor.email.toLowerCase())
+    : undefined;
+  const mainFounderAlloc = cap.mainFounder?.allocation;
+
+  const selectedBeneficiary = shareholders.find((s) => s.id === beneficiaryId);
+  const proposedNum = Number(proposedPct);
+  const proposalRoom = checkAllocationRoom(shareholders, beneficiaryId || null, proposedNum);
+  const inviteNum = Number(invitePct);
+  const inviteExisting = shareholders.find((s) => s.email.toLowerCase() === inviteEmail.trim().toLowerCase());
+  const inviteRoom = checkAllocationRoom(shareholders, inviteExisting?.id ?? null, inviteNum);
+
+  const resetProposalForm = () => {
+    setProposalTitle("");
+    setBeneficiaryId("");
+    setProposedPct("");
+    setProposalRationale("");
+  };
 
   const handleCreateProposalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!proposalTitle || !beneficiaryId || !proposedPct || !proposalRationale) return;
+    if (!proposalTitle.trim() || !beneficiaryId || !proposalRationale.trim()) return;
+    if (!proposalRoom.ok) {
+      toast.error(`La participation doit être comprise entre 0 et ${proposalRoom.maxPct} % (les autres membres détiennent ${proposalRoom.othersPct} %).`);
+      return;
+    }
 
     setIsSubmittingProposal(true);
     try {
       await createProposal({
-        title: proposalTitle,
+        title: proposalTitle.trim(),
         beneficiary_shareholder_id: beneficiaryId,
-        proposed_percentage: proposedPct,
-        rationale: proposalRationale,
-        proposed_by: "ulrich-admin",
+        proposed_percentage: proposedNum,
+        rationale: proposalRationale.trim(),
       });
-
       setIsProposalDialogOpen(false);
-      setProposalTitle("");
-      setBeneficiaryId("");
-      setProposedPct(5.0);
-      setProposalRationale("");
-    } catch (e) {
-      console.error(e);
+      resetProposalForm();
+    } catch {
+      // le hook a déjà affiché la raison ; on garde la saisie
     } finally {
       setIsSubmittingProposal(false);
     }
+  };
+
+  /** Lève l'erreur Supabase : une requête refusée ne doit jamais passer pour un succès. */
+  const must = <T extends { error: { message: string } | null }>(res: T, label: string): T => {
+    if (res.error) throw new Error(`${label} : ${res.error.message}`);
+    return res;
   };
 
   const handleSendInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanEmail = inviteEmail.trim().toLowerCase();
     const cleanName = inviteFullName.trim();
-
     if (!cleanName || !cleanEmail) return;
+    if (!company || totalShares === null) {
+      toast.error("Capital de référence introuvable : la société n'est pas enregistrée.");
+      return;
+    }
+    if (!invitationsAvailable) {
+      toast.error("Le suivi des invitations n'est pas disponible dans cette base.");
+      return;
+    }
 
     setIsSendingInvite(true);
     try {
-      // 1. Check if active invitation already exists for this email
-      const existingInvite = invitations.find(
-        (i) => i.email.toLowerCase() === cleanEmail && !["DECLINED", "REVOKED", "EXPIRED"].includes(i.status)
-      );
-
-      if (existingInvite) {
-        toast.warning(
-          `Une invitation active (${existingInvite.status}) existe déjà pour cette adresse email. Vous pouvez la renvoyer ou la révoquer.`,
-          {
-            description: `Rôle : ${existingInvite.corporate_role}`,
-          }
-        );
-        setIsSendingInvite(false);
+      const existingSh = shareholders.find((s) => s.email.toLowerCase() === cleanEmail);
+      if (existingSh && (existingSh.is_main_founder || existingSh.onboarding_completed)) {
+        toast.error(`${existingSh.full_name} est déjà membre actif : aucune invitation n'est nécessaire.`);
         return;
       }
 
-      const secureToken = `inv-sec-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days expiration
-      const targetShares = (invitePct / 100) * (company?.total_authorized_shares || 1000000);
-
-      // 2. Save or update shareholder record with pending_onboarding status
-      const { data: newSh, error: shErr } = await supabase
-        .from("corporate_shareholders" as any)
-        .upsert(
-          {
-            email: cleanEmail,
-            full_name: cleanName,
-            corporate_role: inviteRole,
-            is_main_founder: false,
-            onboarding_level: 1,
-            onboarding_completed: false,
-            mfa_enabled: false,
-            created_at: new Date().toISOString(),
-          },
-          { onConflict: "email" }
-        )
-        .select()
-        .single();
-
-      if (shErr) throw shErr;
-
-      if (newSh) {
-        await supabase.from("corporate_share_allocations" as any).upsert({
-          shareholder_id: (newSh as any).id,
-          target_percentage: invitePct,
-          target_shares: targetShares,
-          vested_percentage: 0.0,
-          vested_shares: 0.0,
-          status: "vesting",
-        });
+      const existingInvite = invitations.find(
+        (i) => i.email.toLowerCase() === cleanEmail && !["DECLINED", "REVOKED", "EXPIRED"].includes(i.status),
+      );
+      if (existingInvite) {
+        toast.warning(
+          `Une invitation active (${existingInvite.status}) existe déjà pour cette adresse. Vous pouvez la renvoyer ou la révoquer.`,
+          { description: `Rôle : ${existingInvite.corporate_role}` },
+        );
+        return;
       }
 
-      // 3. Create corporate invitation record
-      try {
-        await supabase.from("corporate_invitations" as any).insert({
+      if (!inviteRoom.ok) {
+        toast.error(`La participation doit être comprise entre 0 et ${inviteRoom.maxPct} % (les autres membres détiennent ${inviteRoom.othersPct} %).`);
+        return;
+      }
+
+      const secureToken = newToken();
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      const targetShares = sharesForPercentage(inviteNum, totalShares);
+
+      // 1. Membre : créé, ou mis à jour s'il existe déjà sans être activé (sans toucher à sa date de création)
+      let shareholderId: string;
+      if (existingSh) {
+        must(
+          await supabase
+            .from("corporate_shareholders" as never)
+            .update({ full_name: cleanName, corporate_role: inviteRole, updated_at: new Date().toISOString() } as never)
+            .eq("id", existingSh.id),
+          "Mise à jour du membre",
+        );
+        shareholderId = existingSh.id;
+      } else {
+        const res = must(
+          await supabase
+            .from("corporate_shareholders" as never)
+            .insert({
+              email: cleanEmail,
+              full_name: cleanName,
+              corporate_role: inviteRole,
+              is_main_founder: false,
+              onboarding_level: 1,
+              onboarding_completed: false,
+              mfa_enabled: false,
+            } as never)
+            .select("id")
+            .single(),
+          "Création du membre",
+        );
+        shareholderId = (res.data as unknown as { id: string }).id;
+      }
+
+      // 2. Participation : une seule ligne par membre
+      if (existingSh?.allocation) {
+        must(
+          await supabase
+            .from("corporate_share_allocations" as never)
+            .update({ target_percentage: inviteNum, target_shares: targetShares, updated_at: new Date().toISOString() } as never)
+            .eq("shareholder_id", shareholderId),
+          "Mise à jour de la participation",
+        );
+      } else {
+        must(
+          await supabase.from("corporate_share_allocations" as never).insert({
+            shareholder_id: shareholderId,
+            target_percentage: inviteNum,
+            target_shares: targetShares,
+            vested_percentage: 0,
+            vested_shares: 0,
+            status: "vesting",
+          } as never),
+          "Création de la participation",
+        );
+      }
+
+      // 3. Invitation
+      must(
+        await supabase.from("corporate_invitations" as never).insert({
           invite_token: secureToken,
           email: cleanEmail,
           full_name: cleanName,
           corporate_role: inviteRole,
-          target_percentage: invitePct,
+          target_percentage: inviteNum,
           target_shares: targetShares,
           status: "PENDING_INVITATION",
           expires_at: expiresAt,
-          invited_by_name: "ULRICH DJATÉ YAPI (Fondateur)",
-          shareholder_id: newSh?.id || null,
-        });
-      } catch (e) {
-        console.warn("Table corporate_invitations insert fallback:", e);
-      }
+          invited_by: actor?.id ?? null,
+          invited_by_name: me?.full_name ?? actor?.email ?? null,
+          shareholder_id: shareholderId,
+        } as never),
+        "Création de l'invitation",
+      );
 
-      // 4. Log INVITATION_CREATED in audit logs
       await logAudit("INVITATION_CREATED", "corporate_invitations", secureToken, null, {
         email: cleanEmail,
         name: cleanName,
         role: inviteRole,
-        target_percentage: invitePct,
+        target_percentage: inviteNum,
         expires_at: expiresAt,
       });
 
-      // 5. Invoke Edge Function send-corporate-invite
+      // 4. Envoi de l'e-mail : le résultat réel est annoncé, pas un succès présumé
       const { data: edgeRes, error: edgeErr } = await supabase.functions.invoke("send-corporate-invite", {
-        body: {
-          email: cleanEmail,
-          fullName: cleanName,
-          role: inviteRole,
-          inviteToken: secureToken,
-          originUrl: window.location.origin,
-        },
+        body: { email: cleanEmail, fullName: cleanName, role: inviteRole, inviteToken: secureToken, originUrl: window.location.origin },
       });
 
-      if (edgeErr) console.error("Edge function error:", edgeErr);
-
-      // Update status to INVITATION_SENT if edge function sent
-      if (edgeRes?.emailSent) {
-        try {
-          await supabase
-            .from("corporate_invitations" as any)
-            .update({ status: "INVITATION_SENT", updated_at: new Date().toISOString() })
-            .eq("invite_token", secureToken);
-        } catch {}
-
-        await logAudit("INVITATION_SENT", "corporate_invitations", secureToken, null, { email: cleanEmail });
+      const inviteUrl = `${window.location.origin}/governance/invitation/${secureToken}?email=${encodeURIComponent(cleanEmail)}`;
+      let copied = false;
+      try {
+        await navigator.clipboard.writeText(inviteUrl);
+        copied = true;
+      } catch {
+        // presse-papiers indisponible
       }
 
-      const inviteUrl = `${window.location.origin}/governance/invitation/${secureToken}?email=${encodeURIComponent(cleanEmail)}`;
-      navigator.clipboard.writeText(inviteUrl);
-
-      // MANDATORY EXACT TOAST MESSAGE PER SPEC
-      toast.success("Invitation envoyée avec succès.");
-      toast.info(
-        "Cette personne doit maintenant ouvrir son invitation, vérifier son adresse email, lire les documents requis et accepter les conditions avant que sa nomination soit activée.",
-        { duration: 8000 }
-      );
+      if (!edgeErr && edgeRes?.emailSent) {
+        await supabase
+          .from("corporate_invitations" as never)
+          .update({ status: "INVITATION_SENT", updated_at: new Date().toISOString() } as never)
+          .eq("invite_token", secureToken);
+        await logAudit("INVITATION_SENT", "corporate_invitations", secureToken, null, { email: cleanEmail });
+        toast.success(`Invitation envoyée à ${cleanEmail}.${copied ? " Le lien a aussi été copié." : ""}`);
+      } else {
+        toast.warning(
+          `L'invitation est enregistrée mais l'e-mail n'a pas été envoyé${edgeErr ? ` (${edgeErr.message})` : ""}.`,
+          { description: copied ? "Le lien d'invitation a été copié : transmettez-le à la personne." : `Lien : ${inviteUrl}`, duration: 12000 },
+        );
+      }
 
       setIsInviteModalOpen(false);
       setInviteFullName("");
       setInviteEmail("");
-      setInvitePct(10.0);
-      fetchCorporateData();
+      setInvitePct("");
+      await fetchCorporateData();
     } catch (err: any) {
-      toast.error(err?.message || "Erreur lors de l'envoi de l'invitation");
+      toast.error(err?.message || "Erreur lors de la création de l'invitation");
+      await fetchCorporateData();
     } finally {
       setIsSendingInvite(false);
     }
   };
 
-  // ACTIVATE ROLE (ACCEPTED -> ACTIVE)
+  // ACTIVER LE RÔLE (ACCEPTED -> ACTIVE)
   const handleActivateRole = async (s: any, inv: any) => {
     try {
       const timestamp = new Date().toISOString();
-
-      // 1. Update shareholder status to active/completed
-      await supabase
-        .from("corporate_shareholders" as any)
-        .update({
-          onboarding_completed: true,
-          onboarding_level: 7,
-          updated_at: timestamp,
-        })
-        .eq("id", s.id);
-
-      // 2. Update invitation status to ACTIVE
-      if (inv?.id) {
+      must(
         await supabase
-          .from("corporate_invitations" as any)
-          .update({
-            status: "ACTIVE",
-            activated_at: timestamp,
-            updated_at: timestamp,
-          })
-          .eq("id", inv.id);
+          .from("corporate_shareholders" as never)
+          .update({ onboarding_completed: true, onboarding_level: 7, updated_at: timestamp } as never)
+          .eq("id", s.id),
+        "Activation du membre",
+      );
+      if (inv?.id) {
+        must(
+          await supabase
+            .from("corporate_invitations" as never)
+            .update({ status: "ACTIVE", activated_at: timestamp, updated_at: timestamp } as never)
+            .eq("id", inv.id),
+          "Mise à jour de l'invitation",
+        );
       }
-
-      // 3. Log ROLE_ACTIVATED in audit logs
-      await logAudit("ROLE_ACTIVATED", "corporate_shareholders", s.id, { status: "ACCEPTED" }, { status: "ACTIVE", role: s.corporate_role });
-
-      toast.success(`Le rôle de ${s.full_name} a été activé avec succès ! Il bénéficie maintenant des accès actifs.`);
-      fetchCorporateData();
+      await logAudit("ROLE_ACTIVATED", "corporate_shareholders", s.id, { status: inv?.status ?? null }, { status: "ACTIVE", role: s.corporate_role });
+      toast.success(`Le rôle de ${s.full_name} est activé.`);
     } catch (err: any) {
-      toast.error("Erreur lors de l'activation du rôle");
+      toast.error(err?.message || "Erreur lors de l'activation du rôle");
+    } finally {
+      await fetchCorporateData();
     }
   };
 
-  // RESEND INVITATION
+  // RENVOYER L'INVITATION (nouveau jeton, nouvelle échéance)
   const handleResendInvite = async (s: any, inv?: any) => {
+    if (!inv?.id) {
+      toast.error("Aucune invitation enregistrée pour ce membre : créez-en une avec « Inviter une personne ».");
+      return;
+    }
     try {
-      const secureToken = `inv-sec-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      const secureToken = newToken();
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
       const inviteUrl = `${window.location.origin}/governance/invitation/${secureToken}?email=${encodeURIComponent(s.email)}`;
 
-      // 1. Update or create invitation record with new token and extended expiration
-      if (inv?.id) {
+      must(
         await supabase
-          .from("corporate_invitations" as any)
-          .update({
-            invite_token: secureToken,
-            status: "INVITATION_SENT",
-            expires_at: expiresAt,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", inv.id);
-      } else {
-        await supabase.from("corporate_invitations" as any).insert({
-          invite_token: secureToken,
-          email: s.email,
-          full_name: s.full_name,
-          corporate_role: s.corporate_role,
-          target_percentage: s.allocation?.target_percentage || 10,
-          status: "INVITATION_SENT",
-          expires_at: expiresAt,
-          shareholder_id: s.id,
-        });
-      }
+          .from("corporate_invitations" as never)
+          .update({ invite_token: secureToken, status: "PENDING_INVITATION", expires_at: expiresAt, revoked_at: null, updated_at: new Date().toISOString() } as never)
+          .eq("id", inv.id),
+        "Mise à jour de l'invitation",
+      );
 
-      // 2. Invoke Edge Function
-      const { data: edgeRes } = await supabase.functions.invoke("send-corporate-invite", {
-        body: {
-          email: s.email,
-          fullName: s.full_name,
-          role: s.corporate_role,
-          inviteToken: secureToken,
-          originUrl: window.location.origin,
-        },
+      const { data: edgeRes, error: edgeErr } = await supabase.functions.invoke("send-corporate-invite", {
+        body: { email: s.email, fullName: s.full_name, role: s.corporate_role, inviteToken: secureToken, originUrl: window.location.origin },
       });
 
-      // 3. Log RESEND_INVITATION in audit log
-      await logAudit("RESEND_INVITATION", "corporate_invitations", secureToken, null, { email: s.email, new_token: secureToken });
+      await logAudit("RESEND_INVITATION", "corporate_invitations", inv.id, null, { email: s.email });
 
-      navigator.clipboard.writeText(inviteUrl);
-      toast.success(`Invitation renvoyée avec succès à ${s.full_name} (${s.email}) !`);
-      fetchCorporateData();
-    } catch (e) {
-      toast.error("Erreur lors du renvoi de l'invitation");
+      let copied = false;
+      try {
+        await navigator.clipboard.writeText(inviteUrl);
+        copied = true;
+      } catch {
+        // presse-papiers indisponible
+      }
+
+      if (!edgeErr && edgeRes?.emailSent) {
+        await supabase
+          .from("corporate_invitations" as never)
+          .update({ status: "INVITATION_SENT", updated_at: new Date().toISOString() } as never)
+          .eq("id", inv.id);
+        toast.success(`Invitation renvoyée à ${s.full_name} (${s.email}).`);
+      } else {
+        toast.warning(`Nouveau lien créé mais e-mail non envoyé${edgeErr ? ` (${edgeErr.message})` : ""}.`, {
+          description: copied ? "Le lien a été copié : transmettez-le à la personne." : `Lien : ${inviteUrl}`,
+          duration: 12000,
+        });
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Erreur lors du renvoi de l'invitation");
+    } finally {
+      await fetchCorporateData();
     }
   };
 
-  // REVOKE / CANCEL INVITATION
-  const handleRevokeInvite = async (invOrSh: any) => {
+  // RÉVOQUER L'INVITATION
+  const handleRevokeInvite = async (inv: any, s: any) => {
+    if (!inv?.id) {
+      toast.error("Aucune invitation enregistrée à révoquer pour ce membre.");
+      return;
+    }
     try {
       const timestamp = new Date().toISOString();
-      const email = invOrSh.email;
-
-      // Update corporate_invitations status to REVOKED
-      await supabase
-        .from("corporate_invitations" as any)
-        .update({
-          status: "REVOKED",
-          revoked_at: timestamp,
-          updated_at: timestamp,
-        })
-        .eq("email", email);
-
-      // Log INVITATION_REVOKED in audit log
-      await logAudit("INVITATION_REVOKED", "corporate_invitations", invOrSh.id || email, null, { email });
-
-      toast.info(`Invitation pour ${email} révoquée/annulée avec succès.`);
-      fetchCorporateData();
-    } catch (e) {
-      toast.error("Erreur lors de l'annulation de l'invitation");
+      must(
+        await supabase
+          .from("corporate_invitations" as never)
+          .update({ status: "REVOKED", revoked_at: timestamp, updated_at: timestamp } as never)
+          .eq("id", inv.id),
+        "Révocation",
+      );
+      await logAudit("INVITATION_REVOKED", "corporate_invitations", inv.id, { status: inv.status }, { email: s.email, status: "REVOKED" });
+      toast.info(`Invitation de ${s.email} révoquée.`);
+    } catch (err: any) {
+      toast.error(err?.message || "Erreur lors de la révocation");
+    } finally {
+      await fetchCorporateData();
     }
   };
 
@@ -373,32 +449,19 @@ export default function CorporateGovernance() {
       <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
         <div className="text-center space-y-3">
           <Loader2 className="w-10 h-10 animate-spin mx-auto text-[#0E7C66]" />
-          <p className="text-sm text-slate-400 font-medium">Chargement du Module Corporate & Governance Ecomfy...</p>
+          <p className="text-sm text-slate-400 font-medium">Chargement du module Corporate & Governance Ecomfy...</p>
         </div>
       </div>
     );
   }
 
-  // Cap Table Metrics
-  const totalShares = company?.total_authorized_shares || 1000000;
-  const mainFounderAllocation = shareholders.find((s) => s.is_main_founder || s.email.includes("djateulrich"))?.allocation;
-  const mainFounderPct = mainFounderAllocation?.target_percentage || 80;
-
-  const vestingBeneficiariesCount = shareholders.filter((s) => !s.is_main_founder && !s.email.includes("djateulrich")).length;
-  const totalAllocatedPct = shareholders.reduce((acc, s) => acc + (s.allocation?.target_percentage || 0), 0);
-
-  const roleLabels: Record<string, string> = {
-    co_founder: "Cofondateur",
-    cofounder: "Cofondateur",
-    shareholder: "Associé",
-    investor: "Investisseur",
-    corporate_admin: "Administrateur",
-    founder: "Fondateur",
-  };
+  const companyLabel = company ? `${company.legal_status} ${company.name}` : "Société non enregistrée";
+  const sharesLabel = totalShares !== null ? `${totalShares.toLocaleString("fr-FR")} actions` : "capital non renseigné";
+  const mainFounderName = cap.mainFounder?.full_name ?? "Aucun fondateur principal enregistré";
 
   return (
     <div className="min-h-screen bg-[#090D16] text-slate-100 font-inter selection:bg-[#0E7C66] selection:text-white p-4 sm:p-6 lg:p-8 space-y-8">
-      {/* 1. BRANDING BANNER HEADER */}
+      {/* 1. EN-TÊTE */}
       <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/90 border border-slate-800 backdrop-blur-xl shadow-2xl space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
           <div className="flex items-center gap-3">
@@ -411,520 +474,747 @@ export default function CorporateGovernance() {
             </div>
           </div>
           <Badge className="bg-[#0E7C66]/20 text-emerald-400 border border-[#0E7C66]/40 px-3 py-1 font-bold">
-            SAS — 1 000 000 Actions
+            {company ? `${company.legal_status} — ${sharesLabel}` : companyLabel}
           </Badge>
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <p className="text-xs sm:text-sm text-slate-400 max-w-2xl">
-            Gestion des invitations formelles de gouvernance, suivi du workflow à 8 étapes, Cap Table et validation des nominations.
+            Invitations de gouvernance, cap table, vesting, propositions de capital, documents signés et journal d'audit, tels qu'enregistrés en base.
           </p>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              onClick={() => setIsInviteModalOpen(true)}
-              className="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl px-4 py-2 gap-2 shadow-lg shadow-purple-900/30"
-            >
-              <Mail className="w-4 h-4" />
-              <span>Inviter une personne (Associé, Cofondateur...)</span>
-            </Button>
-            <Button
-              onClick={() => setIsProposalDialogOpen(true)}
-              className="bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold text-xs rounded-xl px-4 py-2 gap-2 shadow-lg shadow-[#0E7C66]/20"
-            >
-              <PlusCircle className="w-4 h-4" />
-              <span>Nouvelle Proposal Cap Table</span>
-            </Button>
-          </div>
+          {canWrite ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                onClick={() => setIsInviteModalOpen(true)}
+                disabled={!invitationsAvailable || !company}
+                title={!invitationsAvailable ? "Le suivi des invitations n'est pas disponible dans cette base" : undefined}
+                className="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl px-4 py-2 gap-2 shadow-lg shadow-purple-900/30 disabled:opacity-50"
+              >
+                <Mail className="w-4 h-4" />
+                <span>Inviter une personne (Associé, Cofondateur...)</span>
+              </Button>
+              <Button
+                onClick={() => setIsProposalDialogOpen(true)}
+                disabled={!company || shareholders.length === 0}
+                className="bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold text-xs rounded-xl px-4 py-2 gap-2 shadow-lg shadow-[#0E7C66]/20 disabled:opacity-50"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>Nouvelle proposition de cap table</span>
+              </Button>
+            </div>
+          ) : (
+            <Badge variant="outline" className="border-slate-700 text-slate-400 w-fit">
+              Lecture seule : seuls les fondateurs et cofondateurs peuvent modifier
+            </Badge>
+          )}
         </div>
       </div>
 
-      {/* 2. METRICS GRID */}
+      {loadError && (
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-xs text-amber-200">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+          <div>
+            <div className="font-bold text-amber-300">Certaines données n'ont pas pu être lues</div>
+            <div className="mt-1 font-mono text-[11px] break-words">{loadError}</div>
+          </div>
+        </div>
+      )}
+      {!invitationsAvailable && (
+        <div className="flex items-start gap-3 rounded-2xl border border-slate-700 bg-slate-900 p-4 text-xs text-slate-300">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-slate-400" />
+          <div>
+            <div className="font-bold text-white">Suivi des invitations indisponible</div>
+            <div className="mt-1">La table des invitations n'existe pas dans cette base : aucune invitation ne peut être créée ni suivie. Les statuts ci-dessous ne viennent que des fiches membres.</div>
+          </div>
+        </div>
+      )}
+      {!company && (
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-xs text-amber-200">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+          <div>Aucune société n'est enregistrée : le capital de référence est inconnu, les pourcentages ne peuvent pas être convertis en actions.</div>
+        </div>
+      )}
+
+      {/* 2. INDICATEURS (tous calculés sur les lignes de la base) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-slate-900/80 border-slate-800 rounded-2xl p-5 shadow-xl">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400">Fondateur Principal</span>
+            <span className="text-xs font-semibold text-slate-400">Fondateur principal</span>
             <Crown className="w-4 h-4 text-amber-400" />
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-extrabold text-white">{mainFounderPct} %</div>
-            <p className="text-xs text-amber-400/90 font-medium mt-1">ULRICH DJATÉ YAPI (800 000 actions)</p>
+            <div className="text-2xl font-extrabold text-white">
+              {mainFounderAlloc ? fmtPct(Number(mainFounderAlloc.target_percentage)) : "—"}
+            </div>
+            <p className="text-xs text-amber-400/90 font-medium mt-1">
+              {mainFounderName}
+              {mainFounderAlloc ? ` (${Number(mainFounderAlloc.target_shares).toLocaleString("fr-FR")} actions)` : ""}
+            </p>
           </div>
         </Card>
 
         <Card className="bg-slate-900/80 border-slate-800 rounded-2xl p-5 shadow-xl">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400">Capital de Référence</span>
+            <span className="text-xs font-semibold text-slate-400">Capital de référence</span>
             <Building2 className="w-4 h-4 text-blue-400" />
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-extrabold text-white">{totalShares.toLocaleString()}</div>
-            <p className="text-xs text-slate-400 mt-1">Actions autorisées Ecomfy SAS</p>
+            <div className="text-2xl font-extrabold text-white">{totalShares !== null ? totalShares.toLocaleString("fr-FR") : "—"}</div>
+            <p className="text-xs text-slate-400 mt-1">Actions autorisées {company?.name ?? ""}</p>
           </div>
         </Card>
 
         <Card className="bg-slate-900/80 border-slate-800 rounded-2xl p-5 shadow-xl">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400">Bénéficiaires Vesting</span>
+            <span className="text-xs font-semibold text-slate-400">Bénéficiaires hors fondateur</span>
             <Clock className="w-4 h-4 text-purple-400" />
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-extrabold text-purple-300">{vestingBeneficiariesCount} Associés</div>
-            <p className="text-xs text-slate-400 mt-1">Désiré Tano (10%) & Couboura Amena (10%)</p>
+            <div className="text-2xl font-extrabold text-purple-300">{cap.beneficiaries.length}</div>
+            <p className="text-xs text-slate-400 mt-1">
+              {cap.beneficiaries.length === 0
+                ? "Aucune participation enregistrée"
+                : cap.beneficiaries
+                    .map((b) => `${b.full_name} (${fmtPct(Number(b.allocation?.target_percentage ?? 0))})`)
+                    .join(" · ")}
+            </p>
           </div>
         </Card>
 
         <Card className="bg-slate-900/80 border-slate-800 rounded-2xl p-5 shadow-xl">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400">Attribution Cible Totale</span>
+            <span className="text-xs font-semibold text-slate-400">Attribution cible totale</span>
             <PieChart className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="mt-3">
-            <div className="text-2xl font-extrabold text-emerald-400">{totalAllocatedPct} %</div>
-            <p className="text-xs text-slate-400 mt-1">100% Attribué (80% Fondateur + 20% Vesting)</p>
+            <div className={`text-2xl font-extrabold ${cap.overAllocatedPct > 0 ? "text-red-400" : "text-emerald-400"}`}>{fmtPct(cap.allocatedPct)}</div>
+            <p className="text-xs text-slate-400 mt-1">
+              {cap.complete
+                ? "Capital entièrement attribué"
+                : cap.overAllocatedPct > 0
+                  ? `Dépassement de ${fmtPct(cap.overAllocatedPct)} : à corriger`
+                  : `${fmtPct(cap.unallocatedPct)} reste à attribuer`}
+            </p>
           </div>
         </Card>
       </div>
 
-      {/* 3. MAIN OPERATIONAL TABS */}
+      {/* 3. ONGLETS */}
       <Tabs defaultValue="invitations" className="w-full">
         <TabsList className="bg-slate-900 border border-slate-800 rounded-2xl p-1.5 flex flex-wrap gap-1.5">
           <TabsTrigger value="invitations" className="rounded-xl text-xs font-bold gap-2 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
-            <Mail className="w-4 h-4" /> Invitations & Nominations ({shareholders.length})
+            <Mail className="w-4 h-4" /> Membres & invitations ({shareholders.length})
           </TabsTrigger>
           <TabsTrigger value="captable" className="rounded-xl text-xs font-bold gap-2 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
-            <PieChart className="w-4 h-4" /> Cap Table
+            <PieChart className="w-4 h-4" /> Cap table
           </TabsTrigger>
           <TabsTrigger value="vesting" className="rounded-xl text-xs font-bold gap-2 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
-            <Clock className="w-4 h-4" /> Moteur de Vesting
+            <Clock className="w-4 h-4" /> Vesting
+          </TabsTrigger>
+          <TabsTrigger value="proposals" className="rounded-xl text-xs font-bold gap-2 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
+            <Scale className="w-4 h-4" /> Propositions ({proposals.length})
           </TabsTrigger>
           <TabsTrigger value="documents" className="rounded-xl text-xs font-bold gap-2 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
-            <FileCheck className="w-4 h-4" /> Centre Documentaire
+            <FileCheck className="w-4 h-4" /> Centre documentaire ({documents.length})
           </TabsTrigger>
           <TabsTrigger value="audit" className="rounded-xl text-xs font-bold gap-2 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
-            <Activity className="w-4 h-4" /> Audit Logs ({auditLogs.length})
+            <Activity className="w-4 h-4" /> Journal d'audit ({auditTotal})
           </TabsTrigger>
         </TabsList>
 
-        {/* TAB 1: INVITATIONS & NOMINATIONS TABLE */}
+        {/* MEMBRES & INVITATIONS */}
         <TabsContent value="invitations" className="mt-6 space-y-6">
           <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl">
-            <CardHeader className="p-0 mb-6 flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                  <Mail className="w-5 h-5 text-emerald-400" /> Suivi du Workflow d'Invitation & Statut des Membres
-                </CardTitle>
-                <CardDescription className="text-slate-400 text-xs mt-1">
-                  Les membres doivent ouvrir leur invitation, vérifier leur email, lire les statuts obligatoires et accepter les conditions avant activation par le fondateur.
-                </CardDescription>
-              </div>
+            <CardHeader className="p-0 mb-6">
+              <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                <Mail className="w-5 h-5 text-emerald-400" /> Suivi des invitations et statut des membres
+              </CardTitle>
+              <CardDescription className="text-slate-400 text-xs mt-1">
+                Chaque étape du parcours n'est cochée que si l'invitation enregistrée l'a atteinte. Un membre sans invitation enregistrée n'est pas présenté comme « invité ».
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-slate-300">
-                  <thead className="bg-slate-950/80 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
-                    <tr>
-                      <th className="p-4">Membre Invité</th>
-                      <th className="p-4">Rôle Proposé / Statut</th>
-                      <th className="p-4">Attribution</th>
-                      <th className="p-4">Timeline de Progression (8 Étapes)</th>
-                      <th className="p-4">Actions Fondateur</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60">
-                    {shareholders.map((s) => {
-                      const isMain = s.is_main_founder || s.email.includes("djateulrich");
-                      const inv = invitations.find((i) => i.email.toLowerCase() === s.email.toLowerCase());
-                      const invStatus = inv?.status || (s.onboarding_completed ? "ACTIVE" : "INVITATION_SENT");
-                      const isActivated = isMain || invStatus === "ACTIVE" || (s.onboarding_completed && invStatus !== "ACCEPTED");
-                      const isAccepted = invStatus === "ACCEPTED";
-                      const alloc = s.allocation;
+              {shareholders.length === 0 ? (
+                <p className="text-xs text-slate-500 py-6 text-center">Aucun membre enregistré.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-slate-300">
+                    <thead className="bg-slate-950/80 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                      <tr>
+                        <th className="p-4">Membre</th>
+                        <th className="p-4">Rôle / statut</th>
+                        <th className="p-4">Participation</th>
+                        <th className="p-4">Parcours (8 étapes)</th>
+                        {canWrite && <th className="p-4">Actions</th>}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {shareholders.map((s) => {
+                        const isMain = s.is_main_founder;
+                        const inv = invitations.find((i) => i.email.toLowerCase() === s.email.toLowerCase());
+                        const st = resolveMemberStatus(s, inv);
+                        const rank = invitationRank(st.status);
+                        const alloc = s.allocation;
+                        const roleTitle = roleLabels[s.corporate_role] || s.corporate_role;
+                        const statusBadgeText = isMain
+                          ? "Fondateur principal (actif)"
+                          : st.isActive
+                            ? `${roleTitle.toUpperCase()} ACTIF`
+                            : st.status === NO_INVITATION
+                              ? `${roleTitle.toUpperCase()} — AUCUNE INVITATION`
+                              : `${roleTitle.toUpperCase()} — INVITATION EN COURS`;
 
-                      const roleTitle = roleLabels[s.corporate_role] || s.corporate_role;
-                      const statusBadgeText = isMain
-                        ? "Fondateur Principal (Actif)"
-                        : isActivated
-                        ? `${roleTitle.toUpperCase()} ACTIF`
-                        : `${roleTitle.toUpperCase()} — INVITATION EN ATTENTE`;
+                        const stepClass = (min: number, strong = false) =>
+                          rank >= min || (st.isActive && !isMain)
+                            ? strong
+                              ? "bg-purple-500/30 text-purple-300 font-extrabold"
+                              : "bg-emerald-500/20 text-emerald-300"
+                            : "bg-slate-800 text-slate-500";
 
-                      return (
-                        <tr key={s.id} className="hover:bg-slate-800/40 transition-colors">
-                          <td className="p-4 font-bold text-white flex items-center gap-2.5">
-                            {isMain ? (
-                              <Crown className="w-4 h-4 text-amber-400 shrink-0" />
-                            ) : (
-                              <Users className="w-4 h-4 text-emerald-400 shrink-0" />
-                            )}
-                            <div>
-                              <div>{s.full_name}</div>
-                              <div className="text-[11px] font-normal text-slate-500 font-mono">{s.email}</div>
-                            </div>
-                          </td>
+                        return (
+                          <tr key={s.id} className="hover:bg-slate-800/40 transition-colors">
+                            <td className="p-4 font-bold text-white">
+                              <div className="flex items-center gap-2.5">
+                                {isMain ? <Crown className="w-4 h-4 text-amber-400 shrink-0" /> : <Users className="w-4 h-4 text-emerald-400 shrink-0" />}
+                                <div>
+                                  <div>{s.full_name}</div>
+                                  <div className="text-[11px] font-normal text-slate-500 font-mono">{s.email}</div>
+                                </div>
+                              </div>
+                            </td>
 
-                          <td className="p-4 space-y-1">
-                            <div>
-                              {isMain ? (
-                                <Badge className="bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold">
-                                  {statusBadgeText}
-                                </Badge>
-                              ) : isActivated ? (
-                                <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold flex items-center gap-1.5 w-fit">
-                                  <CheckCircle2 className="w-3.5 h-3.5" /> {statusBadgeText}
-                                </Badge>
-                              ) : (
-                                <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/30 font-bold animate-pulse flex items-center gap-1.5 w-fit">
-                                  <Clock className="w-3.5 h-3.5" /> {statusBadgeText}
-                                </Badge>
+                            <td className="p-4 space-y-1">
+                              <div>
+                                {isMain ? (
+                                  <Badge className="bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold">{statusBadgeText}</Badge>
+                                ) : st.isActive ? (
+                                  <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold flex items-center gap-1.5 w-fit">
+                                    <CheckCircle2 className="w-3.5 h-3.5" /> {statusBadgeText}
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/30 font-bold flex items-center gap-1.5 w-fit">
+                                    <Clock className="w-3.5 h-3.5" /> {statusBadgeText}
+                                  </Badge>
+                                )}
+                              </div>
+                              {!isMain && (
+                                <div className="text-[10px] text-slate-500">
+                                  Statut : <strong className="text-slate-300 font-mono">{st.status === NO_INVITATION ? "aucune invitation enregistrée" : st.status}</strong>
+                                  {inv && <span> · expire le {fmtDate(inv.expires_at)}</span>}
+                                </div>
                               )}
-                            </div>
-                            {!isMain && (
-                              <div className="text-[10px] text-slate-500">
-                                Statut interne : <strong className="text-slate-300 font-mono">{invStatus}</strong>
+                            </td>
+
+                            <td className="p-4 font-extrabold text-emerald-400 text-sm">
+                              {alloc ? fmtPct(Number(alloc.target_percentage)) : <span className="text-slate-500">—</span>}
+                              <div className="text-[10px] font-normal font-mono text-slate-400">
+                                {alloc ? `${Number(alloc.target_shares).toLocaleString("fr-FR")} actions` : "aucune participation"}
                               </div>
-                            )}
-                          </td>
+                            </td>
 
-                          <td className="p-4 font-extrabold text-emerald-400 text-sm">
-                            {alloc?.target_percentage || 10} %
-                            <div className="text-[10px] font-normal font-mono text-slate-400">
-                              {(alloc?.target_shares || 100000).toLocaleString()} actions
-                            </div>
-                          </td>
-
-                          {/* TIMELINE DES 8 ÉTAPES */}
-                          <td className="p-4 min-w-[280px]">
-                            {isMain ? (
-                              <span className="text-[11px] text-amber-400 font-medium">Validation initiale membre fondateur ✓</span>
-                            ) : (
-                              <div className="space-y-1.5 text-[10px]">
-                                <div className="grid grid-cols-4 gap-1">
-                                  <span className={`p-1 rounded text-center font-bold ${["PENDING_INVITATION", "INVITATION_SENT", "INVITATION_OPENED", "EMAIL_VERIFIED", "DOCUMENTS_READ", "ACCEPTED", "ACTIVE"].includes(invStatus) ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-500'}`}>
-                                    1. Créée ✓
-                                  </span>
-                                  <span className={`p-1 rounded text-center font-bold ${["INVITATION_SENT", "INVITATION_OPENED", "EMAIL_VERIFIED", "DOCUMENTS_READ", "ACCEPTED", "ACTIVE"].includes(invStatus) ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-500'}`}>
-                                    2. Envoyée ✓
-                                  </span>
-                                  <span className={`p-1 rounded text-center font-bold ${["INVITATION_OPENED", "EMAIL_VERIFIED", "DOCUMENTS_READ", "ACCEPTED", "ACTIVE"].includes(invStatus) ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-500'}`}>
-                                    3. Ouverte ✓
-                                  </span>
-                                  <span className={`p-1 rounded text-center font-bold ${["EMAIL_VERIFIED", "DOCUMENTS_READ", "ACCEPTED", "ACTIVE"].includes(invStatus) ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-500'}`}>
-                                    4. Email vérifié ✓
-                                  </span>
+                            <td className="p-4 min-w-[280px]">
+                              {isMain ? (
+                                <span className="text-[11px] text-amber-400 font-medium">Fondateur principal : pas de parcours d'invitation</span>
+                              ) : (
+                                <div className="space-y-1.5 text-[10px]">
+                                  <div className="grid grid-cols-4 gap-1">
+                                    <span className={`p-1 rounded text-center font-bold ${stepClass(1)}`}>1. Créée</span>
+                                    <span className={`p-1 rounded text-center font-bold ${stepClass(2)}`}>2. Envoyée</span>
+                                    <span className={`p-1 rounded text-center font-bold ${stepClass(3)}`}>3. Ouverte</span>
+                                    <span className={`p-1 rounded text-center font-bold ${stepClass(4)}`}>4. E-mail vérifié</span>
+                                  </div>
+                                  <div className="grid grid-cols-4 gap-1">
+                                    <span className={`p-1 rounded text-center font-bold ${stepClass(5)}`}>5. Docs lus</span>
+                                    <span className={`p-1 rounded text-center font-bold ${stepClass(6)}`}>6. Signée</span>
+                                    <span className={`p-1 rounded text-center font-bold ${stepClass(6, true)}`}>7. Acceptée</span>
+                                    <span className={`p-1 rounded text-center font-bold ${st.isActive ? "bg-emerald-600 text-white font-extrabold" : "bg-slate-800 text-slate-500"}`}>8. Activée</span>
+                                  </div>
                                 </div>
-                                <div className="grid grid-cols-4 gap-1">
-                                  <span className={`p-1 rounded text-center font-bold ${["DOCUMENTS_READ", "ACCEPTED", "ACTIVE"].includes(invStatus) ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-500'}`}>
-                                    5. Docs lus ✓
-                                  </span>
-                                  <span className={`p-1 rounded text-center font-bold ${["ACCEPTED", "ACTIVE"].includes(invStatus) ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-500'}`}>
-                                    6. Signé ✓
-                                  </span>
-                                  <span className={`p-1 rounded text-center font-bold ${["ACCEPTED", "ACTIVE"].includes(invStatus) ? 'bg-purple-500/30 text-purple-300 font-extrabold' : 'bg-slate-800 text-slate-500'}`}>
-                                    7. Acceptée ✓
-                                  </span>
-                                  <span className={`p-1 rounded text-center font-bold ${invStatus === "ACTIVE" || s.onboarding_completed ? 'bg-emerald-600 text-white font-extrabold' : 'bg-slate-800 text-slate-500'}`}>
-                                    8. Activée ✓
-                                  </span>
-                                </div>
-                              </div>
+                              )}
+                            </td>
+
+                            {canWrite && (
+                              <td className="p-4">
+                                {!isMain && (
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    {st.isAccepted && !st.isActive && (
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleActivateRole(s, inv)}
+                                        className="h-7 text-[11px] bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-lg gap-1"
+                                      >
+                                        <UserCheck className="w-3.5 h-3.5" /> Valider et activer
+                                      </Button>
+                                    )}
+
+                                    {!st.isActive && inv && (
+                                      <>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => handleResendInvite(s, inv)}
+                                          className="h-7 text-[11px] border-slate-700 text-slate-300 hover:text-white rounded-lg gap-1"
+                                          title="Renvoyer l'e-mail avec un nouveau jeton"
+                                        >
+                                          <RefreshCw className="w-3 h-3 text-purple-400" /> Renvoyer
+                                        </Button>
+                                        {!["REVOKED", "DECLINED"].includes(st.status) && (
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => handleRevokeInvite(inv, s)}
+                                            className="h-7 text-[11px] text-red-400 hover:text-red-300 hover:bg-red-950/30 rounded-lg gap-1"
+                                            title="Révoquer cette invitation"
+                                          >
+                                            <Ban className="w-3 h-3" /> Révoquer
+                                          </Button>
+                                        )}
+                                      </>
+                                    )}
+
+                                    {!st.isActive && !inv && (
+                                      <span className="text-[11px] text-slate-500">Aucune invitation à gérer</span>
+                                    )}
+
+                                    {st.isActive && (
+                                      <span className="text-[11px] text-emerald-400 font-bold flex items-center gap-1">
+                                        <CheckCircle2 className="w-3.5 h-3.5" /> Membre actif
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
                             )}
-                          </td>
-
-                          {/* ACTIONS FONDATEUR */}
-                          <td className="p-4">
-                            {!isMain && (
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                {isAccepted && !isActivated && (
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleActivateRole(s, inv)}
-                                    className="h-7 text-[11px] bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-lg gap-1 shadow-md shadow-emerald-900/40"
-                                    title="Valider et Activer le rôle"
-                                  >
-                                    <UserCheck className="w-3.5 h-3.5" /> VALIDER & ACTIVER RÔLE
-                                  </Button>
-                                )}
-
-                                {!isActivated && (
-                                  <>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => handleResendInvite(s, inv)}
-                                      className="h-7 text-[11px] border-slate-700 text-slate-300 hover:text-white rounded-lg gap-1"
-                                      title="Renvoyer l'email d'invitation avec nouveau token"
-                                    >
-                                      <RefreshCw className="w-3 h-3 text-purple-400" /> Renvoyer
-                                    </Button>
-
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleRevokeInvite(inv || s)}
-                                      className="h-7 text-[11px] text-red-400 hover:text-red-300 hover:bg-red-950/30 rounded-lg gap-1"
-                                      title="Annuler/Révoquer cette invitation"
-                                    >
-                                      <Ban className="w-3 h-3" /> Annuler
-                                    </Button>
-                                  </>
-                                )}
-
-                                {isActivated && (
-                                  <span className="text-[11px] text-emerald-400 font-bold flex items-center gap-1">
-                                    <CheckCircle2 className="w-3.5 h-3.5" /> Membre Actif
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* TAB 2: CAP TABLE */}
+        {/* CAP TABLE */}
         <TabsContent value="captable" className="mt-6">
           <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl">
             <CardHeader className="p-0 mb-4">
               <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                <PieChart className="w-5 h-5 text-emerald-400" /> Cap Table Officiel Ecomfy SAS (1 000 000 Actions)
+                <PieChart className="w-5 h-5 text-emerald-400" /> Cap table — {companyLabel} ({sharesLabel})
               </CardTitle>
+              <CardDescription className="text-slate-400 text-xs mt-1">
+                Participations cibles enregistrées. Total : {fmtPct(cap.allocatedPct)} ({cap.allocatedShares.toLocaleString("fr-FR")} actions)
+                {cap.unallocatedPct > 0 ? ` · ${fmtPct(cap.unallocatedPct)} non attribué` : ""}.
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="space-y-4">
-                {shareholders.map((s) => (
-                  <div key={s.id} className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center justify-between">
-                    <div>
-                      <div className="font-bold text-white">{s.full_name}</div>
-                      <div className="text-xs text-slate-400">{s.email}</div>
+              {shareholders.length === 0 ? (
+                <p className="text-xs text-slate-500 py-6 text-center">Aucun membre enregistré.</p>
+              ) : (
+                <div className="space-y-4">
+                  {shareholders.map((s) => (
+                    <div key={s.id} className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center justify-between">
+                      <div>
+                        <div className="font-bold text-white">{s.full_name}</div>
+                        <div className="text-xs text-slate-400">{s.email}</div>
+                      </div>
+                      <div className="text-right">
+                        {s.allocation ? (
+                          <>
+                            <div className="text-lg font-extrabold text-emerald-400">{fmtPct(Number(s.allocation.target_percentage))}</div>
+                            <div className="text-xs text-slate-400 font-mono font-bold">
+                              {Number(s.allocation.target_shares).toLocaleString("fr-FR")} actions
+                            </div>
+                            <div className="text-[10px] text-slate-500 font-mono">
+                              émises : {Number(s.allocation.legally_issued_shares).toLocaleString("fr-FR")} · acquises : {fmtPct(Number(s.allocation.vested_percentage))}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="text-xs text-slate-500">Aucune participation enregistrée</div>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-lg font-extrabold text-emerald-400">{s.allocation?.target_percentage || 10}%</div>
-                      <div className="text-xs text-slate-400 font-mono font-bold">{(s.allocation?.target_shares || 100000).toLocaleString()} actions</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* TAB 3: VESTING ENGINE */}
+        {/* VESTING */}
         <TabsContent value="vesting" className="mt-6 space-y-6">
           <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl">
             <CardHeader className="p-0 mb-6">
               <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                <Clock className="w-5 h-5 text-purple-400" /> Suivi du Vesting des Associés (Cliff 12m / Vesting 48m)
+                <Clock className="w-5 h-5 text-purple-400" /> Plans de vesting enregistrés
               </CardTitle>
+              <CardDescription className="text-slate-400 text-xs mt-1">
+                Éligibilité calculée à partir des dates du plan (rien avant le cliff, puis un mois de plus à chaque mois écoulé). Une part éligible n'est acquise juridiquement qu'une fois formalisée.
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="space-y-4">
-                {shareholders.filter((s) => !s.is_main_founder).map((s) => (
-                  <div key={s.id} className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-white">{s.full_name} ({s.email})</span>
-                      <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                        Vesting 48 Mois (Cliff 12 Mois)
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
-                      <span>Cible : {s.allocation?.target_percentage || 10}% ({(s.allocation?.target_shares || 100000).toLocaleString()} actions)</span>
-                      <span>Acquis : {s.allocation?.vested_percentage || 0}%</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {shareholders.filter((s) => !s.is_main_founder).length === 0 ? (
+                <p className="text-xs text-slate-500 py-6 text-center">Aucun membre soumis au vesting.</p>
+              ) : (
+                <div className="space-y-4">
+                  {shareholders
+                    .filter((s) => !s.is_main_founder)
+                    .map((s) => {
+                      const plan = s.vesting_plan;
+                      const progress = plan ? computeVestingProgress(plan) : null;
+                      return (
+                        <div key={s.id} className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="font-bold text-white">
+                              {s.full_name} <span className="font-normal text-slate-500">({s.email})</span>
+                            </span>
+                            {plan ? (
+                              <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                {plan.duration_months} mois (cliff {plan.cliff_months} mois) · {plan.status}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="border-slate-700 text-slate-400">Aucun plan de vesting enregistré</Badge>
+                            )}
+                          </div>
+                          {plan && progress ? (
+                            <>
+                              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 font-mono">
+                                <span>
+                                  Cible : {fmtPct(Number(plan.target_percentage))} ({Number(plan.target_shares).toLocaleString("fr-FR")} actions)
+                                </span>
+                                <span>
+                                  Éligible : {fmtPct(progress.eligiblePct)} ({progress.eligibleShares.toLocaleString("fr-FR")} actions)
+                                </span>
+                                <span>Acquis formalisé : {fmtPct(Number(s.allocation?.vested_percentage ?? 0))}</span>
+                              </div>
+                              <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                                <div
+                                  className="h-full bg-purple-500"
+                                  style={{ width: `${Math.min(100, (progress.eligiblePct / Math.max(Number(plan.target_percentage), 0.0001)) * 100)}%` }}
+                                />
+                              </div>
+                              <div className="text-[11px] text-slate-500">
+                                Début {fmtDate(plan.start_date)} · cliff {fmtDate(plan.cliff_date)}
+                                {progress.cliffReached ? " (franchi)" : " (à venir)"} · fin {fmtDate(plan.end_date)} · {progress.monthsElapsed} mois écoulés
+                              </div>
+                              {plan.objectives && <div className="text-[11px] text-slate-400">Objectifs : {plan.objectives}</div>}
+                            </>
+                          ) : plan ? (
+                            <div className="text-xs text-amber-300">Les dates de ce plan sont illisibles : l'éligibilité ne peut pas être calculée.</div>
+                          ) : s.allocation ? (
+                            <div className="text-xs text-slate-400 font-mono">
+                              Cible : {fmtPct(Number(s.allocation.target_percentage))} ({Number(s.allocation.target_shares).toLocaleString("fr-FR")} actions) · acquis formalisé : {fmtPct(Number(s.allocation.vested_percentage))}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* TAB 4: CENTRE DOCUMENTAIRE */}
-        <TabsContent value="documents" className="mt-6">
-          <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
-            <CardHeader className="p-0 mb-2">
+        {/* PROPOSITIONS */}
+        <TabsContent value="proposals" className="mt-6">
+          <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl">
+            <CardHeader className="p-0 mb-4">
               <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                <FileCheck className="w-5 h-5 text-emerald-400" /> Documents Statutaires et de Gouvernance ({documents.length})
+                <Scale className="w-5 h-5 text-emerald-400" /> Propositions de changement de cap table
               </CardTitle>
             </CardHeader>
-            <div className="space-y-3">
-              {documents.map((doc) => (
-                <div key={doc.id} className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center justify-between">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-white">{doc.title}</span>
-                      <Badge className="bg-slate-800 text-slate-300 text-[10px]">{doc.current_version}</Badge>
-                    </div>
-                    <p className="text-xs text-slate-400">{doc.summary || "Document officiel Ecomfy SAS"}</p>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setSelectedDocForView(doc);
-                      setIsDocViewerOpen(true);
-                    }}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl"
-                  >
-                    Consulter
-                  </Button>
+            <CardContent className="p-0">
+              {proposals.length === 0 ? (
+                <p className="text-xs text-slate-500 py-6 text-center">Aucune proposition déposée.</p>
+              ) : (
+                <div className="space-y-3">
+                  {proposals.map((p) => {
+                    const ben = shareholders.find((s) => s.id === p.beneficiary_shareholder_id);
+                    return (
+                      <div key={p.id} className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-1.5">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-bold text-white text-sm">
+                            #{p.proposal_number} — {p.title}
+                          </span>
+                          <Badge className="bg-slate-800 text-slate-200 border border-slate-700 text-[10px]">
+                            {PROPOSAL_STATUS_LABELS[p.status] ?? p.status}
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-slate-400">
+                          {ben ? ben.full_name : "Bénéficiaire inconnu"} : {fmtPct(Number(p.current_percentage))} → <strong className="text-emerald-400">{fmtPct(Number(p.proposed_percentage))}</strong>{" "}
+                          ({Number(p.proposed_shares).toLocaleString("fr-FR")} actions) · déposée le {fmtDate(p.created_at)}
+                        </div>
+                        <div className="text-[11px] text-slate-500">{p.rationale}</div>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
+              )}
+            </CardContent>
           </Card>
         </TabsContent>
 
-        {/* TAB 5: AUDIT LOGS */}
+        {/* CENTRE DOCUMENTAIRE */}
+        <TabsContent value="documents" className="mt-6">
+          <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+            <CardHeader className="p-0 mb-2 flex flex-row items-center justify-between gap-3">
+              <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                <FileCheck className="w-5 h-5 text-emerald-400" /> Documents statutaires et de gouvernance ({documents.length})
+              </CardTitle>
+              {canWrite && (
+                <Button onClick={() => setIsCreateDocModalOpen(true)} className="bg-[#0E7C66] hover:bg-[#0A6352] text-white font-bold text-xs rounded-xl gap-2">
+                  <PlusCircle className="w-4 h-4" /> Nouveau document
+                </Button>
+              )}
+            </CardHeader>
+            {documents.length === 0 ? (
+              <p className="text-xs text-slate-500 py-6 text-center">Aucun document enregistré.</p>
+            ) : (
+              <div className="space-y-3">
+                {documents.map((doc) => (
+                  <div key={doc.id} className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center justify-between gap-3">
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-bold text-sm text-white">{doc.title}</span>
+                        <Badge className="bg-slate-800 text-slate-300 text-[10px]">{doc.current_version}</Badge>
+                        {doc.user_acceptance && (
+                          <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px]">Signé par vous</Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400">{doc.summary || "—"}</p>
+                      <p className="text-[11px] text-slate-500">
+                        {doc.approvals_count ?? 0} signature{(doc.approvals_count ?? 0) > 1 ? "s" : ""} enregistrée{(doc.approvals_count ?? 0) > 1 ? "s" : ""} pour cette version
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setSelectedDocForView(doc);
+                        setIsDocViewerOpen(true);
+                      }}
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shrink-0"
+                    >
+                      Consulter
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </TabsContent>
+
+        {/* JOURNAL D'AUDIT */}
         <TabsContent value="audit" className="mt-6">
           <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl">
             <CardHeader className="p-0 mb-4">
               <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                <Activity className="w-5 h-5 text-emerald-400" /> Audit Log Historique Governance
+                <Activity className="w-5 h-5 text-emerald-400" /> Journal d'audit de la gouvernance
               </CardTitle>
+              <CardDescription className="text-slate-400 text-xs mt-1">
+                {auditTotal} ligne{auditTotal > 1 ? "s" : ""} au total
+                {auditTotal > auditLogs.length ? ` · les ${auditLogs.length} plus récentes sont affichées` : ""}. Le journal est en ajout seul : aucune ligne ne se modifie ni ne s'efface.
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-2">
-                {auditLogs.map((log) => (
-                  <div key={log.id} className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between text-xs">
-                    <div className="space-y-0.5">
-                      <div className="flex items-center gap-2">
-                        <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-mono">
-                          {log.action}
-                        </Badge>
-                        <span className="text-slate-300 font-bold">{log.user_email || 'Système'}</span>
+              {auditLogs.length === 0 ? (
+                <p className="text-xs text-slate-500 py-6 text-center">Aucune action enregistrée.</p>
+              ) : (
+                <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-2">
+                  {auditLogs.map((log) => (
+                    <div key={log.id} className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between gap-3 text-xs">
+                      <div className="space-y-0.5 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px]">
+                            {AUDIT_ACTION_LABELS[log.action] ?? log.action}
+                          </Badge>
+                          <span className="text-slate-300 font-bold">{log.user_email || "Auteur inconnu"}</span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 font-mono break-all">
+                          {log.target_entity}
+                          {log.entity_id ? ` · ${log.entity_id}` : ""}
+                        </div>
                       </div>
-                      <div className="text-[11px] text-slate-500 font-mono">Entity: {log.target_entity} ({log.entity_id || 'n/a'})</div>
+                      <div className="text-right text-[10px] text-slate-400 font-mono shrink-0">
+                        {new Date(log.timestamp).toLocaleString("fr-FR")}
+                      </div>
                     </div>
-                    <div className="text-right text-[10px] text-slate-400 font-mono">
-                      {new Date(log.timestamp).toLocaleString('fr-FR')}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
-      {/* MODAL 1: INVITE MEMBER VIA EMAIL */}
+      {/* MODALE : INVITER */}
       <Dialog open={isInviteModalOpen} onOpenChange={setIsInviteModalOpen}>
         <DialogContent className="bg-slate-900 border-slate-800 text-white rounded-3xl sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold flex items-center gap-2">
-              <Mail className="w-5 h-5 text-purple-400" /> Créer une Invitation de Gouvernance
+              <Mail className="w-5 h-5 text-purple-400" /> Créer une invitation de gouvernance
             </DialogTitle>
             <DialogDescription className="text-slate-400 text-xs">
-              Envoie une invitation par email avec un token sécurisé unique (expiration 7 jours). Le membre devra consulter les statuts et accepter les conditions avant activation.
+              Envoie une invitation par e-mail avec un jeton unique (validité 7 jours). La personne devra consulter les documents et accepter les conditions avant activation.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSendInviteSubmit} className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Nom Complet du Destinataire</label>
-              <Input
-                placeholder="Ex: DÉSIRÉ TANO"
-                value={inviteFullName}
-                onChange={(e) => setInviteFullName(e.target.value)}
-                required
-                className="bg-slate-950 border-slate-800 rounded-xl"
-              />
+              <label className="text-xs font-semibold text-slate-300">Nom complet du destinataire</label>
+              <Input value={inviteFullName} onChange={(e) => setInviteFullName(e.target.value)} required className="bg-slate-950 border-slate-800 rounded-xl" />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Adresse Email Officielle</label>
-              <Input
-                type="email"
-                placeholder="ex: desire.tano@ecomfy.cloud"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                required
-                className="bg-slate-950 border-slate-800 rounded-xl"
-              />
+              <label className="text-xs font-semibold text-slate-300">Adresse e-mail</label>
+              <Input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} required className="bg-slate-950 border-slate-800 rounded-xl" />
+              {inviteExisting && (
+                <p className="text-[11px] text-amber-300">
+                  Un membre existe déjà avec cette adresse ({inviteExisting.full_name}){inviteExisting.is_main_founder || inviteExisting.onboarding_completed ? " et il est actif." : " : sa fiche sera mise à jour."}
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Rôle Proposé</label>
+              <label className="text-xs font-semibold text-slate-300">Rôle proposé</label>
               <Select value={inviteRole} onValueChange={setInviteRole}>
                 <SelectTrigger className="bg-slate-950 border-slate-800 rounded-xl">
                   <SelectValue placeholder="Sélectionner le rôle" />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-900 border-slate-800 text-white">
                   <SelectItem value="cofounder">Cofondateur</SelectItem>
-                  <SelectItem value="shareholder">Associé / Actionnaire</SelectItem>
+                  <SelectItem value="shareholder">Associé / actionnaire</SelectItem>
                   <SelectItem value="investor">Investisseur</SelectItem>
-                  <SelectItem value="corporate_admin">Administrateur Autorisé</SelectItem>
+                  <SelectItem value="corporate_admin">Administrateur autorisé</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Participation Cible (%)</label>
+              <label className="text-xs font-semibold text-slate-300">Participation cible (%)</label>
               <Input
                 type="number"
                 step="0.5"
+                min="0"
                 value={invitePct}
-                onChange={(e) => setInvitePct(parseFloat(e.target.value))}
+                onChange={(e) => setInvitePct(e.target.value)}
                 required
                 className="bg-slate-950 border-slate-800 rounded-xl"
               />
+              <p className={`text-[11px] ${invitePct && !inviteRoom.ok ? "text-red-400" : "text-slate-500"}`}>
+                Maximum possible : {inviteRoom.maxPct} % (les autres membres détiennent {inviteRoom.othersPct} %).
+              </p>
             </div>
 
-            {/* Récapitulatif exigé */}
             <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-1.5 text-xs text-slate-300">
-              <div className="font-bold text-emerald-400 mb-1">RÉCAPITULATIF DE L'INVITATION</div>
-              <div>• Nom : <strong>{inviteFullName || '—'}</strong></div>
-              <div>• Email : <strong className="font-mono">{inviteEmail || '—'}</strong></div>
-              <div>• Rôle proposé : <strong className="text-purple-300">{roleLabels[inviteRole] || inviteRole}</strong></div>
-              <div>• Participation : <strong>{invitePct}%</strong> ({((invitePct / 100) * totalShares).toLocaleString()} actions)</div>
-              <div>• Documents requis : <strong>3 Documents Statutaires</strong></div>
-              <div>• Durée de validité : <strong>7 Jours</strong></div>
+              <div className="font-bold text-emerald-400 mb-1">Récapitulatif</div>
+              <div>• Nom : <strong>{inviteFullName || "—"}</strong></div>
+              <div>• E-mail : <strong className="font-mono">{inviteEmail || "—"}</strong></div>
+              <div>• Rôle : <strong className="text-purple-300">{roleLabels[inviteRole] || inviteRole}</strong></div>
+              <div>
+                • Participation : <strong>{invitePct ? `${inviteNum} %` : "—"}</strong>
+                {invitePct && totalShares !== null && Number.isFinite(inviteNum) ? ` (${sharesForPercentage(inviteNum, totalShares).toLocaleString("fr-FR")} actions)` : ""}
+              </div>
+              <div>• Validité : <strong>7 jours</strong></div>
             </div>
 
             <DialogFooter className="mt-6">
-              <Button type="button" variant="outline" onClick={() => setIsInviteModalOpen(false)} className="rounded-xl border-slate-700">
-                Annuler
-              </Button>
-              <Button type="submit" disabled={isSendingInvite} className="bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl gap-2">
+              <Button type="button" variant="outline" onClick={() => setIsInviteModalOpen(false)} className="rounded-xl border-slate-700">Annuler</Button>
+              <Button
+                type="submit"
+                disabled={isSendingInvite || !inviteRoom.ok}
+                className="bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl gap-2 disabled:opacity-50"
+              >
                 {isSendingInvite ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                ENVOYER L'INVITATION
+                Envoyer l'invitation
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* MODAL 2: CREATE PROPOSAL */}
-      <Dialog open={isProposalDialogOpen} onOpenChange={setIsProposalDialogOpen}>
+      {/* MODALE : PROPOSITION */}
+      <Dialog
+        open={isProposalDialogOpen}
+        onOpenChange={(open) => {
+          setIsProposalDialogOpen(open);
+          if (!open) resetProposalForm();
+        }}
+      >
         <DialogContent className="bg-slate-900 border-slate-800 text-white rounded-3xl sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold flex items-center gap-2">
-              <PlusCircle className="w-5 h-5 text-emerald-400" /> Nouvelle Proposition Cap Table
+              <PlusCircle className="w-5 h-5 text-emerald-400" /> Nouvelle proposition de cap table
             </DialogTitle>
+            <DialogDescription className="text-slate-400 text-xs">
+              Propose de modifier la participation cible d'un membre. La proposition suit le workflow de validation ; la cap table ne change qu'à l'étape finale.
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateProposalSubmit} className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Titre de la Proposition</label>
+              <label className="text-xs font-semibold text-slate-300">Titre</label>
+              <Input value={proposalTitle} onChange={(e) => setProposalTitle(e.target.value)} required className="bg-slate-950 border-slate-800 rounded-xl" />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300">Bénéficiaire</label>
+              <Select value={beneficiaryId} onValueChange={setBeneficiaryId}>
+                <SelectTrigger className="bg-slate-950 border-slate-800 rounded-xl">
+                  <SelectValue placeholder="Choisir un membre" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-900 border-slate-800 text-white">
+                  {shareholders.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.full_name} ({s.allocation ? fmtPct(Number(s.allocation.target_percentage)) : "aucune participation"})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300">Participation proposée (%)</label>
               <Input
-                placeholder="ex: Attribution proposée à Désiré Tano (+5%)"
-                value={proposalTitle}
-                onChange={(e) => setProposalTitle(e.target.value)}
+                type="number"
+                step="0.5"
+                min="0"
+                value={proposedPct}
+                onChange={(e) => setProposedPct(e.target.value)}
                 required
                 className="bg-slate-950 border-slate-800 rounded-xl"
               />
+              {beneficiaryId && (
+                <p className={`text-[11px] ${proposedPct && !proposalRoom.ok ? "text-red-400" : "text-slate-500"}`}>
+                  Actuellement {fmtPct(Number(selectedBeneficiary?.allocation?.target_percentage ?? 0))} · maximum possible {proposalRoom.maxPct} %.
+                </p>
+              )}
             </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300">Justification</label>
+              <Textarea value={proposalRationale} onChange={(e) => setProposalRationale(e.target.value)} required rows={3} className="bg-slate-950 border-slate-800 rounded-xl" />
+            </div>
+
             <DialogFooter className="mt-6">
               <Button type="button" variant="outline" onClick={() => setIsProposalDialogOpen(false)} className="rounded-xl border-slate-700">Annuler</Button>
-              <Button type="submit" disabled={isSubmittingProposal} className="bg-[#0E7C66] text-white font-bold rounded-xl">Soumettre</Button>
+              <Button
+                type="submit"
+                disabled={isSubmittingProposal || !beneficiaryId || !proposalRoom.ok}
+                className="bg-[#0E7C66] text-white font-bold rounded-xl disabled:opacity-50"
+              >
+                {isSubmittingProposal && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                Soumettre
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* DOCUMENT VIEWER MODAL */}
+      <CreateDocumentModal isOpen={isCreateDocModalOpen} onClose={() => setIsCreateDocModalOpen(false)} onCreate={createDocument} />
+
       <GovernanceDocumentViewerModal
-        document={selectedDocForView}
+        document={selectedDocForView ? documents.find((d) => d.id === selectedDocForView.id) ?? selectedDocForView : null}
         isOpen={isDocViewerOpen}
         onClose={() => setIsDocViewerOpen(false)}
         onApprove={approveDocument}

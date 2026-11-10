@@ -132,6 +132,7 @@ serve(async (req) => {
         p_amount: Number(payment.amount) || 0,
         p_transaction_reference: payment.transaction_id || reference,
         p_payment_method: payment.payment_method || "geniuspay",
+        p_billing_cycle: (meta.billing_cycle as string) || null,
       });
       if (subError || subResult?.success === false) {
         // Payé mais non appliqué : ne pas annoncer un succès (l'écran réessaiera, l'appel est idempotent)
@@ -273,6 +274,7 @@ serve(async (req) => {
         p_amount: Number(payment.amount) || 0,
         p_transaction_reference: payment.transaction_id || reference,
         p_payment_method: remote?.payment_method || remote?.provider || "geniuspay",
+        p_billing_cycle: (meta.billing_cycle as string) || null,
       });
       if (subError || subResult?.success === false) {
         console.error("apply_shop_subscription failed (verify-payment):", { subError, subResult });
@@ -308,6 +310,7 @@ serve(async (req) => {
         p_amount: Number(payment.amount) || 0,
         p_transaction_reference: payment.transaction_id || reference,
         p_payment_method: remote?.payment_method || remote?.provider || "geniuspay",
+        p_billing_cycle: (meta.billing_cycle as string) || null,
       });
       if (subError || subResult?.success === false) {
         console.error("apply_shop_subscription failed (verify-payment):", { subError, subResult });

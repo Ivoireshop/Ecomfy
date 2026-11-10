@@ -59,7 +59,7 @@ export const PRO_PLAN: PricingPlan = {
   description: "Pour les e-commerçants actifs voulant zéro commission et un domaine propre.",
   features: [
     "Zéro commission sur vos ventes (0 FCFA)",
-    "Boutique illimitée + Domaine personnalisé (.com, .net)",
+    "Domaine personnalisé (.com, .net)",
     "Visuels IA & Textes SEO optimisés",
     "10 vidéos animées IA par mois",
     "20 images HD studio IA par mois",
@@ -86,7 +86,7 @@ export const PREMIUM_ACADEMY_PLAN: PricingPlan = {
     "🖼️ Jusqu'à 40 images HD studio IA / mois",
     "👥 Accès VIP à la Communauté des Marchands Ecomfy",
     "🛒 Zéro commission sur vos ventes (0 FCFA)",
-    "🌐 Boutique illimitée + Nom de domaine personnalisé",
+    "🌐 Nom de domaine personnalisé",
     "💬 Support prioritaire VIP WhatsApp 24/7",
     "🏷️ Réduction sur l'engagement annuel à 28 500 FCFA / mois"
   ]
