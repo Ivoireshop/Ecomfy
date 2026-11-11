@@ -22,6 +22,8 @@ interface ShopSidebarProps {
   isPublished: boolean;
   allowedSections?: ActiveSection[];
   isOwner?: boolean;
+  /** Faux pour un collaborateur sans droit de modification (view_orders, manage_catalog…). */
+  canSave?: boolean;
   onMobileClose?: () => void;
 }
 
@@ -49,7 +51,7 @@ const NAV_ITEMS: { id: ActiveSection; label: string; icon: React.ElementType; is
 export function ShopSidebar({
   shopName, slug, primaryColor, logoUrl, activeSection, onSectionChange,
   unreadOrders, pendingReviews = 0, productCount, isActivated, onBack, onSave, saving, onPreview, isPublished,
-  allowedSections, isOwner = true, onMobileClose,
+  allowedSections, isOwner = true, canSave = true, onMobileClose,
 }: ShopSidebarProps) {
   const visibleItems = NAV_ITEMS.filter((item) => {
     if (item.ownerOnly && !isOwner) return false;
@@ -134,15 +136,17 @@ export function ShopSidebar({
             Voir en magasin
           </Button>
         )}
-        <Button
-          size="sm"
-          className="w-full gap-2 bg-[#0E7C66] hover:bg-[#0E7C66]/90 text-white"
-          onClick={onSave}
-          disabled={saving}
-        >
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          Sauvegarder
-        </Button>
+        {canSave && (
+          <Button
+            size="sm"
+            className="w-full gap-2 bg-[#0E7C66] hover:bg-[#0E7C66]/90 text-white"
+            onClick={onSave}
+            disabled={saving}
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Sauvegarder
+          </Button>
+        )}
       </div>
     </aside>
   );

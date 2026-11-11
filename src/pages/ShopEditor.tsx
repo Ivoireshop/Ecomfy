@@ -1325,8 +1325,13 @@ const ShopEditor = () => {
     const r = collabRoles || [];
     if (r.includes("full_admin")) return undefined; // Full admin gets access to all sections
     const allowed: ActiveSection[] = ["overview"];
+    // Chaque rôle n'ouvre que ses propres écrans : « Voir les commandes » ne donne ni les codes promo,
+    // ni les clients fidèles, ni les statistiques (rôles view_stats / manage_customers / edit_shop).
     if (r.includes("view_orders") || r.includes("manage_delivered_orders") || r.includes("edit_shop")) {
-      allowed.push("orders", "abandoned", "loyal-customers", "promo-codes", "statistics");
+      allowed.push("orders", "abandoned");
+    }
+    if (r.includes("edit_shop")) {
+      allowed.push("loyal-customers", "promo-codes", "statistics");
     }
     if (r.includes("manage_catalog") || r.includes("edit_shop")) {
       allowed.push("products");
@@ -1364,6 +1369,7 @@ const ShopEditor = () => {
     isPublished: shop.is_published,
     allowedSections,
     isOwner,
+    canSave: isOwner || (collabRoles || []).some((role) => role === "edit_shop" || role === "full_admin"),
   };
 
   return (
@@ -1434,7 +1440,7 @@ const ShopEditor = () => {
           );
         })()}
         {/* Activation Banner */}
-        {!isActivated && (
+        {!isActivated && isOwner && (
           <div className="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 md:px-6 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">

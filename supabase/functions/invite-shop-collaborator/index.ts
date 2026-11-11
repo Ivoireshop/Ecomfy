@@ -1,6 +1,14 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors'
 import { APP_URL, guardEmail } from "../_shared/email-sender.ts";
+import {
+  MAX_COLLABORATORS_PER_SHOP,
+  MAX_INVITES_PER_HOUR,
+  escapeHtml,
+  escapeLike,
+  isValidEmail,
+  resolveInviteOrigin,
+} from "./helpers.ts";
 
 const ALLOWED_ROLES = new Set([
   'view_orders', 'edit_shop', 'manage_expenses', 'manage_delivered_orders',
@@ -29,13 +37,15 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}))
     const shopId = String(body.shop_id || '').trim()
     const emailRaw = String(body.email || '').trim().toLowerCase()
-    const shopName = String(body.shop_name || 'votre boutique').slice(0, 120)
     const roles = Array.isArray(body.roles) ? body.roles.filter((r: string) => ALLOWED_ROLES.has(r)) : []
     if (!shopId || !emailRaw || roles.length === 0) {
       return json({ success: false, error: 'invalid_input' })
     }
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailRaw)) {
+    if (!isValidEmail(emailRaw)) {
       return json({ success: false, error: 'invalid_email' })
+    }
+    if (emailRaw === (user.email || '').toLowerCase()) {
+      return json({ success: false, error: 'cannot_invite_owner' })
     }
 
     const admin = createClient(url, serviceKey)
@@ -44,18 +54,40 @@ Deno.serve(async (req) => {
     const { data: shop } = await admin.from('shops').select('id, user_id, business_name').eq('id', shopId).maybeSingle()
     if (!shop || shop.user_id !== user.id) return json({ success: false, error: 'forbidden' })
 
+    // Anti-abus : l'envoi part de noreply@ecomfy.cloud, on borne donc le nombre d'invitations par boutique.
+    const sinceHour = new Date(Date.now() - 3600_000).toISOString()
+    const { count: recentCount } = await admin.from('shop_collaborators')
+      .select('id', { count: 'exact', head: true })
+      .eq('shop_id', shopId).gte('updated_at', sinceHour).neq('status', 'active')
+    if ((recentCount ?? 0) >= MAX_INVITES_PER_HOUR) {
+      return json({ success: false, error: 'rate_limited' })
+    }
+
     const invitationToken = randomToken()
-    // Upsert (one invite per email per shop)
-    const { data: existing } = await admin.from('shop_collaborators').select('id, invitation_token')
-      .eq('shop_id', shopId).ilike('invited_email', emailRaw).maybeSingle()
+    // Upsert (one invite per email per shop). Comparaison exacte insensible à la casse : % et _ sont neutralisés.
+    const { data: existing } = await admin.from('shop_collaborators').select('id, invitation_token, status')
+      .eq('shop_id', shopId).ilike('invited_email', escapeLike(emailRaw)).maybeSingle()
+
+    if (!existing?.id) {
+      const { count: total } = await admin.from('shop_collaborators')
+        .select('id', { count: 'exact', head: true }).eq('shop_id', shopId).neq('status', 'revoked')
+      if ((total ?? 0) >= MAX_COLLABORATORS_PER_SHOP) {
+        return json({ success: false, error: 'too_many_collaborators' })
+      }
+    }
 
     let finalToken = invitationToken
     let dbError: any = null
 
     if (existing?.id) {
       finalToken = existing.invitation_token || invitationToken
+      // Un collaborateur déjà actif le reste (changement de rôles) ; sinon l'invitation repart en « pending ».
       const res = await admin.from('shop_collaborators').update({
-        roles, status: 'pending', invited_by: user.id, updated_at: new Date().toISOString(),
+        roles,
+        status: existing.status === 'active' ? 'active' : 'pending',
+        invitation_token: finalToken,
+        invited_by: user.id,
+        updated_at: new Date().toISOString(),
       }).eq('id', existing.id)
       dbError = res.error
     } else {
@@ -68,10 +100,12 @@ Deno.serve(async (req) => {
 
     if (dbError) return json({ success: false, error: dbError.message })
 
-    const origin = req.headers.get('origin') || APP_URL
+    // Lien d'acceptation : origine en liste blanche (APP_URL + INVITE_ALLOWED_ORIGINS), jamais l'en-tête brut.
+    const origin = resolveInviteOrigin(req.headers.get('origin'), APP_URL, Deno.env.get('INVITE_ALLOWED_ORIGINS') || '')
     const acceptUrl = `${origin}/accept-shop-invite?token=${encodeURIComponent(finalToken)}`
 
-    const displayShop = shop.business_name || shopName
+    // Nom lu en base uniquement : le corps de la requête ne peut pas injecter de texte dans le mail.
+    const displayShop = shop.business_name || 'votre boutique'
 
     const resendKey = Deno.env.get('RESEND_API_KEY')
     if (!resendKey) {
@@ -105,7 +139,7 @@ Deno.serve(async (req) => {
       manage_customers: 'Service client (Avis & Contacts)',
       full_admin: 'Accès total (Admin)',
     }
-    const rolesHtml = roles.map((r: string) => `<li style="margin-bottom:4px;"><strong>${rolesLabels[r] || r}</strong></li>`).join('')
+    const rolesHtml = roles.map((r: string) => `<li style="margin-bottom:4px;"><strong>${escapeHtml(rolesLabels[r] || r)}</strong></li>`).join('')
     
     const html = `<!doctype html>
 <html>
@@ -123,7 +157,7 @@ Deno.serve(async (req) => {
         Bonjour,
       </p>
       <p style="font-size:16px;line-height:1.6;color:#334155;">
-        Vous avez été invité(e) à rejoindre la boutique <strong>${displayShop}</strong> sur Ecomfy.
+        Vous avez été invité(e) à rejoindre la boutique <strong>${escapeHtml(displayShop)}</strong> sur Ecomfy.
       </p>
       ${rolesHtml ? `
       <div style="background:#f1f5f9;border-radius:12px;padding:16px;margin:20px 0;">
@@ -136,17 +170,17 @@ Deno.serve(async (req) => {
         Cliquez sur le bouton ci-dessous pour accepter votre invitation et accéder directement à l'espace de gestion de la boutique :
       </p>
       <div style="text-align:center;margin:32px 0;">
-        <a href="${acceptUrl}" style="background:#10b981;color:#ffffff;padding:14px 28px;border-radius:9999px;font-weight:700;font-size:15px;text-decoration:none;display:inline-block;box-shadow:0 4px 12px rgba(16,185,129,0.25);">
+        <a href="${escapeHtml(acceptUrl)}" style="background:#10b981;color:#ffffff;padding:14px 28px;border-radius:9999px;font-weight:700;font-size:15px;text-decoration:none;display:inline-block;box-shadow:0 4px 12px rgba(16,185,129,0.25);">
           Accepter l'invitation
         </a>
       </div>
       <p style="font-size:13px;color:#64748b;line-height:1.5;">
-        Cette invitation est personnelle et liée à votre adresse email (<strong>${emailRaw}</strong>).
+        Cette invitation est personnelle et liée à votre adresse email (<strong>${escapeHtml(emailRaw)}</strong>).
       </p>
     </div>
     <div style="border-top:1px solid #f1f5f9;margin-top:32px;padding-top:16px;text-align:center;font-size:12px;color:#94a3b8;">
       <p style="margin:0 0 8px;">Si vous n'attendiez pas cette invitation, vous pouvez ignorer cet email.</p>
-      <p style="margin:0;word-break:break-all;">Lien direct : <a href="${acceptUrl}" style="color:#10b981;">${acceptUrl}</a></p>
+      <p style="margin:0;word-break:break-all;">Lien direct : <a href="${escapeHtml(acceptUrl)}" style="color:#10b981;">${escapeHtml(acceptUrl)}</a></p>
       <p style="margin-top:16px;color:#cbd5e1;">&copy; Ecomfy — Tous droits réservés</p>
     </div>
   </div>
@@ -162,7 +196,7 @@ Deno.serve(async (req) => {
         },
         body: JSON.stringify({
           from: fromAddress,
-          ...guardEmail([emailRaw], `Invitation à rejoindre la boutique ${displayShop} — Ecomfy`),
+          ...guardEmail([emailRaw], `Invitation à rejoindre la boutique ${displayShop.replace(/[\r\n]+/g, ' ')} — Ecomfy`),
           html,
         }),
       })

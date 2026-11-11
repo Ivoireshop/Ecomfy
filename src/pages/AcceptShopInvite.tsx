@@ -71,7 +71,13 @@ export default function AcceptShopInvite() {
         } else if (errType === "revoked") {
           setErrorMessage("Cette invitation a été révoquée par le propriétaire de la boutique.");
         } else if (errType === "invalid_token") {
-          setErrorMessage("Ce lien d'invitation est invalide ou expiré.");
+          setErrorMessage("Ce lien d'invitation est invalide.");
+        } else if (errType === "expired") {
+          setErrorMessage("Cette invitation a expiré (plus de 14 jours). Demandez au propriétaire de la boutique de vous la renvoyer.");
+        } else if (errType === "email_not_confirmed") {
+          setErrorMessage("Confirmez d'abord votre adresse e-mail (lien reçu à l'inscription), puis rouvrez ce lien d'invitation.");
+        } else if (errType === "already_used") {
+          setErrorMessage("Cette invitation a déjà été utilisée par un autre compte.");
         } else {
           setErrorMessage("Impossible d'accepter cette invitation pour le moment.");
         }

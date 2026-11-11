@@ -52,6 +52,14 @@ const ROLE_ICONS: Record<Role, any> = {
   full_admin: ShieldAlert,
 };
 
+// Refus renvoyés par invite-shop-collaborator : message clair, pas de repli sur une écriture directe.
+const BLOCKING_INVITE_ERRORS: Record<string, string> = {
+  rate_limited: "Trop d'invitations envoyées en peu de temps. Réessayez dans une heure.",
+  too_many_collaborators: "Cette boutique a atteint le nombre maximal de collaborateurs (50).",
+  cannot_invite_owner: "Vous êtes déjà propriétaire de cette boutique.",
+  invalid_email: "Adresse email invalide.",
+};
+
 interface Collab {
   id: string;
   invited_email: string;
@@ -159,6 +167,10 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
 
         if (!fnError && fnData?.success) {
           fnSuccess = true;
+        } else if (fnData?.error && BLOCKING_INVITE_ERRORS[fnData.error]) {
+          // Refus volontaire du serveur : on ne contourne pas par une écriture directe.
+          toast.error("Invitation refusée", { description: BLOCKING_INVITE_ERRORS[fnData.error] });
+          return;
         }
       } catch (err) {
         console.warn("Edge function invite attempt warning:", err);
@@ -171,7 +183,7 @@ export function ShopCollaboratorsManager({ shopId, shopName }: Props) {
         const { data: existing } = await (supabase.from("shop_collaborators" as any) as any)
           .select("id")
           .eq("shop_id", shopId)
-          .ilike("invited_email", targetEmail)
+          .ilike("invited_email", targetEmail.replace(/[\\%_]/g, (c) => `\\${c}`))
           .maybeSingle();
 
         let dbError: any = null;
