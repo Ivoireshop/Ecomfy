@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import { senderFrom, guardEmail } from "../_shared/email-sender.ts";
 
@@ -34,7 +34,7 @@ const handler = async (req: Request): Promise<Response> => {
     const authHeader = req.headers.get("Authorization") || req.headers.get("apikey");
     if (!authHeader) {
       return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
-        status: 200,
+        status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -251,7 +251,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("Error in send-contact-notification function:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: "Impossible d'envoyer la notification." }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -260,4 +260,4 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-serve(handler);
+serveCors("public", handler);

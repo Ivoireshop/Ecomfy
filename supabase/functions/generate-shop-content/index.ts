@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { enforceAiQuota } from "../_shared/ai-quota.ts";
 import { geminiChat } from "../_shared/openrouter-chat.ts";
@@ -8,7 +8,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
+serveCors("app", async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   const __quota = await enforceAiQuota(req, "generate-shop-content");
   if (!__quota.allowed) return __quota.response;
@@ -64,6 +64,6 @@ Description fournie : ${businessDescription || "Boutique en ligne"}`;
     return new Response(JSON.stringify(shopContent), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error: any) {
     console.error("generate-shop-content error:", error);
-    return new Response(JSON.stringify({ error: error?.message || "Erreur de génération" }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 });
+    return new Response(JSON.stringify({ error: "Erreur de génération" }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 });
   }
 });

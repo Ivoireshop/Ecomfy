@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { getConnector } from "../_shared/operators/index.ts";
 import { remoteAmountMatches } from "../_shared/pricing.ts";
@@ -9,7 +9,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-signature, x-webhook-timestamp, x-webhook-event, x-webhook-environment, x-webhook-delivery",
 };
 
-serve(async (req) => {
+serveCors("server", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -216,6 +216,6 @@ serve(async (req) => {
     return ack({ success: true, status: "SUCCEEDED", already_processed: !!res.already_processed, steps: res.steps });
   } catch (err: any) {
     console.error("[ecomfy-pay-webhook] Unexpected error:", err);
-    return ack({ success: false, error: err.message || "Webhook error" });
+    return ack({ success: false, error: "Webhook error" });
   }
 });

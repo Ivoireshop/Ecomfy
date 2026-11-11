@@ -1,3 +1,4 @@
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { enforceAiQuota } from "../_shared/ai-quota.ts";
 import { consumeAiCredit, creditsRequiredResponse } from "../_shared/credits-gate.ts";
@@ -70,7 +71,7 @@ function normalizeAnalysis(p: any) {
   };
 }
 
-Deno.serve(async (req) => {
+serveCors("app", async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const __quota = await enforceAiQuota(req, "product-ai-optimizer");
   if (!__quota.allowed) return __quota.response;
@@ -275,6 +276,6 @@ Analyse pourquoi les visiteurs ne convertissent pas et propose un plan d'action 
     });
   } catch (e) {
     console.error("product-ai-optimizer error", e);
-    return json({ success: false, error: e instanceof Error ? e.message : "Erreur inconnue" });
+    return json({ success: false, error: "Erreur lors de l'optimisation du produit." });
   }
 });

@@ -9,6 +9,7 @@ import { recordManualCommissionPayment } from "@/lib/founderBilling";
 import { supabase } from "@/integrations/supabase/client";
 import { openPaymentWindow, redirectToPaymentUrl, closePaymentWindow } from "@/lib/paymentRedirect";
 import { toast } from "sonner";
+import { readFunctionError } from "@/lib/functionError";
 
 interface BillingPaymentModalProps {
   open: boolean;
@@ -47,7 +48,7 @@ export const BillingPaymentModal: React.FC<BillingPaymentModalProps> = ({ open, 
         },
       });
 
-      if (error) throw error;
+      if (error) throw new Error(await readFunctionError(error, data, "Le paiement n'a pas pu démarrer."));
       const url = data?.payment_url || data?.checkout_url;
       if (data?.success === false) throw new Error(data?.error || "Erreur de paiement");
       if (url) {

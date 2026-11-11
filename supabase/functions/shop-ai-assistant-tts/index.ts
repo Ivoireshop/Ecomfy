@@ -1,3 +1,4 @@
+import { serveCors } from "../_shared/http.ts";
 import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { consumeShopOwnerCredit, userHasCredits } from "../_shared/credits-gate.ts";
@@ -38,7 +39,7 @@ async function ownerCanPayVoice(shopOwnerId: string): Promise<boolean> {
   return !!data && data.free_voice_used !== true;
 }
 
-Deno.serve(async (req) => {
+serveCors("public", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {

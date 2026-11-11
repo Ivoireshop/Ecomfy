@@ -1,5 +1,5 @@
+import { serveCors } from "../_shared/http.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { getOpenAiApiKey, analyzeImageWithGpt4oMini, optimizePromptWithGpt4oMini } from "../_shared/openai-key.ts";
 import { generateImageWithOpenRouter, getOpenRouterKey } from "../_shared/openrouter-image.ts";
@@ -30,7 +30,7 @@ async function fetchBinaryWithTimeout(url: string, timeoutMs: number) {
   }
 }
 
-serve(async (req) => {
+serveCors("app", async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }

@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { isAuthorizedCron, cronUnauthorizedResponse } from "../_shared/cron-auth.ts";
 import { sendServerPurchase } from "../_shared/purchase-capi.ts";
@@ -8,7 +8,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-serve(async (req) => {
+serveCors("server", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -48,7 +48,7 @@ serve(async (req) => {
     if (error) {
       console.error("[ecomfy-pay-settlement] RPC error:", error);
       return new Response(
-        JSON.stringify({ success: false, error: error.message }),
+        JSON.stringify({ success: false, error: "Settlement error" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -68,7 +68,7 @@ serve(async (req) => {
   } catch (err: any) {
     console.error("[ecomfy-pay-settlement] Error:", err);
     return new Response(
-      JSON.stringify({ success: false, error: err.message }),
+      JSON.stringify({ success: false, error: "Settlement error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

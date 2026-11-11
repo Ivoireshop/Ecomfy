@@ -1,3 +1,4 @@
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { isAuthorizedCron, cronUnauthorizedResponse } from "../_shared/cron-auth.ts";
@@ -22,7 +23,7 @@ type Probe = {
   metadata?: Record<string, unknown>;
 };
 
-Deno.serve(async (req) => {
+serveCors("server", async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (!isAuthorizedCron(req)) return cronUnauthorizedResponse(corsHeaders);
 

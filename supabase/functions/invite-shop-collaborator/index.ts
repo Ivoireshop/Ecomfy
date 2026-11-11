@@ -1,3 +1,4 @@
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors'
 import { APP_URL, guardEmail } from "../_shared/email-sender.ts";
@@ -21,7 +22,7 @@ function randomToken() {
   return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-Deno.serve(async (req) => {
+serveCors("app", async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
   try {
     const auth = req.headers.get('Authorization') || ''
@@ -98,7 +99,7 @@ Deno.serve(async (req) => {
       dbError = res.error
     }
 
-    if (dbError) return json({ success: false, error: dbError.message })
+    if (dbError) return json({ success: false, error: 'unexpected_error' })
 
     // Lien d'acceptation : origine en liste blanche (APP_URL + INVITE_ALLOWED_ORIGINS), jamais l'en-tête brut.
     const origin = resolveInviteOrigin(req.headers.get('origin'), APP_URL, Deno.env.get('INVITE_ALLOWED_ORIGINS') || '')
@@ -227,7 +228,7 @@ Deno.serve(async (req) => {
 
     return json({ success: true, email_sent: true })
   } catch (e: any) {
-    return json({ success: false, error: e?.message || 'unexpected_error' })
+    return json({ success: false, error: 'unexpected_error' })
   }
 })
 

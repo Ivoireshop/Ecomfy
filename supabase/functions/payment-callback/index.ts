@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -41,7 +41,7 @@ async function verifyWebhookSignature(
   }
 }
 
-serve(async (req) => {
+serveCors("server", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -363,7 +363,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false,
-        error: error instanceof Error ? error.message : "Une erreur est survenue" 
+        error: "Une erreur est survenue. Réessayez dans un instant." 
       }),
       {
         status: 500,

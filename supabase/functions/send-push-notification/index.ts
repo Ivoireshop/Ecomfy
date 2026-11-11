@@ -1,3 +1,4 @@
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import webpush from "npm:web-push@3.6.7";
 
@@ -80,7 +81,7 @@ function buildOrderNotification(order: any, shopName: string, rawSettings: any) 
   return { title, body, productLine, firstProductName };
 }
 
-Deno.serve(async (req) => {
+serveCors("app", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const body = await req.json().catch(() => ({}));

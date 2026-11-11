@@ -1,3 +1,4 @@
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { isAuthorizedCron, cronUnauthorizedResponse } from "../_shared/cron-auth.ts";
 import { APP_URL } from "../_shared/email-sender.ts";
@@ -42,7 +43,7 @@ async function fetchAll(build: () => any): Promise<any[]> {
   return rows;
 }
 
-Deno.serve(async (req) => {
+serveCors("app", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   let body: any = {};
@@ -80,7 +81,7 @@ Deno.serve(async (req) => {
     .eq("weekly_finance_email_enabled", true);
   if (singleShopId) secretsQuery = secretsQuery.eq("shop_id", singleShopId);
   const { data: secretsRows, error: secretsError } = await secretsQuery;
-  if (secretsError) return reply({ success: false, error: secretsError.message });
+  if (secretsError) return reply({ success: false, error: "Lecture des paramètres impossible." });
 
   const enabledShopIds = (secretsRows || []).map((s: any) => s.shop_id);
   const secretsByShop: Record<string, any> = {};
@@ -96,7 +97,7 @@ Deno.serve(async (req) => {
     .from("shops")
     .select("id,business_name,user_id,commission_balance_due,slug")
     .in("id", enabledShopIds);
-  if (error) return reply({ success: false, error: error.message });
+  if (error) return reply({ success: false, error: "Lecture des données impossible." });
 
   let sent = 0;
   let alreadySent = 0;

@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { founderCorsHeaders as corsHeaders, jsonResponse as json, requireFounder } from "../_shared/founderAuth.ts";
 
@@ -7,7 +7,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // Enregistre un règlement de commission encaissé hors ligne (validation manuelle par un fondateur).
 // apply_commission_payment n'est exécutable que par service_role : cette fonction est le seul
 // chemin pour un utilisateur connecté, et elle exige le rôle founder / co_founder.
-serve(async (req) => {
+serveCors("app", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -50,7 +50,7 @@ serve(async (req) => {
 
     if (rpcError) {
       console.error("[founder-record-commission-payment] RPC error:", rpcError);
-      return json(500, { success: false, error: rpcError.message });
+      return json(500, { success: false, error: "Erreur lors de l'enregistrement du paiement." });
     }
     if (result?.success === false) {
       return json(400, { success: false, error: result.error || "Paiement refusé." });
@@ -59,6 +59,6 @@ serve(async (req) => {
     return json(200, { success: true, ...(result ?? {}) });
   } catch (err: any) {
     console.error("[founder-record-commission-payment] Error:", err);
-    return json(500, { success: false, error: err.message || "Erreur lors de l'enregistrement du paiement." });
+    return json(500, { success: false, error: "Erreur lors de l'enregistrement du paiement." });
   }
 });

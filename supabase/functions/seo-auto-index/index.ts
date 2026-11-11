@@ -17,6 +17,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { isAuthorizedCron, cronUnauthorizedResponse } from "../_shared/cron-auth.ts";
 
@@ -73,7 +74,7 @@ async function pingPublicSitemap(sitemapUrl: string) {
   );
 }
 
-Deno.serve(async (req) => {
+serveCors("app", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (!isAuthorizedCron(req) && !(await isAuthenticatedUser(req))) {
     return cronUnauthorizedResponse(corsHeaders);

@@ -1,3 +1,4 @@
+import { serveCors } from "../_shared/http.ts";
 import * as React from 'npm:react@18.3.1'
 import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors'
@@ -6,7 +7,7 @@ import { TEMPLATES } from '../_shared/transactional-email-templates/registry.ts'
 // Renders all registered templates with their previewData.
 // Gated by LOVABLE_API_KEY — only the Go API calls this.
 
-Deno.serve(async (req) => {
+serveCors("server", async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }

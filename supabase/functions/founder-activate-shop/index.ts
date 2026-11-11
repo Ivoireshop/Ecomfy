@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { founderCorsHeaders as corsHeaders, jsonResponse as json, requireFounder } from "../_shared/founderAuth.ts";
 
@@ -7,7 +7,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // Activation manuelle d'une boutique par un fondateur (frais d'activation encaissés hors ligne).
 // apply_shop_activation exige un paiement `completed` correspondant : on l'enregistre ici, marqué
 // `manual`, avec l'identité du fondateur, puis on appelle la RPC avec service_role.
-serve(async (req) => {
+serveCors("app", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -85,7 +85,7 @@ serve(async (req) => {
       await supabase.from("payments").update({ status: "failed" }).eq("id", payment.id);
       if (rpcError) {
         console.error("[founder-activate-shop] RPC error:", rpcError);
-        return json(500, { success: false, error: rpcError.message });
+        return json(500, { success: false, error: "Erreur lors de l'activation de la boutique." });
       }
       return json(400, { success: false, error: result?.error || "Activation refusée." });
     }
@@ -93,6 +93,6 @@ serve(async (req) => {
     return json(200, { success: true, ...(result ?? {}) });
   } catch (err: any) {
     console.error("[founder-activate-shop] Error:", err);
-    return json(500, { success: false, error: err.message || "Erreur lors de l'activation de la boutique." });
+    return json(500, { success: false, error: "Erreur lors de l'activation de la boutique." });
   }
 });

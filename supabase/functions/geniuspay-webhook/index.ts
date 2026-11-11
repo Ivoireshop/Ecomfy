@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { APP_URL } from "../_shared/email-sender.ts";
 
@@ -30,7 +30,7 @@ function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-serve(async (req) => {
+serveCors("server", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -600,7 +600,7 @@ serve(async (req) => {
   } catch (err) {
     console.error("Webhook handler error:", err);
     return new Response(
-      JSON.stringify({ success: false, error: err instanceof Error ? err.message : "Unknown error" }),
+      JSON.stringify({ success: false, error: "Webhook error" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

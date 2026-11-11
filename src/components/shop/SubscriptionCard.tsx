@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useBillingSettings, useMyShopCoverage, useSubscriptionPlans } from "@/hooks/useSubscriptionPlans";
 import { formatFcfa, planChargeAmount, publicPlans, shopsIncludedLabel, type SubscriptionPlan } from "@/lib/subscriptionPlans";
+import { readFunctionError } from "@/lib/functionError";
 
 interface Props {
   shopId: string;
@@ -52,7 +53,7 @@ export function SubscriptionCard({ shopId, shop }: Props) {
       if (error || !data?.success) {
         toast({
           title: "Paiement non démarré",
-          description: data?.error || error?.message || "Réessayez dans un instant.",
+          description: await readFunctionError(error, data, "Réessayez dans un instant."),
           variant: "destructive",
         });
         return;

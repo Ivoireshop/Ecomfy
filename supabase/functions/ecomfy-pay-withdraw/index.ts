@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { getDefaultConnector } from "../_shared/operators/index.ts";
 
@@ -7,7 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-serve(async (req) => {
+serveCors("app", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -82,7 +82,7 @@ serve(async (req) => {
     if (rpcError) {
       console.error("[ecomfy-pay-withdraw] RPC error:", rpcError);
       return new Response(
-        JSON.stringify({ success: false, error: rpcError.message }),
+        JSON.stringify({ success: false, error: "La demande de retrait n'a pas pu être enregistrée." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -148,7 +148,7 @@ serve(async (req) => {
   } catch (err: any) {
     console.error("[ecomfy-pay-withdraw] Error:", err);
     return new Response(
-      JSON.stringify({ success: false, error: err.message || "Erreur lors de la demande de retrait." }),
+      JSON.stringify({ success: false, error: "Erreur lors de la demande de retrait." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

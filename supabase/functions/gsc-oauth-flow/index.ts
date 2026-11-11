@@ -8,12 +8,13 @@
 //   set_property  { shop_id, site_url }      → { propertyId }
 //   disconnect    { shop_id }                → { }
 
+import { serveCors } from "../_shared/http.ts";
 import {
   adminClient, corsHeaders, fail, getUserId, getValidAccessToken, json, listSites,
   loadConnection, ownsShop, REDIRECT_URI, SCOPE, signState, verifyState,
 } from "../_shared/gsc.ts";
 
-Deno.serve(async (req) => {
+serveCors("app", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {

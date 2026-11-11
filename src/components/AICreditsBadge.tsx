@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { openPaymentWindow, redirectToPaymentUrl } from "@/lib/paymentRedirect";
+import { readFunctionError } from "@/lib/functionError";
 
 const PACKS = [
   { size: 20, price: 2000, label: "Starter" },
@@ -84,7 +85,7 @@ export function AICreditsBadge() {
         },
       });
       if (error || !data?.success) {
-        toast.error(data?.error || error?.message || "Paiement non démarré");
+        toast.error(await readFunctionError(error, data, "Paiement non démarré"));
         return;
       }
       const url = data.checkout_url || data.payment_url;

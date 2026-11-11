@@ -1,7 +1,7 @@
 // @ts-nocheck
 declare const Deno: any;
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serveCors } from "../_shared/http.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { GENIUSPAY_API_URL } from "../_shared/geniuspayConfig.ts";
@@ -118,7 +118,7 @@ const PaymentSchema = z.object({
   }).optional()
 }).passthrough();
 
-serve(async (req) => {
+serveCors("app", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -137,7 +137,7 @@ serve(async (req) => {
           error: "Non autorisé. Veuillez vous connecter." 
         }),
         { 
-          status: 200, 
+          status: 401, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         }
       );
@@ -157,7 +157,7 @@ serve(async (req) => {
           error: "Token d'authentification invalide" 
         }),
         { 
-          status: 200, 
+          status: 401, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         }
       );
@@ -172,7 +172,7 @@ serve(async (req) => {
     });
     if (rl && (rl as any).allowed === false) {
       return new Response(JSON.stringify({ success: false, error: "Trop de tentatives de paiement, patientez un instant." }), {
-        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
     
@@ -192,7 +192,7 @@ serve(async (req) => {
             }))
           }),
           { 
-            status: 200, 
+            status: 400, 
             headers: { ...corsHeaders, "Content-Type": "application/json" } 
           }
         );
@@ -209,7 +209,7 @@ serve(async (req) => {
           error: "Vous ne pouvez initier un paiement que pour votre propre compte" 
         }),
         { 
-          status: 200, 
+          status: 403, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         }
       );
@@ -227,7 +227,7 @@ serve(async (req) => {
       if (!commissionShop) {
         return new Response(
           JSON.stringify({ success: false, error: "Boutique introuvable pour ce compte." }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       commissionBalanceDue = Number(commissionShop.commission_balance_due) || 0;
@@ -252,7 +252,7 @@ serve(async (req) => {
           console.error("subscription_plans unreadable:", planRowsError);
           return new Response(
             JSON.stringify({ success: false, error: "Tarifs momentanément indisponibles. Réessayez dans un instant." }),
-            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
       } else {
@@ -270,7 +270,7 @@ serve(async (req) => {
       console.warn("Payment amount rejected (C6):", { user_id, payment_type, plan, billing_cycle, amount, credits_pack, error: priceCheck.error });
       return new Response(
         JSON.stringify({ success: false, error: priceCheck.error }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -308,7 +308,7 @@ serve(async (req) => {
       if (!shop_id) {
         return new Response(
           JSON.stringify({ success: false, error: "Sélectionnez la boutique à activer." }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
@@ -351,14 +351,14 @@ serve(async (req) => {
         console.error("Activation payment gate failed:", activationGateError);
         return new Response(
           JSON.stringify({ success: false, error: "Vérification d'activation impossible. Réessayez." }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
       if (!activationGate?.success) {
         return new Response(
           JSON.stringify({ success: false, error: activationGate?.error || "Boutique introuvable pour ce compte." }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
@@ -433,7 +433,7 @@ serve(async (req) => {
             error: "Erreur lors de la validation du code promo" 
           }),
           { 
-            status: 200, 
+            status: 500, 
             headers: { ...corsHeaders, "Content-Type": "application/json" } 
           }
         );
@@ -446,7 +446,7 @@ serve(async (req) => {
             error: "Code promo invalide" 
           }),
           { 
-            status: 200, 
+            status: 400, 
             headers: { ...corsHeaders, "Content-Type": "application/json" } 
           }
         );
@@ -460,7 +460,7 @@ serve(async (req) => {
             error: validationResult.message 
           }),
           { 
-            status: 200, 
+            status: 400, 
             headers: { ...corsHeaders, "Content-Type": "application/json" } 
           }
         );
@@ -486,7 +486,7 @@ serve(async (req) => {
           success: false,
           error: "La passerelle de paiement n'est pas configurée. Contactez l'administrateur."
         }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -575,7 +575,7 @@ serve(async (req) => {
           success: false,
           error: "Paiement non initialisé. Aucun prélèvement n'a été lancé, veuillez réessayer."
         }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
     pendingPaymentId = pendingPayment.id;
@@ -639,7 +639,7 @@ serve(async (req) => {
         }).eq("id", pendingPaymentId);
         return new Response(
           JSON.stringify({ success: false, error: errMsg }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       paymentData = json.data || json.result || json;
@@ -661,7 +661,7 @@ serve(async (req) => {
             ? "Le serveur GeniusPay est temporairement surchargé (Timeout 504). Veuillez réinstruire votre paiement dans 2 minutes."
             : "Le service de paiement GeniusPay est temporairement indisponible. Veuillez réinstruire votre paiement."
         }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -680,7 +680,7 @@ serve(async (req) => {
           success: false,
           error: "GeniusPay n'a pas retourné de lien de redirection de paiement valide. Veuillez réessayer.",
         }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -729,7 +729,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false,
-        error: error instanceof Error ? error.message : "Une erreur est survenue" 
+        error: "Une erreur est survenue. Réessayez dans un instant." 
       }),
       {
         status: 500,

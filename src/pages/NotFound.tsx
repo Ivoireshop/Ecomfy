@@ -1,8 +1,7 @@
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Home, ArrowLeft, Search, Sparkles, Compass, MessageSquare, LifeBuoy } from "lucide-react";
+import { Home, ArrowLeft, Sparkles, Compass, MessageSquare, LifeBuoy } from "lucide-react";
 import { logError } from "@/lib/error-handler";
 
 const NotFound = () => {
@@ -13,6 +12,21 @@ const NotFound = () => {
     logError("NotFoundRoute", `User attempted to access non-existent route: ${location.pathname}`);
   }, [location.pathname]);
 
+  // Le serveur répond 200 à toute URL (application monopage) : sans noindex, les moteurs de recherche
+  // indexeraient cette page comme du contenu (« soft 404 »).
+  useEffect(() => {
+    const previousTitle = document.title;
+    document.title = "Page introuvable | Ecomfy";
+    const meta = document.createElement("meta");
+    meta.name = "robots";
+    meta.content = "noindex, nofollow";
+    document.head.appendChild(meta);
+    return () => {
+      document.title = previousTitle;
+      meta.remove();
+    };
+  }, []);
+
   const handleGoBack = () => {
     if (window.history.length > 2) {
       navigate(-1);
@@ -22,7 +36,7 @@ const NotFound = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-slate-950 text-slate-100 flex flex-col justify-between p-4 sm:p-8 relative overflow-hidden select-none">
+    <div className="min-h-screen w-full bg-slate-950 text-slate-100 flex flex-col justify-between p-4 sm:p-8 relative overflow-hidden">
       {/* Dynamic Background Glowing Orbs */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#0E7C66]/20 rounded-full blur-[140px] pointer-events-none" />
       <div className="absolute bottom-10 right-10 w-96 h-96 bg-indigo-600/15 rounded-full blur-[120px] pointer-events-none" />
@@ -37,9 +51,6 @@ const NotFound = () => {
             Ecomfy<span className="text-[#0E7C66]">.</span>
           </span>
         </Link>
-        <Badge variant="outline" className="border-slate-800 text-slate-400 bg-slate-900/60 px-3 py-1 rounded-full text-xs gap-1.5 backdrop-blur-md">
-          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" /> Status : Opérationnel
-        </Badge>
       </header>
 
       {/* Main Content Hero */}
@@ -48,13 +59,13 @@ const NotFound = () => {
         <div className="relative mb-6">
           <div className="absolute inset-0 bg-gradient-to-r from-[#0E7C66] to-indigo-600 rounded-3xl blur-xl opacity-30 animate-pulse" />
           <div className="relative p-6 sm:p-8 rounded-3xl bg-slate-900/80 border border-slate-800/80 backdrop-blur-xl shadow-2xl flex items-center justify-center gap-4">
-            <Compass className="h-14 w-14 sm:h-16 sm:w-16 text-[#0E7C66] animate-spin-slow" />
+            <Compass aria-hidden="true" className="h-14 w-14 sm:h-16 sm:w-16 text-[#0E7C66]" />
             <div className="text-left">
               <span className="text-5xl sm:text-7xl font-black bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent tracking-tighter">
                 404
               </span>
               <p className="text-xs font-bold font-mono uppercase tracking-widest text-[#0E7C66] mt-1">
-                Route Introuvable
+                Page introuvable
               </p>
             </div>
           </div>
@@ -62,10 +73,10 @@ const NotFound = () => {
 
         {/* Text Details */}
         <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight mb-3">
-          Oups ! Vous vous êtes aventuré loin du réseau
+          Cette page n’existe pas
         </h1>
         <p className="text-slate-400 text-sm sm:text-base max-w-lg mb-8 leading-relaxed">
-          La page demandée <code className="text-amber-400 font-mono text-xs bg-slate-900 px-2 py-0.5 rounded-lg border border-slate-800">{location.pathname}</code> n'existe pas ou a été déplacée. Rassurez-vous, votre boutique et vos données sont totalement en sécurité.
+          La page demandée <code className="text-amber-400 font-mono text-xs bg-slate-900 px-2 py-0.5 rounded-lg border border-slate-800 break-all">{location.pathname}</code> n’existe pas ou a été déplacée. Vérifiez l’adresse, ou repartez de l’accueil.
         </p>
 
         {/* Action Buttons */}
@@ -97,7 +108,7 @@ const NotFound = () => {
         <p>© {new Date().getFullYear()} Ecomfy Cloud Platform. Tous droits réservés.</p>
         <div className="flex items-center gap-4">
           <a
-            href="https://wa.me/2250707070707"
+            href="https://wa.me/2250758152761"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-slate-400 hover:text-emerald-400 transition-colors"

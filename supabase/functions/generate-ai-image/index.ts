@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { enforceUserAiQuota, getAuthenticatedUserId } from "../_shared/ai-quota.ts";
 import { estimateImageCostUsd, estimateTextCallCostUsd } from "../_shared/ai-cost.ts";
@@ -19,7 +19,7 @@ const corsHeaders = {
 const json = (body: unknown) =>
   new Response(JSON.stringify(body), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-serve(async (req: Request) => {
+serveCors("app", async (req: Request) => {
   const startTime = Date.now();
 
   if (req.method === "OPTIONS") {

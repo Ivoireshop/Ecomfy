@@ -1,3 +1,4 @@
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { isAuthorizedCron, cronUnauthorizedResponse } from "../_shared/cron-auth.ts";
 import { GENIUSPAY_API_URL } from "../_shared/geniuspayConfig.ts";
@@ -14,7 +15,7 @@ const corsHeaders = {
  * commission, crédits…). Sinon, si le paiement est trop vieux, on le bascule
  * en `failed`.
  */
-Deno.serve(async (req) => {
+serveCors("server", async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (!isAuthorizedCron(req)) return cronUnauthorizedResponse(corsHeaders);
 
@@ -44,7 +45,7 @@ Deno.serve(async (req) => {
 
   if (error) {
     console.error("reconcile-pending-payments query error:", error);
-    return new Response(JSON.stringify({ success: false, error: error.message }), {
+    return new Response(JSON.stringify({ success: false, error: "Reconcile error" }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

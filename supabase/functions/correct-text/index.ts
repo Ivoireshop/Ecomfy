@@ -1,5 +1,5 @@
+import { serveCors } from "../_shared/http.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { enforceAiQuota } from "../_shared/ai-quota.ts";
 import { getOpenAiApiKey } from "../_shared/openai-key.ts";
@@ -11,7 +11,7 @@ const corsHeaders = {
 
 const MAX_TEXT_CHARS = 4000;
 
-serve(async (req) => {
+serveCors("app", async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -109,7 +109,7 @@ Le texte corrigé doit être prêt à être utilisé directement dans un context
   } catch (error: any) {
     console.error("Erreur dans correct-text:", error);
     return new Response(
-      JSON.stringify({ error: error.message || "Une erreur est survenue" }),
+      JSON.stringify({ error: "Erreur lors de la correction du texte." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
