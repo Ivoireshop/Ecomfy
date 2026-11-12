@@ -6,6 +6,7 @@
 //    Ce n'est pas le nombre d'événements CAPI reçus (Meta ne l'expose pas par cette API) : l'écart avec les commandes
 //    mélange donc événements perdus, ventes non attribuées à une publicité et ventes hors publicité.
 //  - Sans compte publicitaire lié ou si l'API refuse la requête : les valeurs Meta sont null, jamais estimées.
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -28,7 +29,7 @@ interface ReconcileRequest {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-Deno.serve(async (req) => {
+serveCors("app", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -211,6 +212,6 @@ Deno.serve(async (req) => {
     });
   } catch (err: any) {
     console.error("[reconcile-tracking] error:", err);
-    return json({ success: false, error: err?.message || "Erreur interne" }, 500);
+    return json({ success: false, error: "Erreur interne" }, 500);
   }
 });

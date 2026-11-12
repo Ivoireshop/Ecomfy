@@ -1,6 +1,7 @@
 // @ts-nocheck
 declare const Deno: any;
 
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { enforceAiQuota } from "../_shared/ai-quota.ts";
 import { consumeAiCredit } from "../_shared/credits-gate.ts";
@@ -102,7 +103,7 @@ async function generateWithOpenAI({
   throw err;
 }
 
-Deno.serve(async (req: any) => {
+serveCors("app", async (req: any) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const __quota = await enforceAiQuota(req, "generate-product-sheet");
   if (!__quota.allowed) return __quota.response;
@@ -340,7 +341,7 @@ Rédige la meilleure fiche produit possible pour "${name}". Sois extrêmement pr
           return { title: p.title, url, prompt: p.prompt, why: p.why };
         } catch (e) {
           console.warn("[PRODUCT_AI_IMAGE_GEN_EXCEPTION]", e);
-          return { title: p.title, url: null, prompt: p.prompt, why: p.why, error: e instanceof Error ? e.message : "Erreur" };
+          return { title: p.title, url: null, prompt: p.prompt, why: p.why, error: "Erreur de génération d'image" };
         }
       }));
       images.push(...results);

@@ -1,3 +1,4 @@
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -23,7 +24,7 @@ function pickIp(req: Request): string | undefined {
   return req.headers.get("cf-connecting-ip") || req.headers.get("x-real-ip") || undefined;
 }
 
-Deno.serve(async (req) => {
+serveCors("public", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   
   try {

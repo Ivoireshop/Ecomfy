@@ -1,3 +1,4 @@
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { REPLY_TO_ADDRESS } from '../_shared/email-sender.ts'
 
@@ -133,7 +134,7 @@ async function moveToDlq(
   }
 }
 
-Deno.serve(async (req) => {
+serveCors("server", async (req) => {
   const apiKey = Deno.env.get('RESEND_API_KEY')
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')

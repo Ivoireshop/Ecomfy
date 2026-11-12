@@ -1,3 +1,4 @@
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { enforceAiQuota } from "../_shared/ai-quota.ts";
 import { geminiChat } from "../_shared/openrouter-chat.ts";
@@ -7,7 +8,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-Deno.serve(async (req) => {
+serveCors("app", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const __quota = await enforceAiQuota(req, "finance-advisor");
   if (!__quota.allowed) return __quota.response;
@@ -23,7 +24,7 @@ Deno.serve(async (req) => {
     const { data: userData } = await supabase.auth.getUser();
     if (!userData?.user) {
       return new Response(JSON.stringify({ success: false, error: "Non authentifié" }), {
-        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 

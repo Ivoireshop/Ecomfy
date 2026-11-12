@@ -13,6 +13,7 @@ import { Loader2, Plus, Trash2, TrendingUp, TrendingDown, Wallet, Megaphone, Pac
 import { Switch } from "@/components/ui/switch";
 import { AdAccountsManager } from "@/components/shop/AdAccountsManager";
 import { XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, ComposedChart, Area, Bar } from "recharts";
+import { readFunctionError } from "@/lib/functionError";
 import {
   type FinancePeriod, VALIDATED_STATUSES, csvCell, dayOf, isCashedIn, isInPeriod, isValidEmail,
   localDayKey, periodStartKey, toFcfa, whatsappDigits,
@@ -282,7 +283,7 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
     });
     setAiLoading(false);
     if (error || !data?.success) {
-      toast({ title: "L'IA n'a pas pu répondre", description: data?.error || error?.message, variant: "destructive" });
+      toast({ title: "L'IA n'a pas pu répondre", description: await readFunctionError(error, data, "Réessayez dans un instant."), variant: "destructive" });
       return;
     }
     setAiAdvice(data.advice);

@@ -16,6 +16,7 @@ import { ProductSkeleton } from "@/components/shop/ProductSkeleton";
 const ShopView = lazyWithRetry(() => import("./pages/ShopView"));
 const ProductView = lazyWithRetry(() => import("./pages/ProductView"));
 const OrderConfirmed = lazyWithRetry(() => import("./pages/OrderConfirmed"));
+const DigitalDownload = lazyWithRetry(() => import("./pages/DigitalDownload"));
 const ShopSessionExtras = lazyWithRetry(() => import("./ShopSessionExtras"));
 
 const isCustomShopHost = isCustomShopHostname(
@@ -89,6 +90,8 @@ const ShopApp = () => (
               <Route path="/shop/:slug/product" element={<ProductView />} />
               <Route path="/shop/:slug/p/:productSlug" element={<ProductView />} />
               <Route path="/order-confirmed" element={<OrderConfirmed />} />
+              <Route path="/telechargement" element={<DigitalDownload />} />
+              <Route path="/telechargement/:token" element={<DigitalDownload />} />
               <Route path="*" element={<LeaveToFullApp />} />
             </Routes>
           </Suspense>

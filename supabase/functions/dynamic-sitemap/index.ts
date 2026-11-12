@@ -2,6 +2,7 @@
 // covering the ecomfy.cloud marketing pages, all published shops
 // and all published products. No JWT required (search engines must
 // be able to fetch it anonymously).
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 
 const BASE_URL = "https://ecomfy.cloud";
@@ -49,7 +50,7 @@ function urlNode(loc: string, lastmod?: string, changefreq?: string, priority?: 
   ].filter(Boolean).join("\n");
 }
 
-Deno.serve(async (req) => {
+serveCors("public", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {

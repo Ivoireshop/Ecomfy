@@ -190,7 +190,9 @@ export default function CompleteProfile() {
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Email badge (read only) */}
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
-                <span className="text-slate-500 font-medium">Compte Google :</span>
+                <span className="text-slate-500 font-medium">
+                  {user?.app_metadata?.provider === "google" ? "Compte Google :" : "Adresse e-mail :"}
+                </span>
                 <span className="font-bold text-slate-800 font-mono truncate max-w-[200px]">
                   {email}
                 </span>

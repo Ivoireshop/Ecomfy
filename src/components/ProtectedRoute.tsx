@@ -125,7 +125,9 @@ const ProtectedRoute = ({ children, requireActiveSubscription = false }: Protect
     }
     
     void checkSubscription(user.id);
-  }, [checkSubscription, isReady, requireActiveSubscription, user]);
+    // `user?.id` et non `user` : l'objet change de référence sans que l'utilisateur change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkSubscription, isReady, requireActiveSubscription, user?.id]);
 
   if (isLoading || !isReady) {
     return (

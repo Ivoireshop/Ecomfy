@@ -1,15 +1,16 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { getConnector } from "../_shared/operators/index.ts";
 import { remoteAmountMatches } from "../_shared/pricing.ts";
 import { sendServerPurchase } from "../_shared/purchase-capi.ts";
+import { sendDigitalDeliveryEmail } from "../_shared/digital-delivery.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-signature, x-webhook-timestamp, x-webhook-event, x-webhook-environment, x-webhook-delivery",
 };
 
-serve(async (req) => {
+serveCors("server", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -200,6 +201,20 @@ serve(async (req) => {
       }
     }
 
+    // Produit digital : le lien de téléchargement part par e-mail dès que la commande est payée. Appelé à chaque livraison
+    // du webhook : la clé d'idempotence (une par commande) garantit un seul mail, et reprend un envoi raté. Best-effort.
+    if (res?.status === "SUCCEEDED" && res.payment_id && res.steps?.order !== "none") {
+      try {
+        const { data: pay } = await supabase.from("ecomfy_payments").select("order_id").eq("id", res.payment_id).maybeSingle();
+        if (pay?.order_id) {
+          const out = await sendDigitalDeliveryEmail(supabase, pay.order_id, `digital-ready-${pay.order_id}`);
+          if (!out.sent && out.reason !== "no_digital_items") console.warn("[ecomfy-pay-webhook] Mail de téléchargement non envoyé:", out.reason);
+        }
+      } catch (e) {
+        console.warn("[ecomfy-pay-webhook] Mail de téléchargement en erreur (non bloquant):", e);
+      }
+    }
+
     // Purchase Meta/TikTok/Snap/GA4 côté serveur. Le client revient du prestataire sans état (/order-confirmed?payment_ref=…) :
     // le navigateur n'envoie donc rien tant que le paiement n'est pas confirmé ici. L'envoi est idempotent (registre
     // tracking_purchase_log + event_id canonique ord_<n°>) : on l'appelle à chaque livraison du webhook, ce qui reprend un
@@ -216,6 +231,6 @@ serve(async (req) => {
     return ack({ success: true, status: "SUCCEEDED", already_processed: !!res.already_processed, steps: res.steps });
   } catch (err: any) {
     console.error("[ecomfy-pay-webhook] Unexpected error:", err);
-    return ack({ success: false, error: err.message || "Webhook error" });
+    return ack({ success: false, error: "Webhook error" });
   }
 });

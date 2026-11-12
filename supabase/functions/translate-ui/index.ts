@@ -1,3 +1,4 @@
+import { serveCors } from "../_shared/http.ts";
 import { getClientIp, takeRateLimit } from "../_shared/rate-limit.ts";
 
 // Public UI translation endpoint.
@@ -53,7 +54,7 @@ const IP_PER_HOUR = 200;
 const GLOBAL_PER_HOUR = 3000;
 const MAX_TOTAL_CHARS = 30_000;
 
-Deno.serve(async (req) => {
+serveCors("public", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

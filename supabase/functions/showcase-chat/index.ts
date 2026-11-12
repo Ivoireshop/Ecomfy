@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serveCors } from "../_shared/http.ts";
 import { getClientIp, takeRateLimit } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-serve(async (req) => {
+serveCors("public", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
@@ -149,7 +149,7 @@ Réponds de manière concise et claire.`;
     });
   } catch (e) {
     console.error("chat error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erreur inconnue" }), {
+    return new Response(JSON.stringify({ error: "Une erreur est survenue. Réessayez dans un instant." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

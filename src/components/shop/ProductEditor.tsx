@@ -15,7 +15,8 @@ import { ProductAppearancePanel } from "./ProductAppearancePanel";
 import { ProductAudioManager } from "./ProductAudioManager";
 import { ProductShortVideosManager } from "./ProductShortVideosManager";
 import { ProductVideo, fetchProductVideos, fetchProductVideoData, saveProductVideos, fetchProductThemeSettings, upsertProductThemeSettings } from "@/lib/productAppearance";
-import { Palette as PaletteIcon, Mic } from "lucide-react";
+import { Palette as PaletteIcon, Mic, FileDown } from "lucide-react";
+import { DigitalFilesManager } from "./DigitalFilesManager";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { prepareImageForUpload, formatSize } from "@/lib/imageCompress";
@@ -1488,6 +1489,10 @@ export function ProductEditor({
           {/* Témoignages Audio & Apparence */}
           {isEditing && productId && shop?.id && (
             <>
+              <CollapsibleSection title="Fichiers à vendre (produit numérique)" icon={<FileDown className="h-5 w-5" />} defaultOpen={product.is_digital}>
+                <DigitalFilesManager productId={productId} shopId={shop.id} isDigital={!!product.is_digital} />
+              </CollapsibleSection>
+
               <CollapsibleSection title="Témoignages audio" icon={<Mic className="h-5 w-5" />} defaultOpen={false}>
                 <ProductAudioManager productId={productId} shopId={shop.id} />
               </CollapsibleSection>
@@ -2017,7 +2022,7 @@ export function ProductEditor({
               <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/30">
                 <div>
                   <p className="text-sm font-medium">Produit numérique</p>
-                  <p className="text-xs text-muted-foreground">Aucune livraison physique (e-book, formation, service…). Un badge « Digital » s'affiche sur la boutique.</p>
+                  <p className="text-xs text-muted-foreground">Aucune livraison physique (e-book, formation, service…). Paiement en ligne obligatoire, sans adresse demandée. Après enregistrement, déposez le fichier dans « Fichiers à vendre » : le client le reçoit dès que son paiement est confirmé.</p>
                 </div>
                 <Switch checked={product.is_digital} onCheckedChange={(v) => setProduct({ ...product, is_digital: v })} />
               </div>

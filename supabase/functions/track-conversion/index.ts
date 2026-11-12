@@ -5,6 +5,7 @@
 // Fonction publique (verify_jwt = false) : les événements du navigateur y arrivent sans compte.
 // Garde-fous : limite par IP, formats d'identifiants vérifiés, et pour « Purchase » une commande réelle de la boutique
 // (montant relu en base pour le navigateur ; les appels de confiance du serveur portent la clé service_role).
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { purchaseEventId } from "../_shared/tracking-event-id.ts";
 
@@ -94,7 +95,7 @@ const destinationKeys = (shop: any): string[] => [
   ...(shop.ga4_measurement_id && shop.ga4_api_secret ? ["ga4"] : []),
 ];
 
-Deno.serve(async (req) => {
+serveCors("public", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const body = await req.json();

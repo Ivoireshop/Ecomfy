@@ -1,3 +1,4 @@
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import { shopOwnerHasCredits } from "../_shared/credits-gate.ts";
 import { sanitizeChatMessages } from "../_shared/chat-sanitize.ts";
@@ -26,7 +27,7 @@ const PERSONALITY_DESC: Record<string, string> = {
   luxury: "élégant, raffiné, premium, choix de mots soignés",
 };
 
-Deno.serve(async (req) => {
+serveCors("public", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {

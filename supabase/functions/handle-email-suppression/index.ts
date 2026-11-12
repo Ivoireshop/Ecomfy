@@ -1,3 +1,4 @@
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { WebhookError, verifyWebhookRequest } from 'npm:@lovable.dev/webhooks-js'
 
@@ -31,7 +32,7 @@ function jsonResponse(data: Record<string, unknown>, status = 200): Response {
   })
 }
 
-Deno.serve(async (req) => {
+serveCors("server", async (req) => {
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405)
   }

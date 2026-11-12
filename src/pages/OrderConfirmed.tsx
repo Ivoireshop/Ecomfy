@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, Phone, MessageCircle, Home } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { initShopPixels, trackEvent } from "@/lib/tracking";
+import { resolveDownloadToken } from "@/lib/digitalProducts";
 
 interface OrderConfirmedState {
   shopName?: string;
@@ -109,6 +110,31 @@ export default function OrderConfirmed() {
     return () => { cancelled = true; };
   }, [paymentRef, state.orderNumber]);
 
+  // Produit digital : dès que le paiement est confirmé, le jeton de la commande ouvre la page de téléchargement.
+  const [downloadToken, setDownloadToken] = useState<string | null>(null);
+  const [awaitingDownload, setAwaitingDownload] = useState(false);
+  useEffect(() => {
+    if (!paymentRef || !/^ECM-PAY-[A-F0-9]{12}$/.test(paymentRef)) return;
+    let cancelled = false;
+    (async () => {
+      for (let attempt = 0; attempt < 20 && !cancelled; attempt++) {
+        try {
+          const r = await resolveDownloadToken(paymentRef);
+          if (!r.digital) return; // commande sans produit digital : rien à afficher
+          if (r.token) { if (!cancelled) { setDownloadToken(r.token); setAwaitingDownload(false); } return; }
+          if (!cancelled) setAwaitingDownload(true);
+        } catch (e) {
+          console.warn("[OrderConfirmed] téléchargement", e);
+          return;
+        }
+        await new Promise((res) => setTimeout(res, 3000));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [paymentRef]);
+
+  // Commande contenant un produit digital : le message par défaut (« un conseiller va vous appeler pour la livraison ») serait faux.
+  const isDigitalOrder = !!downloadToken || awaitingDownload;
   const shownOrderNumber = state.orderNumber || returnOrderNumber;
 
   return (
@@ -123,12 +149,29 @@ export default function OrderConfirmed() {
         <h1 className="text-2xl md:text-3xl font-bold mb-3">
           Félicitations, votre commande est confirmée !
         </h1>
-        <p className="text-muted-foreground mb-2 leading-relaxed">{message}</p>
+        <p className="text-muted-foreground mb-2 leading-relaxed">
+          {isDigitalOrder
+            ? "Merci pour votre achat ! Vos fichiers sont disponibles ci-dessous et le lien vous a aussi été envoyé par e-mail."
+            : message}
+        </p>
         {shownOrderNumber && (
           <p className="text-sm text-muted-foreground mb-6">
             Numéro de commande&nbsp;:{" "}
             <span className="font-mono font-semibold">{shownOrderNumber}</span>
           </p>
+        )}
+
+        {awaitingDownload && !downloadToken && (
+          <p className="text-sm text-muted-foreground mb-6">Vérification de votre paiement… vos fichiers apparaîtront ici dans quelques secondes.</p>
+        )}
+        {downloadToken && (
+          <div className="rounded-2xl p-5 mb-6" style={{ backgroundColor: primary + "10" }}>
+            <p className="text-sm font-medium mb-3">Votre achat est prêt à être téléchargé.</p>
+            <Button asChild style={{ backgroundColor: primary }}>
+              <Link to={`/telechargement/${downloadToken}`}>Accéder à mes téléchargements</Link>
+            </Button>
+            <p className="text-xs text-muted-foreground mt-3">Ajoutez cette page à vos favoris : le lien est personnel et permet de retélécharger.</p>
+          </div>
         )}
 
         {state.advisorPhone && (

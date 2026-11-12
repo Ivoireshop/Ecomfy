@@ -67,6 +67,7 @@ const ProductView = lazyWithRetry(() => import("./pages/ProductView"));
 const ProtectedRoute = lazyWithRetry(() => import("./components/ProtectedRoute"));
 const CoursesManager = lazyWithRetry(() => import("./pages/CoursesManager"));
 const OrderConfirmed = lazyWithRetry(() => import("./pages/OrderConfirmed"));
+const DigitalDownload = lazyWithRetry(() => import("./pages/DigitalDownload"));
 const Unsubscribe = lazyWithRetry(() => import("./pages/Unsubscribe"));
 const VisuelsPublicitaires = lazyWithRetry(() => import("./pages/VisuelsPublicitaires"));
 const VideosPublicitaires = lazyWithRetry(() => import("./pages/VideosPublicitaires"));
@@ -136,7 +137,7 @@ const AppContent = () => {
   useNativePush();
   useWebPush();
     const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/") || (isCustomShopHost && location.pathname === "/");
-  const isOrderConfirmed = location.pathname.startsWith("/order-confirmed");
+  const isOrderConfirmed = location.pathname.startsWith("/order-confirmed") || location.pathname.startsWith("/telechargement");
   const isPayCheckout = location.pathname.startsWith("/pay/");
   const isPublicPage = PUBLIC_PAGES.includes(location.pathname) || isOrderConfirmed || isPayCheckout;
   const isDriverApp = location.pathname.startsWith("/delivery/driver");
@@ -437,6 +438,8 @@ const AppContent = () => {
           <Route path="/shop-preview/:id/p/:productSlug" element={<ProtectedRoute><ProductView /></ProtectedRoute>} />
           <Route path="/shop/:slug/p/:productSlug" element={<ProductView /> } />
           <Route path="/order-confirmed" element={<OrderConfirmed />} />
+          <Route path="/telechargement" element={<DigitalDownload />} />
+          <Route path="/telechargement/:token" element={<DigitalDownload />} />
           <Route path="/accept-shop-invite" element={<AcceptShopInvite />} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/community" element={<ProtectedRoute><Community /></ProtectedRoute>} />
@@ -485,6 +488,7 @@ const IdlePrefetcher = () => {
       p.startsWith("/shop/") ||
       p.startsWith("/shop-preview/") ||
       p.startsWith("/order-confirmed") ||
+      p.startsWith("/telechargement") ||
       isCustomShopHost;
     if (onShop) return;
 
@@ -506,7 +510,7 @@ const IdlePrefetcher = () => {
 const AppWithSidebar = () => {
   const location = useLocation();
     const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/") || (isCustomShopHost && location.pathname === "/");
-  const isOrderConfirmed = location.pathname.startsWith("/order-confirmed");
+  const isOrderConfirmed = location.pathname.startsWith("/order-confirmed") || location.pathname.startsWith("/telechargement");
   const isPublicPage = PUBLIC_PAGES.includes(location.pathname) || isOrderConfirmed;
   
   const isShopManagement = location.pathname.startsWith("/shop-manager") || 

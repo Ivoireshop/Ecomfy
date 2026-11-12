@@ -1,5 +1,5 @@
+import { serveCors } from "../_shared/http.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { enforceAiQuota } from "../_shared/ai-quota.ts";
 
@@ -29,7 +29,7 @@ function isPrivateHost(host: string): boolean {
   return false;
 }
 
-serve(async (req) => {
+serveCors("app", async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -131,7 +131,7 @@ serve(async (req) => {
     console.error('Error extracting brand:', error);
     return new Response(
       JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error: 'Une erreur est survenue. Réessayez dans un instant.',
         details: 'Failed to extract brand data from the provided URL'
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

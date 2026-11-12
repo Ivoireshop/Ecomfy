@@ -523,7 +523,8 @@ const ShopView = () => {
 
   useEffect(() => {
     const candidates = products
-      .filter(p => p.stock_quantity !== null && p.stock_quantity !== undefined && Number(p.stock_quantity) <= 0)
+      // Un produit digital n'a pas de stock : stock_quantity (10 par défaut) n'a aucun sens pour lui.
+      .filter(p => !p.is_digital && p.stock_quantity !== null && p.stock_quantity !== undefined && Number(p.stock_quantity) <= 0)
       .map(p => p.id);
     if (candidates.length === 0) {
       setSoldOutIds(prev => (prev.size === 0 ? prev : new Set()));
@@ -650,6 +651,12 @@ const ShopView = () => {
       toast({ title: "Ville invalide", description: "La ville ne doit pas contenir de chiffres.", variant: "destructive" });
       return;
     }
+    if (cart.some(i => i.product.is_digital) && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((customerInfo.email || "").trim())) {
+      toast({ title: "E-mail requis", description: "Indiquez une adresse e-mail valide : vous y recevrez le lien de téléchargement.", variant: "destructive" });
+      return;
+    }
+    // Produit digital dans le panier : Mobile Money uniquement (le serveur refuse aussi digital + paiement à la livraison).
+    const payMethod = cart.some(i => i.product.is_digital) ? "mobile_money" : customerInfo.paymentMethod;
     submittingOrderRef.current = true;
     setOrderLoading(true);
     try {
@@ -664,7 +671,7 @@ const ShopView = () => {
         customerAddress: customerInfo.address,
         customerCity: customerInfo.city,
         customerCountry: detectedCountry,
-        paymentMethod: customerInfo.paymentMethod,
+        paymentMethod: payMethod,
         promoCode: promo?.code,
         items: cart.map(item => ({
           product_id: item.product.id,
@@ -704,7 +711,7 @@ const ShopView = () => {
         city: customerInfo.city,
       };
 
-      if (customerInfo.paymentMethod === "mobile_money") {
+      if (payMethod === "mobile_money") {
         trackEvent(shop, "InitiateCheckout", trackingPayload);
         // Même flux que la fiche produit : sans cet appel, la commande restait « en attente » et le client voyait
         // « commande confirmée » sans avoir payé. Le Purchase Meta part du webhook, à l'encaissement.
@@ -1122,11 +1129,18 @@ const ShopView = () => {
             {/* Step: Info + Paiement + Confirmation (vue compacte) */}
             {(checkoutStep === "info" || checkoutStep === "confirm") && (() => {
               const cf: any[] = shop.checkout_fields || [];
+              // Produit digital : l'e-mail porte le lien de téléchargement, il est obligatoire même s'il est désactivé.
+              const digitalInCart = cart.some(i => i.product.is_digital);
+              // Panier 100 % digital : rien à livrer, ni ville ni adresse.
+              const allDigitalInCart = cart.length > 0 && cart.every(i => i.product.is_digital);
               const enabled = (id: string) => {
+                if (id === "email" && digitalInCart) return true;
+                if ((id === "city" || id === "address") && allDigitalInCart) return false;
                 const f = cf.find((x: any) => x.id === id);
                 return f ? !!f.enabled : ["first_name","phone","city","address"].includes(id);
               };
               const required = (id: string) => {
+                if (id === "email" && digitalInCart) return true;
                 const f = cf.find((x: any) => x.id === id);
                 return f ? !!f.required : ["first_name","phone","city"].includes(id);
               };
@@ -1136,6 +1150,7 @@ const ShopView = () => {
               const canSubmit =
                 (!enabled("first_name") || !required("first_name") || !!customerInfo.name) &&
                 (!enabled("phone") || (!required("phone") && !customerInfo.phone) || isValidFullPhone(customerInfo.phone)) &&
+                (!enabled("email") || !required("email") || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(customerInfo.email.trim())) &&
                 (!enabled("city") || !required("city") || !!customerInfo.city) &&
                 (!enabled("city") || !containsDigits(customerInfo.city)) &&
                 (!enabled("address") || !required("address") || !!customerInfo.address);
@@ -1240,7 +1255,7 @@ const ShopView = () => {
                     {[
                       { value: "mobile_money", label: "Mobile Money", icon: "📱" },
                       { value: "cash_on_delivery", label: "À la livraison", icon: "💵" },
-                    ].map(method => (
+                    ].filter(method => method.value === "mobile_money" || !cart.some(i => i.product.is_digital)).map(method => (
                       <button
                         key={method.value}
                         onClick={() => setCustomerInfo({ ...customerInfo, paymentMethod: method.value })}

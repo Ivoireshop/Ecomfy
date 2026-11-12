@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { enforceAiQuota } from "../_shared/ai-quota.ts";
 
@@ -14,7 +14,7 @@ interface GenerateRequest {
   phoneNumber: string;
 }
 
-serve(async (req) => {
+serveCors("public", async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -208,7 +208,7 @@ Génère du contenu professionnel et authentique qui convertit les visiteurs en 
   } catch (error) {
     console.error('Error:', error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Une erreur est survenue" }),
+      JSON.stringify({ error: "Une erreur est survenue. Réessayez dans un instant." }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500

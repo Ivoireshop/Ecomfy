@@ -1,7 +1,7 @@
 // @ts-nocheck
 declare const Deno: any;
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { GENIUSPAY_API_URL } from "../_shared/geniuspayConfig.ts";
 import { APP_URL } from "../_shared/email-sender.ts";
@@ -16,14 +16,14 @@ const corsHeaders = {
  * le statut d'un paiement GeniusPay par sa référence et créditer
  * l'utilisateur si le webhook n'a pas (encore) été reçu.
  */
-serve(async (req) => {
+serveCors("public", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ success: false, error: "Non autorisé" }), {
-        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -36,7 +36,7 @@ serve(async (req) => {
     const { data: userData, error: userErr } = await supabase.auth.getUser(token);
     if (userErr || !userData?.user?.id) {
       return new Response(JSON.stringify({ success: false, error: "Token invalide" }), {
-        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
     const authUserId: string = userData.user.id;
@@ -71,7 +71,7 @@ serve(async (req) => {
     }
     if (payment.user_id !== authUserId) {
       return new Response(JSON.stringify({ success: false, error: "Accès refusé" }), {
-        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
     const meta = (payment.metadata || {}) as Record<string, unknown>;
@@ -334,7 +334,7 @@ serve(async (req) => {
     });
   } catch (err) {
     console.error("verify-payment error:", err);
-    return new Response(JSON.stringify({ success: false, error: err instanceof Error ? err.message : "Erreur" }), {
+    return new Response(JSON.stringify({ success: false, error: "Erreur lors de la vérification du paiement." }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

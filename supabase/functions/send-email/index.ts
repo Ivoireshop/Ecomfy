@@ -1,3 +1,4 @@
+import { serveCors } from "../_shared/http.ts";
 import { Webhook } from 'npm:standardwebhooks@1.0.0'
 import { Resend } from 'npm:resend@4.0.0'
 import { senderFrom, guardEmail } from "../_shared/email-sender.ts";
@@ -5,7 +6,7 @@ import { senderFrom, guardEmail } from "../_shared/email-sender.ts";
 const resend = new Resend(Deno.env.get('RESEND_API_KEY') as string)
 const hookSecret = Deno.env.get('SEND_EMAIL_HOOK_SECRET') as string
 
-Deno.serve(async (req) => {
+serveCors("server", async (req) => {
   if (req.method !== 'POST') {
     return new Response('not allowed', { status: 400 })
   }

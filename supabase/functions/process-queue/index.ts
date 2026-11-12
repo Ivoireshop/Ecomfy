@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { isAuthorizedCron, cronUnauthorizedResponse } from "../_shared/cron-auth.ts";
 
@@ -9,7 +9,7 @@ const corsHeaders = {
 
 const MAX_CONCURRENT_GENERATIONS = 10;
 
-serve(async (req) => {
+serveCors("server", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -144,7 +144,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           message: "Item processed with error", 
-          error: genError.message 
+          error: "Generation failed"
         }),
         {
           status: 200,
@@ -185,7 +185,7 @@ serve(async (req) => {
     console.error("Process queue error:", error);
     return new Response(
       JSON.stringify({ 
-        error: error instanceof Error ? error.message : "Unknown error" 
+        error: "Queue error" 
       }),
       {
         status: 500,

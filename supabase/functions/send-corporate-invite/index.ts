@@ -1,7 +1,7 @@
 // @ts-nocheck
 declare const Deno: any;
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { APP_URL, guardEmail } from "../_shared/email-sender.ts";
 import { requireFounder } from "../_shared/founderAuth.ts";
@@ -22,7 +22,7 @@ const ALLOWED_LINK_ORIGINS = [
   ...(Deno.env.get("EMAIL_LINK_ORIGINS") || "").split(","),
 ];
 
-serve(async (req: Request) => {
+serveCors("app", async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -194,7 +194,7 @@ serve(async (req: Request) => {
     );
   } catch (error: any) {
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ success: false, error: "Impossible d'envoyer l'invitation." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

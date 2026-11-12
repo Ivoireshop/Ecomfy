@@ -1,3 +1,4 @@
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 const corsHeaders = {
@@ -149,7 +150,7 @@ async function verifyDomainConfiguration(domain: string, verificationCode: strin
   };
 }
 
-Deno.serve(async (req) => {
+serveCors("app", async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });

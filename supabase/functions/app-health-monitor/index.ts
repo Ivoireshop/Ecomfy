@@ -1,15 +1,16 @@
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { isAuthorizedCron, cronUnauthorizedResponse } from "../_shared/cron-auth.ts";
 import { APP_URL } from "../_shared/email-sender.ts";
+import { getFounderEmails } from "../_shared/founder-recipients.ts";
 
 // Public health monitor. Runs every 5 minutes via pg_cron.
 // - Probes critical surfaces of the app
 // - Records incidents (dedupe per check)
-// - Sends one consolidated email to the founder when new incidents appear
+// - Sends one consolidated email to the founders (rôles founder / co_founder en base) when new incidents appear
 // - Auto-resolves checks that recover
 
-const FOUNDER_EMAILS = ["djateulrich@gmail.com", "regnis13@gmail.com"];
 const APP_BASE = APP_URL;
 
 type Probe = {
@@ -22,7 +23,7 @@ type Probe = {
   metadata?: Record<string, unknown>;
 };
 
-Deno.serve(async (req) => {
+serveCors("server", async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (!isAuthorizedCron(req)) return cronUnauthorizedResponse(corsHeaders);
 
@@ -280,7 +281,11 @@ Deno.serve(async (req) => {
   // Send one consolidated alert if new incidents appeared
   let emailed = 0;
   if (newIncidents.length > 0) {
-    for (const to of FOUNDER_EMAILS) {
+    const founderEmails = await getFounderEmails(admin);
+    if (founderEmails.length === 0) {
+      console.error("app-health-monitor : aucun destinataire (aucun compte founder / co_founder dans user_roles) — alerte non envoyée");
+    }
+    for (const to of founderEmails) {
       try {
         const { error } = await admin.functions.invoke("send-transactional-email", {
           body: {

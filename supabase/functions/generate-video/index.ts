@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { getOpenAiApiKey, analyzeImageWithGpt4oMini, optimizePromptWithGpt4oMini } from "../_shared/openai-key.ts";
 import { enforceAiQuota } from "../_shared/ai-quota.ts";
@@ -12,7 +12,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-serve(async (req) => {
+serveCors("app", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -39,7 +39,7 @@ serve(async (req) => {
 
     if (userError || !userData?.user) {
       return new Response(
-        JSON.stringify({ error: "Non authentifié - session invalide", details: userError?.message }),
+        JSON.stringify({ error: "Non authentifié - session invalide" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -437,7 +437,7 @@ serve(async (req) => {
     const error = caught as { message?: string; details?: string };
     console.error("Error in generate-video function:", error);
     return new Response(
-      JSON.stringify({ success: false, error: error?.message || error?.details || String(error) }),
+      JSON.stringify({ success: false, error: "Erreur lors de la génération de la vidéo." }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

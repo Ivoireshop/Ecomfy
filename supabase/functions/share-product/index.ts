@@ -8,6 +8,7 @@
 // user experience is unchanged.
 //
 // Public — no JWT required.
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 
 const FALLBACK_OG = "https://ecomfy.cloud/og-default.jpg";
@@ -112,7 +113,7 @@ function renderHtml(opts: {
 </html>`;
 }
 
-Deno.serve(async (req) => {
+serveCors("public", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {

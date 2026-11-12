@@ -1,3 +1,4 @@
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { Resend } from 'npm:resend@4.0.0';
 import { senderFrom, APP_URL, guardEmail } from "../_shared/email-sender.ts";
@@ -20,7 +21,7 @@ const jsonError = (status: number, error: string) =>
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 
-Deno.serve(async (req) => {
+serveCors("server", async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });

@@ -109,6 +109,9 @@ interface Order {
 
 const EXCLUDED_FROM_REVENUE = new Set(["cancelled", "returned"]);
 
+// Colonnes lues dans shop_visits pour la page Statistiques (lecture complète et lecture des nouvelles visites).
+const VISIT_COLUMNS = "visited_at, product_id, session_id, visitor_country, referrer, device_type";
+
 const CATEGORIES = [
   "Mode & Vêtements", "Électronique", "Beauté & Soins", "Maison & Déco",
   "Alimentation", "Sport", "Accessoires", "Digital", "Autre"
@@ -234,11 +237,11 @@ const ShopEditor = () => {
     startDate.setDate(startDate.getDate() - 30);
     const rows: any[] = [];
     for (let from = 0; from < 5000; from += 1000) {
-      const page = await (supabase.from("shop_visits" as any)
-        .select("visited_at, product_id, session_id, visitor_country, referrer, device_type")
+      const page = await (supabase as any).from("shop_visits")
+        .select(VISIT_COLUMNS)
         .eq("shop_id", id).gte("visited_at", startDate.toISOString())
         .order("visited_at", { ascending: false })
-        .range(from, from + 999) as any);
+        .range(from, from + 999);
       if (page.error) return null;
       rows.push(...(page.data || []));
       if (!page.data || page.data.length < 1000) break;
@@ -254,13 +257,18 @@ const ShopEditor = () => {
 
   // Un rechargement (retour sur l'onglet, fermeture d'un éditeur…) ne doit jamais écraser des réglages non enregistrés :
   // un marchand qui règle ses couleurs puis regarde sa vitrine dans un autre onglet les perdait tous.
-  const fetchData = useCallback(async () => {
+  // `passive` = rechargement automatique (retour sur l'onglet) : ne relit pas les produits, seules les commandes et la
+  // boutique peuvent changer « en dehors » du marchand. Chaque rechargement complet coûte plusieurs dizaines de requêtes
+  // (jusqu'à 5 pages de commandes avec articles, livraisons par lots de 100).
+  const fetchDataNow = useCallback(async (passive = false) => {
     if (!id) return;
-    const [shopRes, secretsRes, productsRes, visitsData] = await Promise.all([
+    // Les visites ne sont plus lues ici : elles ne servent qu'à la page Statistiques et se chargent à l'ouverture de
+    // cette page (voir plus bas). Jusqu'à 5 pages de 1 000 lignes relues à chaque rechargement figuraient en tête des
+    // requêtes les plus coûteuses de la base le 12/11/2026.
+    const [shopRes, secretsRes, productsRes] = await Promise.all([
       supabase.from("shops").select("*").eq("id", id).single() as any,
       (supabase as any).from("shop_secrets").select("*").eq("shop_id", id).maybeSingle(),
-      supabase.from("products").select("*, product_images(*)").eq("shop_id", id).order("display_order") as any,
-      fetchVisits(),
+      passive ? Promise.resolve({ data: null }) : (supabase.from("products").select("*, product_images(*)").eq("shop_id", id).order("display_order") as any),
     ]);
     // Boutique restreinte : la base refuse la lecture directe de `orders` et ne livre que des commandes masquées
     // (noms, téléphones, adresses, notes), via get_shop_orders_secure. Pas d'articles ni de livraisons dans ce cas.
@@ -327,12 +335,12 @@ const ShopEditor = () => {
           const orderIds: string[] = finalOrders.map((o: any) => o.id);
           const chunks: string[][] = [];
           for (let i = 0; i < orderIds.length; i += 100) chunks.push(orderIds.slice(i, i + 100));
-          const results = await Promise.all(chunks.map(chunk =>
-            supabase
-              .from("order_deliveries")
-              .select("*")
-              .in("order_id", chunk)
-          ));
+          // 3 lots à la fois au plus (10 requêtes simultanées pour 1 000 commandes saturaient la base).
+          const results: Awaited<ReturnType<typeof fetchDeliveryChunk>>[] = [];
+          const fetchDeliveryChunk = (chunk: string[]) => supabase.from("order_deliveries").select("*").in("order_id", chunk);
+          for (let i = 0; i < chunks.length; i += 3) {
+            results.push(...(await Promise.all(chunks.slice(i, i + 3).map(fetchDeliveryChunk))));
+          }
           const failed = results.find(r => r.error);
           if (failed?.error) console.error("Failed to fetch order deliveries", failed.error);
           // Le nom du prestataire vient de la vue publique : `delivery_providers` n'est lisible que par son propriétaire.
@@ -382,9 +390,39 @@ const ShopEditor = () => {
       }
       setOrders(finalOrders);
     }
-    if (visitsData) setVisits(visitsData);
     setLoading(false);
-  }, [id, fetchVisits]);
+  }, [id]);
+
+  // Un seul rechargement à la fois. `fetchData` est appelé de partout (retour d'onglet, alertes de livraison, fermeture
+  // d'un éditeur, après chaque action) : sans ce regroupement, plusieurs rechargements complets tournaient en parallèle.
+  //  - rechargement passif pendant qu'un autre tourne : on s'y joint ;
+  //  - rechargement explicite pendant qu'un autre tourne : une seule relecture est mise en file (elle doit refléter un
+  //    changement fait après le début de la lecture en cours), et tous les appelants attendent celle-là.
+  const fetchInFlightRef = useRef<{ id: string | undefined; promise: Promise<void> } | null>(null);
+  const fetchQueuedRef = useRef<{ id: string | undefined; promise: Promise<void> } | null>(null);
+  const fetchData = useCallback((opts?: { passive?: boolean }): Promise<void> => {
+    // `opts` peut être un événement quand `fetchData` sert de gestionnaire : seul `passive === true` compte.
+    const passive = opts?.passive === true;
+    const start = (p: boolean): Promise<void> => {
+      const promise: Promise<void> = fetchDataNow(p).finally(() => {
+        if (fetchInFlightRef.current?.promise === promise) fetchInFlightRef.current = null;
+      });
+      fetchInFlightRef.current = { id, promise };
+      return promise;
+    };
+    const running = fetchInFlightRef.current;
+    if (!running || running.id !== id) return start(passive);
+    if (passive) return running.promise;
+    if (fetchQueuedRef.current?.id === id) return fetchQueuedRef.current.promise;
+    const queued: Promise<void> = running.promise
+      .catch(() => undefined)
+      .then(() => {
+        fetchQueuedRef.current = null;
+        return start(false);
+      });
+    fetchQueuedRef.current = { id, promise: queued };
+    return queued;
+  }, [id, fetchDataNow]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -413,17 +451,45 @@ const ShopEditor = () => {
     });
   }, [shop, fetchData]);
 
-  // « Visiteurs en ce moment » : les visites ne se rechargeaient qu'au retour sur l'onglet. Rafraîchies toutes les 30 s
-  // sur la page Statistiques uniquement (et seulement onglet visible).
+  // Visites : lues uniquement pour la page Statistiques. Lecture complète (30 jours, jusqu'à 5 000 lignes) la première
+  // fois, puis seulement les NOUVELLES visites (postérieures à la plus récente connue) à chaque retour sur la page et
+  // toutes les 30 s (« Visiteurs en ce moment », onglet visible). Avant : les 5 pages étaient relues à chaque
+  // rechargement du tableau de bord et à chaque tic de 30 s.
+  const visitsRef = useRef(visits);
+  visitsRef.current = visits;
+  const visitsLoadedForRef = useRef<string | null>(null);
   useEffect(() => {
-    if (activeSection !== "statistics") return;
-    const timer = setInterval(async () => {
-      if (document.visibilityState !== "visible") return;
-      const fresh = await fetchVisits();
-      if (fresh) setVisits(fresh);
+    setVisits([]);
+    visitsLoadedForRef.current = null;
+  }, [id]);
+  useEffect(() => {
+    if (activeSection !== "statistics" || !id) return;
+    let cancelled = false;
+    const loadFull = async () => {
+      const rows = await fetchVisits();
+      if (cancelled || !rows) return;
+      setVisits(rows);
+      visitsLoadedForRef.current = id;
+    };
+    const loadNew = async () => {
+      const newest = visitsRef.current[0]?.visited_at;
+      if (!newest) return loadFull();
+      const { data, error } = await (supabase as any).from("shop_visits")
+        .select(VISIT_COLUMNS)
+        .eq("shop_id", id).gt("visited_at", newest)
+        .order("visited_at", { ascending: false })
+        .limit(1000);
+      if (cancelled || error || !data) return;
+      // Plus de 1 000 nouvelles visites d'un coup : on repart d'une lecture complète plutôt que de combler un trou.
+      if (data.length >= 1000) return loadFull();
+      if (data.length > 0) setVisits((prev) => [...data, ...prev]);
+    };
+    if (visitsLoadedForRef.current !== id) void loadFull(); else void loadNew();
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") void loadNew();
     }, 30000);
-    return () => clearInterval(timer);
-  }, [activeSection, fetchVisits]);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [activeSection, id, fetchVisits]);
 
   useEffect(() => {
     (async () => {
@@ -492,9 +558,11 @@ const ShopEditor = () => {
     const refresh = () => {
       if (showProductEditorRef.current) return;
       const now = Date.now();
-      if (now - lastPassiveRefreshRef.current < 3000) return;
+      // 30 s (et non 3 s) : chaque rechargement relit toutes les commandes ; passer d'un onglet à l'autre ne doit pas
+      // les relire à chaque fois.
+      if (now - lastPassiveRefreshRef.current < 30000) return;
       lastPassiveRefreshRef.current = now;
-      fetchData();
+      void fetchData({ passive: true });
     };
     const onVis = () => { if (document.visibilityState === "visible" && !showProductEditorRef.current) refresh(); };
     document.addEventListener("visibilitychange", onVis);
@@ -1325,8 +1393,13 @@ const ShopEditor = () => {
     const r = collabRoles || [];
     if (r.includes("full_admin")) return undefined; // Full admin gets access to all sections
     const allowed: ActiveSection[] = ["overview"];
+    // Chaque rôle n'ouvre que ses propres écrans : « Voir les commandes » ne donne ni les codes promo,
+    // ni les clients fidèles, ni les statistiques (rôles view_stats / manage_customers / edit_shop).
     if (r.includes("view_orders") || r.includes("manage_delivered_orders") || r.includes("edit_shop")) {
-      allowed.push("orders", "abandoned", "loyal-customers", "promo-codes", "statistics");
+      allowed.push("orders", "abandoned");
+    }
+    if (r.includes("edit_shop")) {
+      allowed.push("loyal-customers", "promo-codes", "statistics");
     }
     if (r.includes("manage_catalog") || r.includes("edit_shop")) {
       allowed.push("products");
@@ -1364,6 +1437,7 @@ const ShopEditor = () => {
     isPublished: shop.is_published,
     allowedSections,
     isOwner,
+    canSave: isOwner || (collabRoles || []).some((role) => role === "edit_shop" || role === "full_admin"),
   };
 
   return (
@@ -1434,7 +1508,7 @@ const ShopEditor = () => {
           );
         })()}
         {/* Activation Banner */}
-        {!isActivated && (
+        {!isActivated && isOwner && (
           <div className="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 md:px-6 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">

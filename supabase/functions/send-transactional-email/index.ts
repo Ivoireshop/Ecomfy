@@ -1,3 +1,4 @@
+import { serveCors } from "../_shared/http.ts";
 import * as React from 'npm:react@18.3.1'
 import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { createClient } from 'npm:@supabase/supabase-js@2'
@@ -18,7 +19,7 @@ function generateToken(): string {
 // gateway validates the caller's JWT (anon or service_role) before the request
 // reaches this code. No in-function auth check is needed.
 
-Deno.serve(async (req) => {
+serveCors("app", async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })

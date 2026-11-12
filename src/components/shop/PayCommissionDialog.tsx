@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { recordManualCommissionPayment } from "@/lib/founderBilling";
 import { useToast } from "@/hooks/use-toast";
 import { openPaymentWindow, redirectToPaymentUrl, closePaymentWindow } from "@/lib/paymentRedirect";
+import { readFunctionError } from "@/lib/functionError";
 
 interface PayCommissionDialogProps {
   open: boolean;
@@ -82,7 +83,7 @@ export function PayCommissionDialog({ open, onOpenChange, shopId, balanceDue, fu
           shop_id: shopId,
         },
       });
-      if (error) throw error;
+      if (error) throw new Error(await readFunctionError(error, data, "Le paiement n'a pas pu démarrer."));
       const url = data?.payment_url || data?.checkout_url;
       if (data?.success === false) throw new Error(data?.error || "Erreur de paiement");
       if (url) {

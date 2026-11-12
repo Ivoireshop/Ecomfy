@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const corsHeaders = {
@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-serve(async (req) => {
+serveCors("app", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -112,7 +112,7 @@ serve(async (req) => {
     console.error("Error in cancel-queue-item function:", error);
     return new Response(
       JSON.stringify({ 
-        error: error instanceof Error ? error.message : "Une erreur est survenue" 
+        error: "Une erreur est survenue. Réessayez dans un instant." 
       }),
       {
         status: 500,

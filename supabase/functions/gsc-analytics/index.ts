@@ -6,6 +6,7 @@
 //
 // Les CTR sont stockés en pourcentage (comme l'affiche l'application), les positions avec 1 décimale.
 
+import { serveCors } from "../_shared/http.ts";
 import { takeRateLimit } from "../_shared/rate-limit.ts";
 import {
   adminClient, corsHeaders, fail, getUserId, getValidAccessToken, json, loadConnection, ownsShop,
@@ -28,7 +29,7 @@ async function query(site: string, token: string, dimension: "query" | "page", s
   return (data.rows || []) as { keys: string[]; clicks: number; impressions: number; ctr: number; position: number }[];
 }
 
-Deno.serve(async (req) => {
+serveCors("app", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const admin = adminClient();

@@ -1,3 +1,4 @@
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { isAuthorizedCron, cronUnauthorizedResponse } from "../_shared/cron-auth.ts";
 import { APP_URL } from "../_shared/email-sender.ts";
@@ -17,7 +18,7 @@ function ok(body: Record<string, unknown>, status = 200) {
   });
 }
 
-Deno.serve(async (req) => {
+serveCors("server", async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (!isAuthorizedCron(req)) return cronUnauthorizedResponse(corsHeaders);
   try {
@@ -32,7 +33,7 @@ Deno.serve(async (req) => {
       .not("token_expires_at", "is", null)
       .lte("token_expires_at", horizon);
 
-    if (error) return ok({ success: false, error: error.message });
+    if (error) return ok({ success: false, error: "Check error" });
 
     let notified = 0;
     const results: any[] = [];

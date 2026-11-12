@@ -1,3 +1,4 @@
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { APP_URL } from "../_shared/email-sender.ts";
@@ -18,7 +19,7 @@ type Action =
   | "clear_expired_unsubscribe_tokens"
   | "vacuum_image_cache";
 
-Deno.serve(async (req) => {
+serveCors("server", async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   const url = Deno.env.get("SUPABASE_URL")!;

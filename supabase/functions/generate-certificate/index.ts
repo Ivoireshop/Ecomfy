@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serveCors } from "../_shared/http.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { APP_URL } from "../_shared/email-sender.ts";
 
@@ -261,7 +261,7 @@ function generateCertificateHTML(
   `.trim();
 }
 
-serve(async (req) => {
+serveCors("app", async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -497,7 +497,7 @@ serve(async (req) => {
     console.error("Error:", err);
     const error = err as Error;
     return new Response(
-      JSON.stringify({ error: error.message || "Internal error" }),
+      JSON.stringify({ error: "Erreur lors de la génération du certificat." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
