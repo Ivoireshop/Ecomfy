@@ -28,12 +28,12 @@ const activeItems: NavItemDef[] = [
   { title: "Communauté", url: "/community", icon: Users },
   { title: "Tarifs", url: "/pricing", icon: CreditCard },
   { title: "Bibliothèque", url: "/library", icon: FolderHeart },
+  { title: "Ecomfy Pay 💳", url: "/ecomfy-pay", icon: CreditCard },
   { title: "Statistiques", url: "/statistics", icon: BarChart2 },
   { title: "Paramètres", url: "/profile", icon: Settings },
 ];
 
 const comingSoonItems: NavItemDef[] = [
-  { title: "Ecomfy Pay 💳", url: "/ecomfy-pay", icon: CreditCard, comingSoon: true },
   { title: "Studio IA", url: "/studio", icon: Image, comingSoon: true },
   { title: "Livraison 🚚", url: "/delivery-dashboard", icon: Truck, comingSoon: true },
 ];
