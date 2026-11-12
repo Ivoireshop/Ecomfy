@@ -661,16 +661,24 @@ const ProductView = () => {
 
   const removeFromCart = (productId: string) => setCart(prev => prev.filter(item => item.product.id !== productId));
 
+  // Produit digital : l'e-mail est obligatoire (il porte le lien de téléchargement), même si la boutique l'a désactivé.
+  const digitalInCart = cart.length > 0 ? cart.some(i => !!i.product?.is_digital) : !!product?.is_digital;
+  // Panier 100 % digital : rien à livrer, ni ville ni adresse.
+  const allDigitalInCart = cart.length > 0 ? cart.every(i => !!i.product?.is_digital) : !!product?.is_digital;
+
   const placeOrder = async () => {
     if (submittingOrderRef.current) return;
     if (!shop) return;
     
     const cf: any[] = shop.checkout_fields || [];
     const isEnabled = (id: string) => {
+      if (id === "email" && digitalInCart) return true;
+      if ((id === "city" || id === "address") && allDigitalInCart) return false;
       const f = cf.find((x: any) => x.id === id);
       return f ? !!f.enabled : ["first_name","phone","city","address"].includes(id);
     };
     const isRequired = (id: string) => {
+      if (id === "email" && digitalInCart) return true;
       const f = cf.find((x: any) => x.id === id);
       return f ? !!f.required : ["first_name","phone","city"].includes(id);
     };
@@ -692,6 +700,11 @@ const ProductView = () => {
       effectiveOrderCartTotal = line.total;
     }
 
+    // Produit digital : rien à livrer, donc ni adresse ni paiement à la livraison (le serveur refuse aussi ce couple).
+    const hasDigital = effectiveOrderCart.some((i) => i.product?.is_digital);
+    const allDigital = effectiveOrderCart.length > 0 && effectiveOrderCart.every((i) => i.product?.is_digital);
+    const payMethod = hasDigital ? "mobile_money" : customerInfo.paymentMethod;
+
     // Le formulaire direct (sans passer par « Commander ») n'avait aucun contrôle des variantes obligatoires.
     const missingChoices = effectiveOrderCart.flatMap(item => missingVariantGroups(item.product.variants, item.selectedVariants));
     if (missingChoices.length > 0) {
@@ -712,10 +725,14 @@ const ProductView = () => {
       return;
     }
     if (isEnabled("email") && isRequired("email") && !customerInfo.email) {
-      toast({ title: "Email manquant", description: "Veuillez renseigner votre adresse email.", variant: "destructive" });
+      toast({ title: "Email manquant", description: digitalInCart ? "Indiquez votre adresse email : vous y recevrez le lien de téléchargement." : "Veuillez renseigner votre adresse email.", variant: "destructive" });
       return;
     }
-    if (isEnabled("city") && isRequired("city") && !customerInfo.city) {
+    if (digitalInCart && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((customerInfo.email || "").trim())) {
+      toast({ title: "Email invalide", description: "Indiquez une adresse email valide pour recevoir le lien de téléchargement.", variant: "destructive" });
+      return;
+    }
+    if (!allDigital && isEnabled("city") && isRequired("city") && !customerInfo.city) {
       toast({ title: "Ville manquante", description: "Veuillez renseigner votre ville.", variant: "destructive" });
       return;
     }
@@ -723,7 +740,7 @@ const ProductView = () => {
       toast({ title: "Ville invalide", description: "La ville ne doit pas contenir de chiffres.", variant: "destructive" });
       return;
     }
-    if (isEnabled("address") && isRequired("address") && !customerInfo.address) {
+    if (!allDigital && isEnabled("address") && isRequired("address") && !customerInfo.address) {
       toast({ title: "Adresse manquante", description: "Veuillez renseigner votre adresse détaillée.", variant: "destructive" });
       return;
     }
@@ -742,7 +759,7 @@ const ProductView = () => {
         customerAddress: customerInfo.address,
         customerCity: customerInfo.city,
         customerCountry: detectedCountry,
-        paymentMethod: customerInfo.paymentMethod,
+        paymentMethod: payMethod,
         promoCode: promo?.code,
         items: effectiveOrderCart.map(item => ({
           product_id: item.product.id,
@@ -772,7 +789,7 @@ const ProductView = () => {
         city: customerInfo.city,
       };
 
-      if (customerInfo.paymentMethod === "mobile_money") {
+      if (payMethod === "mobile_money") {
         trackEvent(shop, "InitiateCheckout", trackingPayload);
         const payRes = await ecomfyPayApi.initiateCustomerPayment({
           shop_id: shop.id,
@@ -1064,10 +1081,13 @@ const ProductView = () => {
               {(() => {
                 const cf: any[] = shop.checkout_fields || [];
                 const isEnabled = (id: string) => {
+                  if (id === "email" && digitalInCart) return true;
+                  if ((id === "city" || id === "address") && allDigitalInCart) return false;
                   const f = cf.find((x: any) => x.id === id);
                   return f ? !!f.enabled : ["first_name","phone","city","address"].includes(id);
                 };
                 const isRequired = (id: string) => {
+                  if (id === "email" && digitalInCart) return true;
                   const f = cf.find((x: any) => x.id === id);
                   return f ? !!f.required : ["first_name","phone","city"].includes(id);
                 };
@@ -1081,7 +1101,7 @@ const ProductView = () => {
                 const nameLabel = getLabel("first_name", defaultNameLabel);
                 return (
                   <div className="space-y-3">
-                    <div className="flex items-center gap-1.5"><User className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-[15px]">Informations de livraison</h4></div>
+                    <div className="flex items-center gap-1.5"><User className="h-4 w-4" style={{ color: primaryColor }} /><h4 className="font-bold text-[15px]">{allDigitalInCart ? "Vos informations" : "Informations de livraison"}</h4></div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {isEnabled("first_name") && (
                         <div className="sm:col-span-2">
@@ -1184,7 +1204,10 @@ const ProductView = () => {
                       }
                     }
 
-                    if (isInterior && customerInfo.paymentMethod !== 'mobile_money') {
+                    // Produit digital : Mobile Money uniquement (pas de livraison, donc rien à encaisser à la remise).
+                    if (digitalInCart) methods = [{ value: "mobile_money", label: "Mobile Money", icon: "📱" }];
+
+                    if ((isInterior || digitalInCart) && customerInfo.paymentMethod !== 'mobile_money') {
                       setTimeout(() => setCustomerInfo(prev => ({ ...prev, paymentMethod: 'mobile_money' })), 0);
                     } else if (!customerInfo.paymentMethod && methods.length > 0) {
                       setTimeout(() => setCustomerInfo(prev => ({ ...prev, paymentMethod: methods[0].value })), 0);
@@ -1236,10 +1259,13 @@ const ProductView = () => {
               {(() => {
                 const cf: any[] = shop.checkout_fields || [];
                 const isEnabled = (id: string) => {
+                  if (id === "email" && digitalInCart) return true;
+                  if ((id === "city" || id === "address") && allDigitalInCart) return false;
                   const f = cf.find((x: any) => x.id === id);
                   return f ? !!f.enabled : ["first_name","phone","city","address"].includes(id);
                 };
                 const isRequired = (id: string) => {
+                  if (id === "email" && digitalInCart) return true;
                   const f = cf.find((x: any) => x.id === id);
                   return f ? !!f.required : ["first_name","phone","city"].includes(id);
                 };
@@ -1843,6 +1869,8 @@ const ProductView = () => {
                 ) : null;
               }
               if (key === "stock") {
+                // Produit digital : pas de stock (stock_quantity vaut 10 par défaut sans signification).
+                if (product.is_digital) return null;
                 const allowOutOfStock = themeSettings?.custom_css_settings?.allow_out_of_stock_orders !== false;
                 return (
                   <div key="stock" className="space-y-2">

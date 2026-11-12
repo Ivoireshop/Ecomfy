@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { getConnector } from "../_shared/operators/index.ts";
 import { remoteAmountMatches } from "../_shared/pricing.ts";
 import { sendServerPurchase } from "../_shared/purchase-capi.ts";
+import { sendDigitalDeliveryEmail } from "../_shared/digital-delivery.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -197,6 +198,20 @@ serveCors("server", async (req) => {
         }
       } catch (e) {
         console.warn("[ecomfy-pay-webhook] Notification email failed:", e);
+      }
+    }
+
+    // Produit digital : le lien de téléchargement part par e-mail dès que la commande est payée. Appelé à chaque livraison
+    // du webhook : la clé d'idempotence (une par commande) garantit un seul mail, et reprend un envoi raté. Best-effort.
+    if (res?.status === "SUCCEEDED" && res.payment_id && res.steps?.order !== "none") {
+      try {
+        const { data: pay } = await supabase.from("ecomfy_payments").select("order_id").eq("id", res.payment_id).maybeSingle();
+        if (pay?.order_id) {
+          const out = await sendDigitalDeliveryEmail(supabase, pay.order_id, `digital-ready-${pay.order_id}`);
+          if (!out.sent && out.reason !== "no_digital_items") console.warn("[ecomfy-pay-webhook] Mail de téléchargement non envoyé:", out.reason);
+        }
+      } catch (e) {
+        console.warn("[ecomfy-pay-webhook] Mail de téléchargement en erreur (non bloquant):", e);
       }
     }
 

@@ -597,7 +597,7 @@ export function ProductWizard({
                     Produit numérique (Digital)
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Cochez si ce produit ne nécessite aucune livraison physique (e-book, formation, service, logiciel...).
+                    Cochez si ce produit ne nécessite aucune livraison physique (e-book, formation, service, logiciel...). Paiement en ligne uniquement ; vous déposerez le fichier à vendre dans l'éditeur du produit, après sa création.
                   </p>
                 </div>
                 <div className="pt-1 pl-4" onClick={(e) => e.stopPropagation()}>
