@@ -16,7 +16,22 @@ const authListeners = new Set<() => void>();
 let lastRefreshAttemptAt = 0;
 
 const emitAuthState = (next: AuthReadyState) => {
-  authState = next;
+  // Retour d'onglet, focus, pageshow, TOKEN_REFRESHED… : supabase-js redonne un objet session « neuf » à chaque fois.
+  // Si rien d'utile n'a changé on garde l'état courant (même référence), pour ne pas relancer tous les effets
+  // qui dépendent de `user` (ProtectedRoute refaisait 5 requêtes à chaque focus).
+  const prev = authState;
+  if (
+    prev.isReady === next.isReady &&
+    prev.user?.id === next.user?.id &&
+    prev.user?.updated_at === next.user?.updated_at && // USER_UPDATED (métadonnées) doit passer
+    prev.session?.access_token === next.session?.access_token
+  ) {
+    return;
+  }
+  // Même utilisateur et mêmes données, jeton renouvelé : on garde la référence `user`.
+  const sameUser =
+    prev.user && next.user && prev.user.id === next.user.id && prev.user.updated_at === next.user.updated_at;
+  authState = sameUser ? { ...next, user: prev.user } : next;
   authListeners.forEach((listener) => listener());
 };
 

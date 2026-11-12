@@ -116,9 +116,11 @@ export async function fetchShopBillingStatus(shopId: string): Promise<BillingSta
       .eq("id", shopId)
       .maybeSingle();
 
+    let rpcCalled = false;
     if (!invoiceSystemMissing) {
       // Trigger auto-check for 240 threshold if order count >= 240
       if (shop && Number(shop.total_orders || 0) >= BILLING_CONFIG.THRESHOLD_ORDERS) {
+        rpcCalled = true;
         const { error } = await supabase.rpc("check_and_trigger_billing_threshold" as any, { _shop_id: shopId });
         if (isMissingObjectError(error)) invoiceSystemMissing = true;
       }
@@ -127,12 +129,15 @@ export async function fetchShopBillingStatus(shopId: string): Promise<BillingSta
       // toutes les 5 minutes) : le navigateur ne la déclenche plus.
     }
 
-    // Re-query updated shop state
-    const { data: updatedShop } = await supabase
-      .from("shops")
-      .select("id, total_orders, shop_payment_status, payment_deadline, commission_balance_due, is_suspended")
-      .eq("id", shopId)
-      .maybeSingle();
+    // Seul l'appel de la RPC peut modifier la boutique : sans lui, on n'interroge pas `shops` une seconde fois
+    // (auparavant deux lectures identiques à chaque rafraîchissement).
+    const { data: updatedShop } = rpcCalled
+      ? await supabase
+          .from("shops")
+          .select("id, total_orders, shop_payment_status, payment_deadline, commission_balance_due, is_suspended")
+          .eq("id", shopId)
+          .maybeSingle()
+      : { data: shop };
 
     const rawStatus = (updatedShop?.shop_payment_status as BillingStatusType) || "STORE_ACTIVE";
 

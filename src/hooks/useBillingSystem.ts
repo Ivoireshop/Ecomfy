@@ -9,6 +9,50 @@ import {
 } from "@/lib/billingSystem";
 import { supabase } from "@/integrations/supabase/client";
 
+// Le hook est monté 5 fois dans le tableau de bord (bandeau, modale, section seuil, écran verrouillé, page). Chaque
+// instance relançait son propre chargement complet à chaque événement temps réel / retour d'onglet : 5 chargements
+// pour un seul changement (panne du 12/11/2026 : plus de 100 lectures de `shops` en 3 minutes depuis un navigateur).
+// Les instances partagent désormais un seul chargement par boutique :
+//  - "force" (défaut) : lit la base, sauf si un chargement est déjà en cours (alors on s'y joint) ;
+//  - "cached" (ouverture d'un composant) : réutilise un résultat de moins de MIN_INTERVAL_MS ;
+//  - "debounced" (événements temps réel) : regroupe les rafales en un seul chargement, au plus tôt MIN_INTERVAL_MS
+//    après le précédent, donc aucun changement n'est perdu.
+const MIN_INTERVAL_MS = 3_000;
+type RefreshMode = "force" | "cached" | "debounced";
+type BillingSnapshot = { status: BillingStatusInfo; history: ShopInvoice[] };
+const inflightLoads = new Map<string, Promise<BillingSnapshot>>();
+const pendingDebounced = new Map<string, Promise<BillingSnapshot>>();
+const lastSnapshots = new Map<string, { at: number; value: BillingSnapshot }>();
+
+function loadBillingSnapshot(shopId: string, mode: RefreshMode): Promise<BillingSnapshot> {
+  const last = lastSnapshots.get(shopId);
+  const age = last ? Date.now() - last.at : Infinity;
+
+  if (mode === "debounced") {
+    const pending = pendingDebounced.get(shopId);
+    if (pending) return pending;
+    const p = new Promise<void>((resolve) => setTimeout(resolve, Math.max(0, MIN_INTERVAL_MS - age)))
+      .then(() => loadBillingSnapshot(shopId, "force"))
+      .finally(() => pendingDebounced.delete(shopId));
+    pendingDebounced.set(shopId, p);
+    return p;
+  }
+
+  const running = inflightLoads.get(shopId);
+  if (running) return running;
+  if (mode === "cached" && last && age < MIN_INTERVAL_MS) return Promise.resolve(last.value);
+
+  const p = Promise.all([fetchShopBillingStatus(shopId), fetchShopInvoicesHistory(shopId)])
+    .then(([status, history]) => {
+      const value = { status, history };
+      lastSnapshots.set(shopId, { at: Date.now(), value });
+      return value;
+    })
+    .finally(() => inflightLoads.delete(shopId));
+  inflightLoads.set(shopId, p);
+  return p;
+}
+
 export function useBillingSystem(shopId: string | null | undefined) {
   const [billingInfo, setBillingInfo] = useState<BillingStatusInfo | null>(null);
   const [invoices, setInvoices] = useState<ShopInvoice[]>([]);
@@ -17,13 +61,13 @@ export function useBillingSystem(shopId: string | null | undefined) {
   const billingInfoRef = useRef<BillingStatusInfo | null>(null);
   billingInfoRef.current = billingInfo;
 
-  const refreshBilling = useCallback(async () => {
+  // Par défaut le rafraîchissement lit la base (appel explicite, ex. après un paiement). `opts.mode` n'est lu que s'il
+  // est valide : le hook est aussi passé tel quel comme gestionnaire d'événement (l'argument est alors un événement).
+  const refreshBilling = useCallback(async (opts?: { mode?: RefreshMode }) => {
     if (!shopId) return;
     try {
-      const [statusData, historyData] = await Promise.all([
-        fetchShopBillingStatus(shopId),
-        fetchShopInvoicesHistory(shopId)
-      ]);
+      const mode = opts?.mode === "cached" || opts?.mode === "debounced" ? opts.mode : "force";
+      const { status: statusData, history: historyData } = await loadBillingSnapshot(shopId, mode);
       setBillingInfo(statusData);
       setInvoices(historyData);
     } catch (e) {
@@ -47,16 +91,16 @@ export function useBillingSystem(shopId: string | null | undefined) {
     const shopChannel = supabase
       .channel(`billing_${shopId}_${suffix}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "shops", filter: `id=eq.${shopId}` }, () => {
-        refreshBilling();
+        refreshBilling({ mode: "debounced" });
       })
       .subscribe();
     let invoiceChannel: ReturnType<typeof supabase.channel> | null = null;
-    refreshBilling().then(() => {
+    refreshBilling({ mode: "cached" }).then(() => {
       if (cancelled || !isInvoiceSystemAvailable()) return;
       invoiceChannel = supabase
         .channel(`billing_invoices_${shopId}_${suffix}`)
         .on("postgres_changes", { event: "*", schema: "public", table: "shop_invoices", filter: `shop_id=eq.${shopId}` }, () => {
-          refreshBilling();
+          refreshBilling({ mode: "debounced" });
         })
         .subscribe();
     });
