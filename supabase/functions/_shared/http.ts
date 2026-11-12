@@ -133,6 +133,7 @@ export function wrapHandler(tier: CorsTier, handler: Handler, appUrl = "", extra
 }
 
 // deno-lint-ignore no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- global Deno absent des types du projet (code exécuté sous Deno)
 declare const Deno: any;
 
 export function serveCors(tier: CorsTier, handler: Handler): void {

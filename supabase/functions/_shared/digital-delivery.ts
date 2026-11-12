@@ -5,6 +5,7 @@
 import { APP_URL } from "./email-sender.ts";
 
 // deno-lint-ignore no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- client Supabase de service sans types générés
 type Db = any;
 
 export type DigitalDeliveryResult = { sent: boolean; reason?: string };

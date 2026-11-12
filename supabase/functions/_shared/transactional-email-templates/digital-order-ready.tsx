@@ -49,6 +49,7 @@ const DigitalOrderReadyEmail = ({
 
 export const template = {
   component: DigitalOrderReadyEmail,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- données de gabarit libres, forme fixée par l'appelant
   subject: (data: Record<string, any>) => `Votre achat chez ${data?.shopName || 'la boutique'} est prêt à être téléchargé`,
   displayName: 'Produit numérique prêt (client)',
   previewData: {

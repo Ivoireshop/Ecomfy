@@ -3,6 +3,7 @@
 
 // Client minimal exigé : le client service_role de supabase-js convient, un faux client de test aussi.
 export interface FounderRecipientsClient {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- client Supabase de service sans types générés
   from(table: string): any;
   auth: { admin: { getUserById(id: string): Promise<{ data: { user: { email?: string | null } | null } | null; error?: unknown }> } };
 }

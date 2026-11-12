@@ -17,13 +17,18 @@ const NotFound = () => {
   useEffect(() => {
     const previousTitle = document.title;
     document.title = "Page introuvable | Ecomfy";
-    const meta = document.createElement("meta");
+    // index.html porte déjà un <meta robots="index, follow"> : on le modifie au lieu d'en ajouter un second
+    // (deux directives contradictoires), puis on le restaure en quittant la page.
+    const existing = document.querySelector<HTMLMetaElement>('meta[name="robots"]');
+    const previousRobots = existing?.content ?? null;
+    const meta = existing ?? document.createElement("meta");
     meta.name = "robots";
     meta.content = "noindex, nofollow";
-    document.head.appendChild(meta);
+    if (!existing) document.head.appendChild(meta);
     return () => {
       document.title = previousTitle;
-      meta.remove();
+      if (existing && previousRobots !== null) existing.content = previousRobots;
+      else meta.remove();
     };
   }, []);
 

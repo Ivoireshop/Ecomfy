@@ -85,6 +85,7 @@ test("getFounderEmails : founder et co_founder seulement, minuscules, sans doubl
     ],
     { u1: "Boss@Example.com", u2: "co@example.com", u3: "share@example.com", u4: "admin@example.com" },
   );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- faux client Supabase de test
   assert.deepEqual((await getFounderEmails(admin as any)).sort(), ["boss@example.com", "co@example.com"]);
 });
 
@@ -95,8 +96,11 @@ test("getFounderEmails : compte sans e-mail, compte illisible, erreur de lecture
     { user_id: "u3", role: "co_founder" },
   ];
   const emails = { u1: "boss@example.com", u2: null, u3: "x@example.com" };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- faux client Supabase de test
   assert.deepEqual(await getFounderEmails(fakeAdmin(roles, emails, { failFor: "u3" }) as any), ["boss@example.com"]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- faux client Supabase de test
   assert.deepEqual(await getFounderEmails(fakeAdmin(roles, emails, { rolesError: true }) as any), []);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- faux client Supabase de test
   assert.deepEqual(await getFounderEmails(fakeAdmin([], {}) as any), []);
 });
 

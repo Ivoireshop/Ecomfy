@@ -43,6 +43,14 @@ export default function DigitalDownload() {
     }
   };
 
+  // Paiement pas encore confirmé : le webhook arrive en quelques secondes, on réessaie sans que l'acheteur recharge.
+  // (Hook placé avant le return conditionnel ci-dessous : l'ordre des hooks doit rester identique à chaque rendu.)
+  useEffect(() => {
+    if (!data || data.paid) return;
+    const t = setInterval(() => { void load(); }, 5000);
+    return () => clearInterval(t);
+  }, [data, load]);
+
   if (!token) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -63,13 +71,6 @@ export default function DigitalDownload() {
       </div>
     );
   }
-
-  // Paiement pas encore confirmé : le webhook arrive en quelques secondes, on réessaie sans que l'acheteur recharge.
-  useEffect(() => {
-    if (!data || data.paid) return;
-    const t = setInterval(() => { void load(); }, 5000);
-    return () => clearInterval(t);
-  }, [data, load]);
 
   const download = async (fileId: string) => {
     setBusyFile(fileId);

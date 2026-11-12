@@ -25,6 +25,7 @@ const json = (body: Record<string, unknown>, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
 
 // deno-lint-ignore no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- client Supabase de service sans types générés
 type Db = any;
 
 const isPaid = (status: unknown) => String(status ?? "").toLowerCase() === "paid";
@@ -40,6 +41,7 @@ serveCors("public", async (req) => {
   if (req.method !== "POST") return errorJson(405, "Méthode non autorisée.");
 
   // deno-lint-ignore no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- corps JSON de la requête, validé champ par champ
   let body: any;
   try { body = await req.json(); } catch { return errorJson(400, "Requête invalide."); }
   const action = String(body?.action ?? "");
@@ -112,6 +114,7 @@ serveCors("public", async (req) => {
 
   const { data: products } = await db.from("products").select("id, is_digital, digital_download_limit").in("id", productIds).eq("is_digital", true);
   // deno-lint-ignore no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- lignes lues avec un select libre
   const digital = new Map<string, any>((products ?? []).map((p: any) => [p.id, p]));
   const { data: files } = await db
     .from("product_digital_files")
@@ -124,6 +127,7 @@ serveCors("public", async (req) => {
   for (const l of logs ?? []) used.set(l.file_id, (used.get(l.file_id) ?? 0) + 1);
 
   // deno-lint-ignore no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- lignes lues avec un select libre
   const fileById = new Map<string, any>((files ?? []).map((f: any) => [f.id, f]));
   const remainingFor = (fileId: string, productId: string): number | null => {
     const limit = digital.get(productId)?.digital_download_limit;
@@ -135,12 +139,15 @@ serveCors("public", async (req) => {
     const items = (lines ?? [])
       .filter((l: { product_id: string }) => digital.has(l.product_id))
       // deno-lint-ignore no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- lignes lues avec un select libre
       .map((l: any) => ({
         product_name: l.product_name,
         files: (files ?? [])
           // deno-lint-ignore no-explicit-any
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- lignes lues avec un select libre
           .filter((f: any) => f.product_id === l.product_id)
           // deno-lint-ignore no-explicit-any
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- lignes lues avec un select libre
           .map((f: any) => ({ id: f.id, file_name: f.file_name, file_size: f.file_size, mime_type: f.mime_type, remaining: remainingFor(f.id, f.product_id) })),
       }));
     return json({ success: true, paid: true, order_number: order.order_number, shop: shopInfo, items });
