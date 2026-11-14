@@ -363,10 +363,9 @@ DO $$
 DECLARE
   r record;
 BEGIN
-  FOR r IN
-    SELECT s.user_id, s.plan, s.end_date
-      FROM public.subscriptions s
-     WHERE s.status = 'active' AND (s.end_date IS NULL OR s.end_date > now())
+  -- M11 : subscriptions.plan n'existe pas partout (la colonne actuelle est plan_code) ; on ne synchronise que si elle est là.
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'subscriptions' AND column_name = 'plan') THEN
+  FOR r IN EXECUTE 'SELECT s.user_id, s.plan, s.end_date FROM public.subscriptions s WHERE s.status = ''active'' AND (s.end_date IS NULL OR s.end_date > now())'
   LOOP
     UPDATE public.shops
        SET subscription_plan = LOWER(r.plan),
@@ -377,6 +376,7 @@ BEGIN
            payment_deadline = NULL
      WHERE user_id = r.user_id;
   END LOOP;
+  END IF;
 END $$;
 
 -- 8. Clean up commission on orders for shops with active subscription

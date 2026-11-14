@@ -66,3 +66,12 @@ jobs:
       - name: Rapport complet (non bloquant)
         continue-on-error: true
         run: npm audit --audit-level=high
+
+  # M11 : toutes les migrations doivent se rejouer sur une base Supabase vierge (image identique à la dev).
+  # Aucune connexion à la dev ni à la prod : tout se passe dans un conteneur Docker du runner.
+  migrations-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/replay-migrations.sh

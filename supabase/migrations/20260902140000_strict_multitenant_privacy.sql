@@ -5,6 +5,9 @@
 -- 1. SECURING CORPORATE GOVERNANCE & FINANCIAL DATA (STRICT PRIVACY)
 -- ====================================================================
 
+-- M11 : profiles.role et profiles.is_admin n'existent dans aucune migration ; to_jsonb(...) ->> 'role' donne le même
+-- résultat quand la colonne existe et ne casse pas quand elle manque (ces règles sont remplacées par 20261012120000).
+
 -- Function to check if current user is an authorized Corporate Shareholder or Admin
 CREATE OR REPLACE FUNCTION public.is_authorized_corporate_member()
 RETURNS BOOLEAN
@@ -19,7 +22,7 @@ AS $$
   ) OR EXISTS (
     SELECT 1 FROM public.profiles p
     WHERE p.id = auth.uid()
-      AND (p.role = 'admin' OR p.is_admin = true)
+      AND (to_jsonb(p) ->> 'role' = 'admin' OR to_jsonb(p) ->> 'is_admin' = 'true')
   ) OR (
     LOWER(auth.jwt() ->> 'email') = 'djateulrich@gmail.com'
   );
@@ -71,25 +74,25 @@ CREATE POLICY "Strict read corporate_proposals" ON public.corporate_proposals
 CREATE POLICY "Founder write corporate_shareholders" ON public.corporate_shareholders
   FOR ALL USING (
     LOWER(auth.jwt() ->> 'email') = 'djateulrich@gmail.com'
-    OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'admin' OR is_admin = true))
+    OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (to_jsonb(profiles) ->> 'role' = 'admin' OR to_jsonb(profiles) ->> 'is_admin' = 'true'))
   );
 
 CREATE POLICY "Founder write corporate_share_allocations" ON public.corporate_share_allocations
   FOR ALL USING (
     LOWER(auth.jwt() ->> 'email') = 'djateulrich@gmail.com'
-    OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'admin' OR is_admin = true))
+    OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (to_jsonb(profiles) ->> 'role' = 'admin' OR to_jsonb(profiles) ->> 'is_admin' = 'true'))
   );
 
 CREATE POLICY "Founder write corporate_vesting_plans" ON public.corporate_vesting_plans
   FOR ALL USING (
     LOWER(auth.jwt() ->> 'email') = 'djateulrich@gmail.com'
-    OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'admin' OR is_admin = true))
+    OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (to_jsonb(profiles) ->> 'role' = 'admin' OR to_jsonb(profiles) ->> 'is_admin' = 'true'))
   );
 
 CREATE POLICY "Founder write corporate_documents" ON public.corporate_documents
   FOR ALL USING (
     LOWER(auth.jwt() ->> 'email') = 'djateulrich@gmail.com'
-    OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (role = 'admin' OR is_admin = true))
+    OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND (to_jsonb(profiles) ->> 'role' = 'admin' OR to_jsonb(profiles) ->> 'is_admin' = 'true'))
   );
 
 -- ====================================================================
@@ -115,7 +118,7 @@ AS $$
   ) OR EXISTS (
     SELECT 1 FROM public.profiles p
     WHERE p.id = auth.uid()
-      AND (p.role = 'admin' OR p.is_admin = true)
+      AND (to_jsonb(p) ->> 'role' = 'admin' OR to_jsonb(p) ->> 'is_admin' = 'true')
   );
 $$;
 
