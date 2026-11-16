@@ -98,6 +98,8 @@ const DeliveryPartnerDashboard = lazyWithRetry(() => import("./pages/DeliveryPar
 const DeliveryResubmissionPage = lazyWithRetry(() => import("./pages/DeliveryResubmissionPage"));
 const EcomfyPay = lazyWithRetry(() => import("./pages/EcomfyPay"));
 const EcomfyPayCheckout = lazyWithRetry(() => import("./pages/EcomfyPayCheckout"));
+const EcomfyPaySandboxCheckout = lazyWithRetry(() => import("./pages/EcomfyPaySandboxCheckout"));
+const EcomfyPayApiDocs = lazyWithRetry(() => import("./pages/EcomfyPayApiDocs"));
 const AffiliateSpace = lazyWithRetry(() => import("./pages/AffiliateSpace"));
 const CompleteProfile = lazyWithRetry(() => import("./pages/CompleteProfile"));
 
@@ -284,7 +286,9 @@ const AppContent = () => {
               </ProtectedRoute>
             }
           />
+          <Route path="/pay/sandbox/:paymentId" element={<EcomfyPaySandboxCheckout />} />
           <Route path="/pay/:linkKey" element={<EcomfyPayCheckout />} />
+          <Route path="/developers/ecomfy-pay" element={<EcomfyPayApiDocs />} />
           <Route
             path="/founder-troubleshooting"
             element={
@@ -471,7 +475,7 @@ const AppContent = () => {
   );
 };
 
-const PUBLIC_PAGES = ["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy", "/api-documentation", "/docs", "/documentation", "/legal-notice", "/visuels-publicitaires", "/videos-publicitaires", "/boutiques-ecommerce", "/demo", "/tutorial", "/health", "/healthz"];
+const PUBLIC_PAGES = ["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy", "/api-documentation", "/developers/ecomfy-pay", "/docs", "/documentation", "/legal-notice", "/visuels-publicitaires", "/videos-publicitaires", "/boutiques-ecommerce", "/demo", "/tutorial", "/health", "/healthz"];
 
 // Prefetch heavy authenticated chunks during idle time so the first
 // in-dashboard navigation is instant. No-op on slow connections / save-data.

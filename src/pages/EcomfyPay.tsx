@@ -25,6 +25,7 @@ import { WithdrawalModal } from "@/components/ecomfy-pay/WithdrawalModal";
 import { KycVerificationTab } from "@/components/ecomfy-pay/KycVerificationTab";
 import { PaymentMethodsTab } from "@/components/ecomfy-pay/PaymentMethodsTab";
 import { SettingsTab } from "@/components/ecomfy-pay/SettingsTab";
+import { DevelopersTab } from "@/components/ecomfy-pay/DevelopersTab";
 import {
   CreditCard,
   Wallet as WalletIcon,
@@ -35,6 +36,7 @@ import {
   Store,
   FlaskConical,
   Zap,
+  Code2,
 } from "lucide-react";
 
 export default function EcomfyPay() {
@@ -238,6 +240,13 @@ export default function EcomfyPay() {
             >
               <SettingsIcon className="w-3.5 h-3.5" /> Paramètres
             </TabsTrigger>
+
+            <TabsTrigger
+              value="developers"
+              className="rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white text-slate-600 shrink-0 gap-1.5 transition-all"
+            >
+              <Code2 className="w-3.5 h-3.5" /> Développeurs
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
@@ -289,6 +298,14 @@ export default function EcomfyPay() {
 
           <TabsContent value="settings">
             <SettingsTab wallet={wallet} onRefresh={loadData} />
+          </TabsContent>
+
+          <TabsContent value="developers">
+            <DevelopersTab
+              shopId={selectedShopId}
+              kycVerified={kyc?.verification_status === "VERIFIED"}
+              formatPrice={formatPrice}
+            />
           </TabsContent>
         </Tabs>
       </main>

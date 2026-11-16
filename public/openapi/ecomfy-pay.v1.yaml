@@ -1,0 +1,366 @@
+openapi: 3.0.3
+info:
+  title: API Ecomfy Pay
+  version: "1.0.0"
+  description: |
+    Encaissez depuis votre serveur : créez un paiement, redirigez le client vers `checkout_url`, puis recevez le résultat
+    par webhook (voir la section « Webhooks » ci-dessous et la documentation https://ecomfy.cloud/developers/ecomfy-pay).
+
+    **Modes.** La clé secrète détermine le mode : `ecm_sk_test_…` = sandbox (aucun argent réel, résultats simulés),
+    `ecm_sk_live_…` = production. Les deux modes ont la même API ; leurs données sont strictement séparées.
+
+    **Montants** en francs CFA (XOF), entiers. **Idempotence** : envoyez `Idempotency-Key` à la création.
+
+    ## Webhooks
+    Ecomfy envoie un `POST` JSON (objet `Event`) à chaque destination déclarée dans Ecomfy Pay → Développeurs.
+    En-têtes : `Ecomfy-Signature: t=<secondes Unix>,v1=<hex>` avec `v1 = HMAC-SHA256(secret, "<t>.<corps brut>")`,
+    `Ecomfy-Event-Id`, `Ecomfy-Event-Type`, `Ecomfy-Delivery-Attempt`. Répondre 2xx en moins de 8 s ; reprises à 1 min, 5 min,
+    30 min, 2 h, 6 h, 12 h, 24 h. Refuser un `t` vieux de plus de 5 minutes.
+servers:
+  - url: https://{project}.supabase.co/functions/v1/ecomfy-pay-api
+    description: Edge Function Ecomfy Pay (remplacez le projet par celui indiqué dans Ecomfy Pay → Développeurs)
+    variables:
+      project:
+        default: your-project-ref
+security:
+  - secretKey: []
+tags:
+  - name: Payments
+  - name: Sandbox
+paths:
+  /v1/payments:
+    post:
+      tags: [Payments]
+      operationId: createPayment
+      summary: Créer un paiement
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePayment"
+            example:
+              amount: 5000
+              payment_method: wave
+              description: Commande 1042
+              customer: { name: Awa Koné, phone: "+2250700000001" }
+              success_url: https://votre-site.com/merci
+              client_reference: CMD-1042
+              metadata: { order_id: "1042" }
+      responses:
+        "201":
+          description: Paiement créé. Redirigez le client vers `checkout_url`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Payment" }
+        "200":
+          description: "Rejeu idempotent d'une création déjà faite (en-tête `Idempotent-Replayed: true`)."
+          headers:
+            Idempotent-Replayed: { schema: { type: string, enum: ["true"] } }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Payment" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "413": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "502": { $ref: "#/components/responses/Error" }
+        "503": { $ref: "#/components/responses/Error" }
+    get:
+      tags: [Payments]
+      operationId: listPayments
+      summary: Lister les paiements (du plus récent au plus ancien)
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: starting_after
+          in: query
+          description: Identifiant du dernier paiement reçu (page suivante).
+          schema: { type: string, pattern: "^pay_(test|live)_[0-9a-f]{24}$" }
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/PaymentStatus" }
+      responses:
+        "200":
+          description: Une page de paiements du mode de la clé.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [object, data, has_more]
+                properties:
+                  object: { type: string, enum: [list] }
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Payment" }
+                  has_more: { type: boolean }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /v1/payments/{id}:
+    get:
+      tags: [Payments]
+      operationId: getPayment
+      summary: Relire un paiement
+      parameters:
+        - $ref: "#/components/parameters/PaymentId"
+      responses:
+        "200":
+          description: Le paiement.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Payment" }
+        "401": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /v1/sandbox/payments/{id}/simulate:
+    post:
+      tags: [Sandbox]
+      operationId: simulatePayment
+      summary: Faire aboutir un paiement de test (clé de test uniquement)
+      description: |
+        Passe un paiement `pending` au résultat choisi et déclenche le webhook correspondant.
+        Refusé (403) avec une clé de production ; un paiement déjà terminé répond 409 `payment_not_pending`.
+      parameters:
+        - $ref: "#/components/parameters/PaymentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [scenario]
+              properties:
+                scenario: { $ref: "#/components/schemas/Scenario" }
+      responses:
+        "200":
+          description: Le paiement dans son nouvel état.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Payment" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /v1/sandbox/checkout/{id}:
+    get:
+      tags: [Sandbox]
+      operationId: getSandboxCheckout
+      summary: Données de la page de paiement sandbox (sans clé)
+      description: Utilisé par la page `/pay/sandbox/{id}`. L'identifiant, non devinable, fait office de secret. Aucune donnée client n'est renvoyée.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/PaymentId"
+      responses:
+        "200":
+          description: Résumé du paiement de test.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  status: { $ref: "#/components/schemas/PaymentStatus" }
+                  amount: { type: integer }
+                  currency: { type: string }
+                  description: { type: string, nullable: true }
+                  payment_method: { type: string }
+                  business_name: { type: string, nullable: true }
+                  success_url: { type: string, nullable: true }
+                  cancel_url: { type: string, nullable: true }
+        "404": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /v1/sandbox/checkout/{id}/complete:
+    post:
+      tags: [Sandbox]
+      operationId: completeSandboxCheckout
+      summary: Choisir le résultat depuis la page de paiement sandbox (sans clé)
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/PaymentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [scenario]
+              properties:
+                scenario: { $ref: "#/components/schemas/Scenario" }
+      responses:
+        "200":
+          description: Résultat enregistré ; `redirect_url` est la page où renvoyer le client.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  status: { $ref: "#/components/schemas/PaymentStatus" }
+                  redirect_url: { type: string, nullable: true }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+x-webhooks:
+  payment:
+    post:
+      summary: Événement de paiement envoyé à votre serveur
+      description: Types `payment.succeeded`, `payment.failed`, `payment.cancelled`, `payment.expired`, `payment.refunded`.
+      parameters:
+        - name: Ecomfy-Signature
+          in: header
+          required: true
+          description: "`t=<secondes Unix>,v1=<hex>` ; v1 = HMAC-SHA256(secret de la destination, `<t>.<corps brut>`)."
+          schema: { type: string }
+        - name: Ecomfy-Event-Id
+          in: header
+          schema: { type: string }
+        - name: Ecomfy-Event-Type
+          in: header
+          schema: { type: string }
+        - name: Ecomfy-Delivery-Attempt
+          in: header
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Event" }
+      responses:
+        "2XX":
+          description: Événement reçu. Toute autre réponse, ou plus de 8 s, déclenche une reprise.
+components:
+  securitySchemes:
+    secretKey:
+      type: http
+      scheme: bearer
+      bearerFormat: ecm_sk_test_… | ecm_sk_live_…
+      description: Clé secrète créée dans Ecomfy Pay → Développeurs. À garder côté serveur.
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: 1 à 255 caractères visibles. Conservée 24 h, propre à chaque clé d'API.
+      schema: { type: string, minLength: 1, maxLength: 255 }
+    PaymentId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, pattern: "^pay_(test|live)_[0-9a-f]{24}$" }
+  responses:
+    Error:
+      description: Erreur (voir `error.code`).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    RateLimited:
+      description: Plus de 120 requêtes par minute et par clé.
+      headers:
+        Retry-After: { schema: { type: integer } }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    PaymentStatus:
+      type: string
+      enum: [pending, succeeded, failed, cancelled, expired, refunded]
+    Scenario:
+      type: string
+      enum: [success, insufficient_funds, declined, cancelled, expired]
+    CreatePayment:
+      type: object
+      additionalProperties: false
+      required: [amount, payment_method, success_url]
+      properties:
+        amount: { type: integer, minimum: 200, maximum: 10000000, description: Montant en XOF. }
+        currency: { type: string, enum: [XOF], default: XOF }
+        payment_method: { type: string, enum: [wave, orange_money, mtn, moov, card] }
+        description: { type: string, maxLength: 200 }
+        customer:
+          type: object
+          additionalProperties: false
+          properties:
+            name: { type: string, minLength: 1, maxLength: 120 }
+            phone: { type: string, description: "8 à 15 chiffres, préfixe + accepté.", example: "+2250700000001" }
+            email: { type: string, format: email, maxLength: 254 }
+        success_url: { type: string, format: uri, maxLength: 500, description: "https:// (http://localhost accepté en test). Ecomfy ajoute `?payment_id=`." }
+        cancel_url: { type: string, format: uri, maxLength: 500, description: Par défaut `success_url`. }
+        client_reference: { type: string, minLength: 1, maxLength: 100 }
+        metadata:
+          type: object
+          maxProperties: 20
+          description: Clés de 1 à 40 caractères, valeurs texte de 500 au plus.
+          additionalProperties: { type: string, maxLength: 500 }
+    Payment:
+      type: object
+      required: [id, object, livemode, status, amount, currency, created_at]
+      properties:
+        id: { type: string, example: pay_test_3f9c1d2e8a7b4c5d6e7f8a9b }
+        object: { type: string, enum: [payment] }
+        livemode: { type: boolean }
+        status: { $ref: "#/components/schemas/PaymentStatus" }
+        amount: { type: integer }
+        currency: { type: string, enum: [XOF] }
+        fee_amount: { type: integer, description: Commission Ecomfy (2,5 %). }
+        net_amount: { type: integer, description: Montant crédité au portefeuille (production). }
+        payment_method: { type: string }
+        description: { type: string, nullable: true }
+        customer: { type: object, additionalProperties: true }
+        client_reference: { type: string, nullable: true }
+        metadata: { type: object, additionalProperties: { type: string } }
+        checkout_url: { type: string, nullable: true, description: Page de paiement où rediriger le client. }
+        success_url: { type: string, nullable: true }
+        cancel_url: { type: string, nullable: true }
+        reference: { type: string, nullable: true, description: "Référence Ecomfy Pay (ECM-PAY-…), production uniquement." }
+        failure:
+          type: object
+          nullable: true
+          properties:
+            code: { type: string, example: insufficient_funds }
+            message: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time, nullable: true }
+    Event:
+      type: object
+      required: [id, object, type, livemode, created_at, data]
+      properties:
+        id: { type: string, example: evt_5b1e0c9a7d3f42a6b8c1d0e2 }
+        object: { type: string, enum: [event] }
+        type:
+          type: string
+          enum: [payment.succeeded, payment.failed, payment.cancelled, payment.expired, payment.refunded]
+        livemode: { type: boolean }
+        created_at: { type: string, format: date-time }
+        data:
+          type: object
+          properties:
+            object: { $ref: "#/components/schemas/Payment" }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [type, code, message]
+          properties:
+            type:
+              type: string
+              enum: [invalid_request_error, authentication_error, permission_error, rate_limit_error, api_error]
+            code:
+              type: string
+              description: |
+                invalid_request, invalid_json, body_too_large, missing_api_key, invalid_api_key, kyc_required,
+                live_mode_not_simulable, payment_not_found, route_not_found, method_not_allowed, idempotency_key_reuse,
+                request_in_progress, payment_not_pending, rate_limited, provider_error, provider_unavailable, internal_error.
+            message: { type: string }
+            param: { type: string }
+            request_id: { type: string }
