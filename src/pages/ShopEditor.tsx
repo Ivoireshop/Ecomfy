@@ -1680,6 +1680,9 @@ const ShopEditor = () => {
                 primaryColor={primaryColor}
                 orders={orders}
                 shopSlug={shop.slug}
+                shopId={shop.id}
+                stockQrEnabled={!!shop.stock_qr_enabled}
+                onStockChanged={() => { void fetchDataNow(true); }}
               />
             </StoreRestrictedLockScreen>
           )}

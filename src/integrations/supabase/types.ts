@@ -2912,6 +2912,7 @@ export type Database = {
           sku: string | null
           slug: string | null
           stock_quantity: number | null
+          stock_qr_code: string | null
           updated_at: string | null
           variants: Json
           weight: number | null
@@ -2940,6 +2941,7 @@ export type Database = {
           sku?: string | null
           slug?: string | null
           stock_quantity?: number | null
+          stock_qr_code?: string | null
           updated_at?: string | null
           variants?: Json
           weight?: number | null
@@ -2968,6 +2970,7 @@ export type Database = {
           sku?: string | null
           slug?: string | null
           stock_quantity?: number | null
+          stock_qr_code?: string | null
           updated_at?: string | null
           variants?: Json
           weight?: number | null
@@ -3737,6 +3740,7 @@ export type Database = {
           slug: string
           snapchat_pixels: string[] | null
           social_proof_enabled: boolean | null
+          stock_qr_enabled: boolean
           ssl_status: string | null
           subscription_active_until: string | null
           subscription_plan: string
@@ -3817,6 +3821,7 @@ export type Database = {
           slug: string
           snapchat_pixels?: string[] | null
           social_proof_enabled?: boolean | null
+          stock_qr_enabled?: boolean
           ssl_status?: string | null
           subscription_active_until?: string | null
           subscription_plan?: string
@@ -3897,6 +3902,7 @@ export type Database = {
           slug?: string
           snapchat_pixels?: string[] | null
           social_proof_enabled?: boolean | null
+          stock_qr_enabled?: boolean
           ssl_status?: string | null
           subscription_active_until?: string | null
           subscription_plan?: string
