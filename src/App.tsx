@@ -62,6 +62,7 @@ const LegalNotice = lazyWithRetry(() => import("./pages/LegalNotice"));
 const ShopManager = lazyWithRetry(() => import("./pages/ShopManager"));
 const ShopBuilder = lazyWithRetry(() => import("./pages/ShopBuilder"));
 const ShopEditor = lazyWithRetry(() => import("./pages/ShopEditor"));
+const MetaAdsCallback = lazyWithRetry(() => import("./pages/MetaAdsCallback"));
 const ShopView = lazyWithRetry(() => import("./pages/ShopView"));
 const ProductView = lazyWithRetry(() => import("./pages/ProductView"));
 const ProtectedRoute = lazyWithRetry(() => import("./components/ProtectedRoute"));
@@ -434,6 +435,7 @@ const AppContent = () => {
           <Route path="/courses-manager" element={<ProtectedRoute><CoursesManager /></ProtectedRoute>} />
           <Route path="/shop-builder" element={<ProtectedRoute><ShopBuilder /></ProtectedRoute>} />
           <Route path="/shop-editor/:id" element={<ProtectedRoute><ShopEditor /></ProtectedRoute>} />
+          <Route path="/meta-ads/callback" element={<MetaAdsCallback />} />
           <Route path="/shop-preview/:id" element={<ProtectedRoute><ShopView /></ProtectedRoute>} />
           <Route path="/shop/:slug" element={<ShopView />} />
           <Route path="/shop-preview/:id/product" element={<ProtectedRoute><ProductView /></ProtectedRoute>} />
@@ -556,6 +558,8 @@ const AuthCallbackHandler = () => {
 
   useEffect(() => {
     const processCallback = async () => {
+      // Retour OAuth Meta : ?code= / ?error= appartiennent à MetaAdsCallback, pas à Supabase Auth.
+      if (location.pathname.startsWith("/meta-ads/")) return;
       const search = window.location.search;
       const hash = window.location.hash;
       const searchParams = new URLSearchParams(search);

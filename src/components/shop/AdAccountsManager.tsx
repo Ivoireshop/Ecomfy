@@ -2,13 +2,10 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Plus, RefreshCw, Trash2, Megaphone, ExternalLink, CheckCircle2, AlertCircle, Clock } from "lucide-react";
+import { MetaAdsService, type MetaConnectionStatus } from "@/services/metaAdsService";
+import { Loader2, Plus, RefreshCw, Trash2, Megaphone, CheckCircle2, AlertCircle, Clock, Briefcase, ShieldCheck, Unplug } from "lucide-react";
 
 interface AdAccount {
   id: string;
@@ -21,111 +18,75 @@ interface AdAccount {
   last_sync_status: string | null;
   last_sync_error: string | null;
   token_expires_at: string | null;
+  business_name: string | null;
+  connection_method: "manual" | "oauth" | null;
 }
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(Number(n) || 0));
 
 interface Props {
   shopId: string;
-  userId: string;
+  userId?: string;
   onTotalsChanged?: () => void;
 }
 
-export function AdAccountsManager({ shopId, userId, onTotalsChanged }: Props) {
+export function AdAccountsManager({ shopId, onTotalsChanged }: Props) {
   const [accounts, setAccounts] = useState<AdAccount[]>([]);
   const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [syncingId, setSyncingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ provider: "meta", account_id: "", access_token: "", account_label: "" });
+  const [connection, setConnection] = useState<MetaConnectionStatus | null>(null);
 
   const load = async () => {
+    // Le jeton n'est jamais sélectionné : la colonne access_token n'est plus lisible depuis le navigateur.
     const { data } = await (supabase as any)
       .from("ad_accounts")
-      .select("id, provider, account_id, account_label, currency, total_spend, last_synced_at, last_sync_status, last_sync_error, token_expires_at")
+      .select("id, provider, account_id, account_label, currency, total_spend, last_synced_at, last_sync_status, last_sync_error, token_expires_at, business_name, connection_method")
       .eq("shop_id", shopId)
       .order("created_at", { ascending: false });
     setAccounts((data as AdAccount[]) || []);
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, [shopId]);
+  const loadConnection = async () => {
+    try { setConnection(await MetaAdsService.status(shopId)); } catch { setConnection(null); }
+  };
 
-  // Avertir l'utilisateur si un token est sur le point d'expirer
+  useEffect(() => { load(); loadConnection(); }, [shopId]);
+
+  // Avertir l'utilisateur si une connexion est sur le point d'expirer
   useEffect(() => {
     if (loading || accounts.length === 0) return;
     const now = Date.now();
-    const expiring = accounts.filter(a => {
-      if (!a.token_expires_at) return false;
-      const diff = new Date(a.token_expires_at).getTime() - now;
-      return diff < 7 * 86400000;
-    });
+    const expiring = accounts.filter(a => a.token_expires_at && new Date(a.token_expires_at).getTime() - now < 7 * 86400000);
     if (expiring.length > 0) {
-      const first = expiring[0];
-      const days = Math.ceil((new Date(first.token_expires_at!).getTime() - now) / 86400000);
+      const days = Math.ceil((new Date(expiring[0].token_expires_at!).getTime() - now) / 86400000);
       toast({
-        title: days <= 0 ? "Token Meta expiré" : `Token Meta expire dans ${days} jour${days > 1 ? 's' : ''}`,
-        description: "Renouvelez votre token pour continuer la synchronisation des dépenses publicitaires.",
+        title: days <= 0 ? "Connexion Meta expirée" : `Connexion Meta : expire dans ${days} jour${days > 1 ? "s" : ""}`,
+        description: "Reconnectez votre compte Meta pour continuer la synchronisation des dépenses publicitaires.",
         variant: "destructive",
       });
     }
   }, [loading, accounts]);
 
-  const add = async () => {
-    // « act_123 » et « 123 » désignent le même compte : on stocke l'identifiant sans préfixe (sinon doublon possible et « act_act_123 » affiché).
-    const accountId = form.account_id.trim().replace(/^act_/i, "");
-    if (!accountId || !form.access_token.trim()) {
-      toast({ title: "ID du compte et token requis", variant: "destructive" });
-      return;
+  const startConnection = async () => {
+    setConnecting(true);
+    try {
+      await MetaAdsService.startConnection(shopId); // redirige vers Meta
+    } catch (e) {
+      setConnecting(false);
+      toast({ title: "Connexion Meta impossible", description: e instanceof Error ? e.message : "Réessayez.", variant: "destructive" });
     }
-    if (!/^\d{5,20}$/.test(accountId)) {
-      toast({ title: "ID de compte invalide", description: "L'identifiant ne contient que des chiffres (sans le préfixe act_).", variant: "destructive" });
-      return;
-    }
-    setSaving(true);
-    const { data, error } = await (supabase as any).from("ad_accounts").insert({
-      shop_id: shopId,
-      user_id: userId,
-      provider: form.provider,
-      account_id: accountId,
-      access_token: form.access_token.trim(),
-      account_label: form.account_label.trim() || null,
-    }).select().single();
-    if (error) {
-      setSaving(false);
-      const duplicate = error.code === "23505";
-      toast({ title: duplicate ? "Compte déjà connecté" : "Erreur", description: duplicate ? "Ce compte publicitaire est déjà relié à cette boutique." : error.message, variant: "destructive" });
-      return;
-    }
-    // Sync immédiat. Si elle échoue (ID ou token faux), on retire le compte qu'on vient de créer : sinon il reste
-    // listé avec « Erreur » et le formulaire est vidé, l'utilisateur doit tout retaper.
-    const synced = await sync(data.id, true);
-    if (!synced) {
-      await (supabase as any).from("ad_accounts").delete().eq("id", data.id);
-      setSaving(false);
-      load();
-      return;
-    }
-    setSaving(false);
-    setOpen(false);
-    setForm({ provider: "meta", account_id: "", access_token: "", account_label: "" });
   };
 
-  const sync = async (id: string, silent = false): Promise<boolean> => {
+  const sync = async (id: string) => {
     setSyncingId(id);
-    const { data, error } = await supabase.functions.invoke("sync-ad-spend", { body: { ad_account_id: id } });
+    const err = await MetaAdsService.syncAccount(id);
     setSyncingId(null);
-    if (error || !data?.success) {
-      toast({ title: "Synchronisation échouée", description: data?.error || error?.message || "Vérifiez l'ID et le token", variant: "destructive" });
-      load();
-      return false;
-    }
-    if (!silent) {
-      toast({ title: "Synchronisé", description: `${data.days} jour(s), ${fmt(data.total)} ${data.currency}` });
-    }
+    if (err) toast({ title: "Synchronisation échouée", description: err, variant: "destructive" });
+    else toast({ title: "Synchronisé" });
     load();
     onTotalsChanged?.();
-    return true;
   };
 
   const remove = async (id: string) => {
@@ -136,50 +97,89 @@ export function AdAccountsManager({ shopId, userId, onTotalsChanged }: Props) {
     onTotalsChanged?.();
   };
 
+  const disconnectMeta = async () => {
+    if (!confirm("Révoquer l'accès d'Ecomfy à votre compte Meta ? Les comptes déjà synchronisés gardent leur historique mais ne se mettront plus à jour.")) return;
+    try {
+      await MetaAdsService.disconnect(shopId);
+      toast({ title: "Accès Meta révoqué" });
+      loadConnection();
+      load();
+    } catch (e) {
+      toast({ title: "Révocation impossible", description: e instanceof Error ? e.message : "Réessayez.", variant: "destructive" });
+    }
+  };
+
+  const hasLegacy = accounts.some(a => a.connection_method !== "oauth");
+
   return (
     <Card className="p-5">
       <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
         <div>
           <h3 className="font-bold flex items-center gap-2"><Megaphone className="h-4 w-4 text-pink-600" /> Comptes publicitaires connectés</h3>
           <p className="text-xs text-muted-foreground mt-1">
-            Synchronisez automatiquement vos dépenses Meta Ads (Facebook/Instagram). Mise à jour à chaque clic sur « Actualiser ».
+            Connectez votre Business Manager Meta (Facebook / Instagram) pour synchroniser vos dépenses publicitaires.
           </p>
         </div>
-        <Button onClick={() => setOpen(true)} size="sm"><Plus className="h-4 w-4 mr-1" /> Connecter</Button>
+        <Button onClick={startConnection} size="sm" disabled={connecting}>
+          {connecting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}
+          {connection?.connected ? "Ajouter des comptes" : "Se connecter avec Facebook"}
+        </Button>
       </div>
+
+      <div className="flex items-start gap-2 text-[11px] text-muted-foreground bg-slate-50 border rounded-lg p-2.5 mb-4">
+        <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+        <span>
+          Connexion sécurisée par Meta : vous ne saisissez aucun mot de passe ni jeton. Ecomfy a un accès en <b>lecture seule</b> aux dépenses
+          et ne peut modifier ni vos campagnes ni votre budget. Vous pouvez révoquer l'accès à tout moment.
+        </span>
+      </div>
+
+      {connection?.connected && (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs mb-3">
+          <span className="text-muted-foreground flex items-center gap-1">
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Meta autorisé{connection.metaUserName ? ` par ${connection.metaUserName}` : ""}
+            {connection.expiresAt ? ` · valable jusqu'au ${new Date(connection.expiresAt).toLocaleDateString("fr-FR")}` : ""}
+          </span>
+          <Button size="sm" variant="ghost" className="h-7 text-red-600" onClick={disconnectMeta}>
+            <Unplug className="h-3.5 w-3.5 mr-1" /> Révoquer l'accès
+          </Button>
+        </div>
+      )}
+      {connection?.expired && (
+        <p className="text-xs text-red-600 mb-3 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" /> La connexion Meta a expiré : reconnectez-vous.</p>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin" /></div>
       ) : accounts.length === 0 ? (
         <div className="text-center py-6 text-sm text-muted-foreground border border-dashed rounded-lg">
-          Aucun compte connecté. Cliquez sur « Connecter » pour ajouter votre compte publicitaire Meta.
+          Aucun compte connecté. Cliquez sur « Se connecter avec Facebook » pour choisir votre Business Manager et vos comptes publicitaires.
         </div>
       ) : (
         <div className="space-y-2">
           {accounts.map(acc => (
             <div key={acc.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card">
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="outline" className="uppercase text-[10px]">{acc.provider}</Badge>
                   <span className="text-sm font-medium truncate">{acc.account_label || `act_${acc.account_id.replace(/^act_/i, "")}`}</span>
+                  {acc.business_name && <Badge variant="secondary" className="text-[10px] gap-1"><Briefcase className="h-3 w-3" />{acc.business_name}</Badge>}
+                  {acc.connection_method !== "oauth" && <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">Jeton manuel</Badge>}
                   {acc.token_expires_at && (() => {
                     const days = Math.ceil((new Date(acc.token_expires_at).getTime() - Date.now()) / 86400000);
                     if (days > 7) return null;
                     return (
                       <Badge variant="destructive" className="text-[10px] gap-1">
                         <Clock className="h-3 w-3" />
-                        {days <= 0 ? "Token expiré" : `Expire dans ${days}j`}
+                        {days <= 0 ? "Connexion expirée" : `Expire dans ${days}j`}
                       </Badge>
                     );
                   })()}
                 </div>
-                <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
                   <span>ID: {acc.account_id}</span>
                   {acc.last_sync_status === "success" && <span className="flex items-center gap-1 text-emerald-600"><CheckCircle2 className="h-3 w-3" /> {acc.last_synced_at ? new Date(acc.last_synced_at).toLocaleString("fr-FR") : ""}</span>}
                   {acc.last_sync_status === "error" && <span className="flex items-center gap-1 text-red-600" title={acc.last_sync_error || ""}><AlertCircle className="h-3 w-3" /> Erreur</span>}
-                  {acc.token_expires_at && (
-                    <span className="text-muted-foreground">Token: {new Date(acc.token_expires_at).toLocaleDateString("fr-FR")}</span>
-                  )}
                 </div>
               </div>
               <div className="text-right">
@@ -199,71 +199,11 @@ export function AdAccountsManager({ shopId, userId, onTotalsChanged }: Props) {
         </div>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Connecter un compte publicitaire</DialogTitle>
-            <DialogDescription>
-              Les dépenses seront ajoutées automatiquement à la catégorie « Publicité » de votre finance.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label>Plateforme</Label>
-              <Select value={form.provider} onValueChange={(v) => setForm(f => ({ ...f, provider: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="meta">Meta (Facebook / Instagram)</SelectItem>
-                  <SelectItem value="tiktok" disabled>TikTok (bientôt)</SelectItem>
-                  <SelectItem value="google" disabled>Google Ads (bientôt)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>ID du compte publicitaire</Label>
-              <Input
-                placeholder="ex: 1234567890 (sans le préfixe act_)"
-                value={form.account_id}
-                onChange={(e) => setForm(f => ({ ...f, account_id: e.target.value }))}
-              />
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Trouvé dans <b>Business Manager → Paramètres → Comptes publicitaires</b>.
-              </p>
-            </div>
-            <div>
-              <Label>Token d'accès (Access Token)</Label>
-              <Input
-                type="password"
-                placeholder="Long-lived access token Meta"
-                value={form.access_token}
-                onChange={(e) => setForm(f => ({ ...f, access_token: e.target.value }))}
-              />
-              <a
-                href="https://developers.facebook.com/tools/explorer/"
-                target="_blank"
-                rel="noreferrer"
-                className="text-[11px] text-primary inline-flex items-center gap-1 mt-1 hover:underline"
-              >
-                Générer un token <ExternalLink className="h-3 w-3" />
-              </a>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Permission requise : <code>ads_read</code>. Le token n'est jamais affiché à nouveau. Le compte doit être en FCFA/XOF (ou en euro) pour que les montants soient comptés.
-              </p>
-            </div>
-            <div>
-              <Label>Libellé (optionnel)</Label>
-              <Input
-                placeholder="ex: Compte principal"
-                value={form.account_label}
-                onChange={(e) => setForm(f => ({ ...f, account_label: e.target.value }))}
-              />
-            </div>
-            <Button onClick={add} disabled={saving} className="w-full">
-              {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-1" /> Connexion + synchronisation…</> : "Connecter et synchroniser"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {hasLegacy && (
+        <p className="text-[11px] text-amber-700 mt-3">
+          Certains comptes utilisent un jeton saisi à la main. Reconnectez-les avec Facebook : le jeton manuel sera remplacé par une connexion sécurisée.
+        </p>
+      )}
     </Card>
   );
 }

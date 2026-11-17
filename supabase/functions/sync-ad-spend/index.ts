@@ -75,7 +75,7 @@ serveCors("app", async (req) => {
 
     const { data: acc, error: accErr } = await admin
       .from("ad_accounts")
-      .select("id, shop_id, user_id, provider, account_id, access_token")
+      .select("id, shop_id, user_id, provider, account_id, access_token, connection_id, connection:meta_ads_connections(access_token)")
       .eq("id", ad_account_id)
       .maybeSingle();
 
@@ -96,8 +96,16 @@ serveCors("app", async (req) => {
     let tokenExpiresAt: string | null = null;
     try {
       if (acc.provider === "meta") {
-        daily = await syncMeta(acc.account_id, acc.access_token);
-        tokenExpiresAt = await debugMetaToken(acc.access_token);
+        // Compte connecté par OAuth : jeton de la connexion ; compte historique : jeton manuel de la ligne.
+        const conn = acc.connection as { access_token?: string } | { access_token?: string }[] | null;
+        const connToken = Array.isArray(conn) ? conn[0]?.access_token : conn?.access_token;
+        const metaToken: string | null = connToken ?? acc.access_token ?? null;
+        if (!metaToken) throw new Error("Connexion Meta absente : reconnectez votre compte publicitaire.");
+        daily = await syncMeta(acc.account_id, metaToken);
+        tokenExpiresAt = await debugMetaToken(metaToken);
+        if (acc.connection_id && tokenExpiresAt) {
+          await admin.from("meta_ads_connections").update({ token_expires_at: tokenExpiresAt }).eq("id", acc.connection_id);
+        }
       } else {
         throw new Error(`Provider ${acc.provider} non supporté pour le moment`);
       }
