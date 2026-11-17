@@ -65,15 +65,15 @@ export function StockQrScanner({ open, shopId, onClose, onStockChanged }: StockQ
     onClose();
   };
 
-  const apply = async (sign: 1 | -1) => {
+  const apply = async (kind: "in" | "out" | "return") => {
     if (!product || delta < 1) return;
     setBusy(true);
     const res = await recordStockMovement({
       shopId: product.shop_id,
       productId: product.product_id,
-      type: sign > 0 ? "restock" : "adjustment",
-      quantity: sign * delta,
-      notes: "Scan QR stock",
+      type: kind === "in" ? "restock" : kind === "out" ? "adjustment" : "return_restock",
+      quantity: kind === "out" ? -delta : delta,
+      notes: kind === "return" ? "Retour client (scan QR)" : "Scan QR stock",
     });
     setBusy(false);
     if (!res.ok) {
@@ -121,13 +121,16 @@ export function StockQrScanner({ open, shopId, onClose, onStockChanged }: StockQ
               <Button variant="outline" size="icon" aria-label="Plus" onClick={() => setDelta((d) => d + 1)}><Plus className="h-4 w-4" /></Button>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" disabled={busy} onClick={() => apply(-1)}>
+              <Button variant="outline" disabled={busy} onClick={() => apply("out")}>
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : `Retirer ${delta}`}
               </Button>
-              <Button disabled={busy} onClick={() => apply(1)}>
+              <Button disabled={busy} onClick={() => apply("in")}>
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : `Ajouter ${delta}`}
               </Button>
             </div>
+            <Button variant="secondary" className="w-full" disabled={busy} onClick={() => apply("return")}>
+              Retour client : remettre {delta} en stock
+            </Button>
             <Button variant="ghost" className="w-full" onClick={() => setProduct(null)}>Scanner un autre produit</Button>
           </div>
         )}
