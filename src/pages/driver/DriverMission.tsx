@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { SignaturePad } from "@/components/driver/SignaturePad";
 import { fetchMyDeliveryMissions } from "@/lib/driverMissions";
 import { uploadDeliveryProof } from "@/lib/deliveryRpc";
+import { DriverStockScan } from "@/components/driver/DriverStockScan";
 
 // Motifs proposés au livreur ; « Autre » demande un texte libre. Le serveur exige un motif non vide.
 const FAILURE_REASONS = [
@@ -228,6 +229,8 @@ export default function DriverMission() {
             )}
           </div>
         </div>
+
+        <DriverStockScan deliveryId={delivery.delivery_id} canScan={canStart || canFinish} />
 
         {/* Action Buttons */}
         <div className="pt-4 pb-20 space-y-3">
