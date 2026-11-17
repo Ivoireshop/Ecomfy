@@ -23,8 +23,8 @@ function ok(body: Record<string, unknown>, status = 200) {
 async function syncMeta(accountId: string, token: string) {
   // accountId may be "act_xxx" or "xxx"
   const id = accountId.startsWith("act_") ? accountId : `act_${accountId}`;
-  let url: string | null = `https://graph.facebook.com/${GRAPH_VERSION}/${id}/insights?fields=spend,account_currency,date_start,date_stop&time_increment=1&date_preset=maximum&limit=500&access_token=${encodeURIComponent(token)}`;
-  const rows: Array<{ spend: string; account_currency?: string; date_start: string }> = [];
+  let url: string | null = `https://graph.facebook.com/${GRAPH_VERSION}/${id}/insights?fields=spend,account_currency,impressions,clicks,actions,action_values,date_start,date_stop&time_increment=1&date_preset=maximum&limit=500&access_token=${encodeURIComponent(token)}`;
+  const rows: Array<MetaInsightRow> = [];
   // Meta pagine à 500 jours : l'historique maximum (37 mois, soit plus de 1 000 jours) tenait sur plusieurs pages et seule la
   // première était lue, d'où des dépenses publicitaires et un total tronqués sans erreur.
   for (let page = 0; url && page < 10; page++) {
@@ -40,8 +40,35 @@ async function syncMeta(accountId: string, token: string) {
     spend_date: r.date_start,
     amount: Number.isFinite(Number(r.spend)) ? Number(r.spend) : 0,
     currency: r.account_currency || "XOF",
+    purchases: purchaseOf(r.actions),
+    purchase_value: purchaseOf(r.action_values),
+    impressions: intOrNull(r.impressions),
+    clicks: intOrNull(r.clicks),
     raw: r,
   }));
+}
+
+interface MetaAction { action_type: string; value: string }
+interface MetaInsightRow {
+  spend: string; account_currency?: string; date_start: string;
+  impressions?: string; clicks?: string; actions?: MetaAction[]; action_values?: MetaAction[];
+}
+
+function intOrNull(v: unknown): number | null {
+  const n = Number(v);
+  return v !== undefined && v !== null && v !== "" && Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
+}
+
+/**
+ * Achats (ou leur valeur) d'une ligne Insights. « purchase » regroupe pixel et serveur : on ne cumule jamais les deux
+ * types, ce qui compterait deux fois les mêmes événements (même règle que reconcile-tracking). Meta omet le champ
+ * quand il n'y a aucune conversion : c'est bien 0 achat, pas une valeur inconnue.
+ */
+function purchaseOf(list: MetaAction[] | undefined): number {
+  const a = (list || []).find((x) => x.action_type === "purchase") ||
+    (list || []).find((x) => x.action_type === "offsite_conversion.fb_pixel_purchase");
+  const n = Number(a?.value);
+  return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
 async function debugMetaToken(token: string): Promise<string | null> {
@@ -91,7 +118,7 @@ serveCors("app", async (req) => {
       return ok({ success: false, error: "Accès refusé" });
     }
 
-    let daily: Array<{ spend_date: string; amount: number; currency: string; raw: any }> = [];
+    let daily: Array<{ spend_date: string; amount: number; currency: string; purchases: number; purchase_value: number; impressions: number | null; clicks: number | null; raw: any }> = [];
     let currency = "XOF";
     let tokenExpiresAt: string | null = null;
     try {
@@ -129,6 +156,10 @@ serveCors("app", async (req) => {
         spend_date: d.spend_date,
         amount: d.amount,
         currency: d.currency,
+        purchases: d.purchases,
+        purchase_value: d.purchase_value,
+        impressions: d.impressions,
+        clicks: d.clicks,
         raw: d.raw,
       }));
       for (let i = 0; i < rows.length; i += 500) {

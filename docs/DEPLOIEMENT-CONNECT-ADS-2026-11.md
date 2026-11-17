@@ -13,9 +13,19 @@
 
 Les comptes déjà connectés avec un jeton manuel **continuent de se synchroniser** (badge « Jeton manuel ») ; les reconnecter par Facebook remplace leur jeton.
 
+## Ajout : conversions Meta à côté des dépenses (17/11/2026)
+
+- `sync-ad-spend` demande aussi à l'API Insights les **achats attribués** (`actions`), leur **valeur** (`action_values`), les impressions et les clics. « purchase » est prioritaire, l'achat pixel sert de repli, jamais les deux cumulés (même règle que `reconcile-tracking`).
+- Migration `20261117110000_ad_spend_conversions.sql` : colonnes `purchases`, `purchase_value`, `impressions`, `clicks` sur `ad_spend_daily`, **NULL tant que le jour n'est pas resynchronisé** (inconnu ≠ zéro). Elle retire aussi les politiques INSERT/UPDATE et les droits d'écriture de `authenticated` : jusqu'ici un propriétaire pouvait écrire ses propres dépenses par l'API REST. Seul le service role (la fonction) écrit désormais.
+- Finances (`ShopFinances.tsx`) : carte « Achats attribués par Meta » avec **ROAS Meta** (valeur attribuée / dépenses des jours synchronisés), distinct du ROAS « encaissé ». « — » tant qu'aucun jour n'est synchronisé.
+- Le nombre d'achats est celui que **Meta attribue aux publicités**, pas le nombre d'événements CAPI reçus.
+- Après déploiement : **relancer la synchronisation de chaque compte** pour remplir l'historique (les anciennes lignes restent NULL sinon). `purchase_value` est dans la devise du compte (colonne `currency`) ; une devise sans parité fixe n'est pas convertie en FCFA.
+- Les migrations `20261117100000` puis `20261117110000` s'appliquent dans cet ordre ; fonctions `sync-ad-spend`, `meta-ads-oauth`, `reconcile-tracking` ; puis front.
+- Sur Windows, `supabase functions deploy` échoue au bundling Docker (chemin de volume) : ajouter `--use-api`.
+
 ## Fichiers
 
-- `supabase/migrations/20261117100000_meta_ads_oauth.sql`
+- `supabase/migrations/20261117100000_meta_ads_oauth.sql`, `supabase/migrations/20261117110000_ad_spend_conversions.sql`
 - `supabase/functions/meta-ads-oauth/index.ts` (nouvelle) et `supabase/functions/_shared/metaAds.ts`
 - `supabase/functions/sync-ad-spend/index.ts`, `supabase/functions/reconcile-tracking/index.ts` (lisent le jeton de la connexion)
 - `src/pages/MetaAdsCallback.tsx` (route `/meta-ads/callback`), `src/services/metaAdsService.ts`, `src/components/shop/AdAccountsManager.tsx`, `src/App.tsx`
@@ -59,4 +69,5 @@ supabase secrets set META_STATE_SECRET=<aléatoire 32+ octets>                  
 
 - Jeton long Meta : ~60 jours, **sans renouvellement automatique** (Meta ne le permet pas sans nouvelle autorisation). L'alerte d'expiration à 7 jours existante (`check-ad-token-expiry`) s'applique ; son e-mail parle encore de « token ».
 - TikTok et Google Ads restent « bientôt ».
+- Conversions : jamais lues sur un vrai compte Meta (pas d'application Meta) ; le format `actions` / `action_values` suit la documentation Insights.
 - Jamais testé de bout en bout contre Meta : aucune application Meta configurée au moment de l'écriture.

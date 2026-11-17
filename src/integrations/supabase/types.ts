@@ -223,6 +223,10 @@ export type Database = {
         Row: {
           ad_account_id: string
           amount: number
+          clicks: number | null
+          impressions: number | null
+          purchase_value: number | null
+          purchases: number | null
           created_at: string
           currency: string | null
           id: string
@@ -234,6 +238,10 @@ export type Database = {
         Insert: {
           ad_account_id: string
           amount?: number
+          clicks?: number | null
+          impressions?: number | null
+          purchase_value?: number | null
+          purchases?: number | null
           created_at?: string
           currency?: string | null
           id?: string
@@ -245,6 +253,10 @@ export type Database = {
         Update: {
           ad_account_id?: string
           amount?: number
+          clicks?: number | null
+          impressions?: number | null
+          purchase_value?: number | null
+          purchases?: number | null
           created_at?: string
           currency?: string | null
           id?: string
