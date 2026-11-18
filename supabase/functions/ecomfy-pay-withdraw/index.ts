@@ -94,10 +94,18 @@ serveCors("app", async (req) => {
       );
     }
 
-    // Envoi du versement à l'opérateur si ses identifiants sont présents.
+    // Versement MANUEL par défaut : la demande reste REQUESTED (« en attente de validation ») jusqu'à ce que le fondateur
+    // verse l'argent et la clôture depuis son interface. Le versement automatique n'a lieu que si le réglage
+    // withdrawals_auto_payout vaut true ET que les identifiants du connecteur sont présents.
+    const { data: autoSetting } = await supabase
+      .from("ecomfy_pay_settings")
+      .select("value")
+      .eq("key", "withdrawals_auto_payout")
+      .maybeSingle();
+    const autoPayout = autoSetting?.value === true;
     const connector = getDefaultConnector();
 
-    if (connector.isConfigured()) {
+    if (autoPayout && connector.isConfigured()) {
       const payout = await connector.initiatePayout({
         withdrawalReference: result.withdrawal_reference,
         amount,
@@ -141,7 +149,9 @@ serveCors("app", async (req) => {
         withdrawal_reference: result.withdrawal_reference,
         amount: result.amount,
         remaining_available_balance: result.remaining_available_balance,
-        message: "Votre demande de retrait a été enregistrée avec succès. Les fonds vous seront transférés sous peu.",
+        message: autoPayout
+          ? "Votre demande de retrait a été enregistrée avec succès. Les fonds vous seront transférés sous peu."
+          : "Votre demande de retrait est enregistrée et en attente de validation par l'équipe Ecomfy.",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

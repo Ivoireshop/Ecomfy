@@ -41,7 +41,7 @@ interface Props {
 export function ShopFinances({ shopId, shop, orders }: Props) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
-  const [adSpend, setAdSpend] = useState<{ spend_date: string; amount: number; currency: string }[]>([]);
+  const [adSpend, setAdSpend] = useState<{ spend_date: string; amount: number; currency: string; purchases: number | null; purchase_value: number | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [period, setPeriod] = useState<FinancePeriod>("month");
@@ -81,14 +81,16 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
         .order("expense_date", { ascending: false }).order("id", { ascending: false })),
       fetchAllPages(() => supabase.from("commission_payments").select("id, amount, created_at").eq("shop_id", shopId).eq("status", "paid")
         .order("created_at", { ascending: false }).order("id", { ascending: false })),
-      fetchAllPages(() => (supabase as any).from("ad_spend_daily").select("id, spend_date, amount, currency").eq("shop_id", shopId)
+      fetchAllPages(() => (supabase as any).from("ad_spend_daily").select("id, spend_date, amount, currency, purchases, purchase_value").eq("shop_id", shopId)
         .order("spend_date", { ascending: false }).order("id", { ascending: false })),
     ]);
     // Une lecture en échec ne doit pas s'afficher comme « 0 FCFA » : on le dit.
     setLoadFailed(exp.failed || pay.failed || ads.failed);
     setExpenses(exp.rows as Expense[]);
     setPayments(pay.rows);
-    setAdSpend(ads.rows.map((r: any) => ({ spend_date: r.spend_date, amount: Number(r.amount || 0), currency: r.currency || "XOF" })));
+    setAdSpend(ads.rows.map((r: any) => ({ spend_date: r.spend_date, amount: Number(r.amount || 0), currency: r.currency || "XOF",
+      purchases: r.purchases === null || r.purchases === undefined ? null : Number(r.purchases),
+      purchase_value: r.purchase_value === null || r.purchase_value === undefined ? null : Number(r.purchase_value) })));
     setLoading(false);
   };
   useEffect(() => { setLoading(true); reloadAll(); }, [shopId]);
@@ -97,13 +99,13 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
 
   const filtered = useMemo(() => {
     // Dépenses publicitaires converties en FCFA ; une devise sans parité fixe (USD...) n'est pas additionnée à des FCFA.
-    const ads: { spend_date: string; amount: number }[] = [];
+    const ads: { spend_date: string; amount: number; purchases: number | null; purchaseValue: number | null }[] = [];
     const skipped = new Set<string>();
     adSpend.forEach(a => {
       if (!isInPeriod(a.spend_date, startKey)) return;
       const converted = toFcfa(a.amount, a.currency);
       if (converted === null) { skipped.add(String(a.currency).toUpperCase()); return; }
-      ads.push({ spend_date: a.spend_date, amount: converted });
+      ads.push({ spend_date: a.spend_date, amount: converted, purchases: a.purchases, purchaseValue: a.purchase_value === null ? null : toFcfa(a.purchase_value, a.currency) });
     });
     return {
       orders: orders.filter(o => isInPeriod(o.created_at, startKey)),
@@ -129,6 +131,13 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
       expByCat["ads"] = (expByCat["ads"] || 0) + adSpendTotal;
     }
 
+    // Conversions Meta : seulement les jours déjà synchronisés (NULL = inconnu, pas zéro). ROAS Meta = valeur attribuée
+    // par Meta / dépenses des mêmes jours, distinct du ROAS « encaissé » ci-dessous.
+    const metaDays = filtered.adSpend.filter(a => a.purchases !== null && a.purchaseValue !== null);
+    const metaPurchases = metaDays.reduce((s, a) => s + Number(a.purchases), 0);
+    const metaSpend = metaDays.reduce((s, a) => s + a.amount, 0);
+    const metaRoas = metaSpend > 0 ? metaDays.reduce((s, a) => s + Number(a.purchaseValue), 0) / metaSpend : null;
+
     const manualExpenses = filtered.expenses.reduce((s, e) => s + Number(e.amount), 0);
     const operatingExpenses = manualExpenses + adSpendTotal;
     const platformFees = filtered.platformPayments.reduce((s, p) => s + Number(p.amount), 0);
@@ -148,7 +157,7 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
       confirmedCount: confirmed.length,
       deliveredCount: delivered.length,
       revenue, cashIn, totalExpenses, operatingExpenses, platformFees, commissionDue, profit, margin, expByCat, adSpendTotal,
-      roas, cac
+      roas, cac, metaPurchases, metaRoas, metaSynced: metaDays.length > 0
     };
   }, [filtered, shop]);
 
@@ -471,7 +480,7 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
           </div>
 
           {/* Advanced Metrics (New) */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Card className="p-4 border-slate-100 shadow-sm bg-white flex items-center justify-between">
               <div>
                 <div className="text-xs font-bold text-slate-500 mb-1 uppercase">Coût d'Acquisition Client (CAC)</div>
@@ -490,6 +499,18 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
               </div>
               <div className="h-10 w-10 rounded-full bg-pink-50 flex items-center justify-center">
                 <Activity className="h-5 w-5 text-pink-500" />
+              </div>
+            </Card>
+            <Card className="p-4 border-slate-100 shadow-sm bg-white flex items-center justify-between">
+              <div>
+                <div className="text-xs font-bold text-slate-500 mb-1 uppercase">Achats attribués par Meta</div>
+                <div className="text-xl font-bold text-slate-900">{stats.metaSynced ? stats.metaPurchases : "—"}</div>
+                <div className="text-[10px] text-slate-400">
+                  {stats.metaSynced && stats.metaRoas !== null ? `ROAS Meta ${stats.metaRoas.toFixed(2)}x` : "Synchronisez un compte pour les voir"}
+                </div>
+              </div>
+              <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center">
+                <Activity className="h-5 w-5 text-blue-500" />
               </div>
             </Card>
           </div>

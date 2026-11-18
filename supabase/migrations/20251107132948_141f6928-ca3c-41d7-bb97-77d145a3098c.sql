@@ -13,7 +13,7 @@ CREATE TABLE public.ad_templates (
   recommended_duration INTEGER DEFAULT 10,
   recommended_platforms TEXT[] DEFAULT ARRAY['Facebook', 'Instagram', 'TikTok'],
   is_active BOOLEAN DEFAULT true,
-  created_by UUID NOT NULL,
+  created_by UUID, -- NOT NULL rétabli plus bas si le compte fondateur existe (M11 : base vierge)
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
@@ -155,6 +155,13 @@ INSERT INTO public.ad_templates (name, category, description, style_preset, anim
   ARRAY['LinkedIn', 'Facebook', 'YouTube'],
   (SELECT id FROM auth.users WHERE email = 'djateulrich@gmail.com')
 );
+
+-- M11 : sur une base vierge le compte fondateur n'existe pas, created_by reste NULL ; on ne rétablit NOT NULL que si c'est possible.
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.ad_templates WHERE created_by IS NULL) THEN
+    ALTER TABLE public.ad_templates ALTER COLUMN created_by SET NOT NULL;
+  END IF;
+END $$;
 
 -- Trigger pour updated_at
 CREATE TRIGGER update_ad_templates_updated_at

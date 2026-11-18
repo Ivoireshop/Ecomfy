@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS public.stock_movements (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     shop_id UUID NOT NULL REFERENCES public.shops(id) ON DELETE CASCADE,
     product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
-    variant_id UUID REFERENCES public.product_variants(id) ON DELETE SET NULL,
+    variant_id UUID, -- FK vers product_variants ajoutée plus bas si la table existe
     unit_code TEXT,
     movement_type TEXT NOT NULL, -- 'restock', 'reservation', 'driver_handover', 'delivered', 'failed_delivery', 'return_restock', 'adjustment'
     quantity INTEGER NOT NULL,
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS public.inventory_units (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     shop_id UUID NOT NULL REFERENCES public.shops(id) ON DELETE CASCADE,
     product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
-    variant_id UUID REFERENCES public.product_variants(id) ON DELETE SET NULL,
+    variant_id UUID, -- FK vers product_variants ajoutée plus bas si la table existe
     unit_qr_code TEXT UNIQUE NOT NULL, -- e.g. ECOMFY-UNIT-8F92K2
     status TEXT NOT NULL DEFAULT 'available', -- 'available', 'reserved', 'in_transit', 'delivered', 'returned', 'damaged'
     current_order_id UUID REFERENCES public.orders(id) ON DELETE SET NULL,
@@ -182,3 +182,15 @@ BEGIN
     );
 END;
 $$;
+
+-- M11 : product_variants n'est créée par aucune migration ; la clé étrangère n'est posée que si la table existe.
+DO $$ BEGIN
+  IF to_regclass('public.product_variants') IS NOT NULL THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'stock_movements_variant_id_fkey') THEN
+      ALTER TABLE public.stock_movements ADD CONSTRAINT stock_movements_variant_id_fkey FOREIGN KEY (variant_id) REFERENCES public.product_variants(id) ON DELETE SET NULL;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'inventory_units_variant_id_fkey') THEN
+      ALTER TABLE public.inventory_units ADD CONSTRAINT inventory_units_variant_id_fkey FOREIGN KEY (variant_id) REFERENCES public.product_variants(id) ON DELETE SET NULL;
+    END IF;
+  END IF;
+END $$;

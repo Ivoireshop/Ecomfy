@@ -37,15 +37,15 @@ AS $$
 $$;
 
 -- Surcharge de sécurité pour conserver la compatibilité avec l'ancien type enum si référencé
-DO $$
+DO $do$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'shop_collab_role') THEN
     CREATE OR REPLACE FUNCTION public.has_shop_role(_shop_id uuid, _user_id uuid, _role public.shop_collab_role)
-    RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+    RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $fn$
       SELECT public.has_shop_role(_shop_id, _user_id, _role::text);
-    $$;
+    $fn$;
   END IF;
-END $$;
+END $do$;
 
 -- 3. Mise à jour des politiques RLS sur les produits pour inclure manage_catalog et full_admin
 DROP POLICY IF EXISTS "Collaborators edit_shop can write products" ON public.products;

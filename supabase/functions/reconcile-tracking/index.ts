@@ -67,7 +67,7 @@ serveCors("app", async (req) => {
       admin.from("shop_secrets").select("facebook_access_token").eq("shop_id", shop_id).maybeSingle(),
       admin
         .from("ad_accounts")
-        .select("account_id, access_token")
+        .select("account_id, access_token, connection:meta_ads_connections(access_token)")
         .eq("shop_id", shop_id)
         .eq("provider", "meta")
         .eq("is_active", true),
@@ -104,7 +104,9 @@ serveCors("app", async (req) => {
 
     // ---------- Meta Insights (achats attribués) ----------
     const account = adAccounts?.[0];
-    const metaToken: string | undefined = account?.access_token || secrets?.facebook_access_token || undefined;
+    const conn = account?.connection as { access_token?: string } | { access_token?: string }[] | null | undefined;
+    const connToken = Array.isArray(conn) ? conn[0]?.access_token : conn?.access_token;
+    const metaToken: string | undefined = connToken || account?.access_token || secrets?.facebook_access_token || undefined;
     let metaApiConnected = false;
     let metaErrorMessage: string | null = null;
     const metaByDay: Record<string, number> = {};

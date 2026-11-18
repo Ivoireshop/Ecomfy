@@ -10,14 +10,14 @@ ALTER TYPE public.shop_collab_role ADD VALUE IF NOT EXISTS 'full_admin';
 ALTER TABLE public.shop_collaborators ALTER COLUMN roles TYPE text[] USING roles::text[];
 
 -- 3. Update has_shop_role SECURITY DEFINER function to support text roles & grant full_admin universal access
-CREATE OR REPLACE FUNCTION public.has_shop_role(_shop_id uuid, _user_id uuid, _role text)
+CREATE OR REPLACE FUNCTION public.has_shop_role(_shop_id uuid, _user_id uuid, _required_role text)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.shop_collaborators
     WHERE shop_id = _shop_id
       AND user_id = _user_id
       AND status = 'active'
-      AND ('full_admin' = ANY(roles) OR _role = ANY(roles))
+      AND ('full_admin' = ANY(roles) OR _required_role = ANY(roles))
   );
 $$;
 

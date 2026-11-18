@@ -223,6 +223,10 @@ export type Database = {
         Row: {
           ad_account_id: string
           amount: number
+          clicks: number | null
+          impressions: number | null
+          purchase_value: number | null
+          purchases: number | null
           created_at: string
           currency: string | null
           id: string
@@ -234,6 +238,10 @@ export type Database = {
         Insert: {
           ad_account_id: string
           amount?: number
+          clicks?: number | null
+          impressions?: number | null
+          purchase_value?: number | null
+          purchases?: number | null
           created_at?: string
           currency?: string | null
           id?: string
@@ -245,6 +253,10 @@ export type Database = {
         Update: {
           ad_account_id?: string
           amount?: number
+          clicks?: number | null
+          impressions?: number | null
+          purchase_value?: number | null
+          purchases?: number | null
           created_at?: string
           currency?: string | null
           id?: string
@@ -2912,6 +2924,7 @@ export type Database = {
           sku: string | null
           slug: string | null
           stock_quantity: number | null
+          stock_qr_code: string | null
           updated_at: string | null
           variants: Json
           weight: number | null
@@ -2940,6 +2953,7 @@ export type Database = {
           sku?: string | null
           slug?: string | null
           stock_quantity?: number | null
+          stock_qr_code?: string | null
           updated_at?: string | null
           variants?: Json
           weight?: number | null
@@ -2968,6 +2982,7 @@ export type Database = {
           sku?: string | null
           slug?: string | null
           stock_quantity?: number | null
+          stock_qr_code?: string | null
           updated_at?: string | null
           variants?: Json
           weight?: number | null
@@ -3737,6 +3752,7 @@ export type Database = {
           slug: string
           snapchat_pixels: string[] | null
           social_proof_enabled: boolean | null
+          stock_qr_enabled: boolean
           ssl_status: string | null
           subscription_active_until: string | null
           subscription_plan: string
@@ -3817,6 +3833,7 @@ export type Database = {
           slug: string
           snapchat_pixels?: string[] | null
           social_proof_enabled?: boolean | null
+          stock_qr_enabled?: boolean
           ssl_status?: string | null
           subscription_active_until?: string | null
           subscription_plan?: string
@@ -3897,6 +3914,7 @@ export type Database = {
           slug?: string
           snapchat_pixels?: string[] | null
           social_proof_enabled?: boolean | null
+          stock_qr_enabled?: boolean
           ssl_status?: string | null
           subscription_active_until?: string | null
           subscription_plan?: string

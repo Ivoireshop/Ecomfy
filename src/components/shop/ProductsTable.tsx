@@ -5,9 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Plus, Eye, Edit, Trash2, Copy, Package, Image as ImageIcon, Upload, ExternalLink, Link2, MoreVertical, SlidersHorizontal, Power } from "lucide-react";
+import { Search, Plus, Eye, Edit, Trash2, Copy, Package, Image as ImageIcon, Upload, ExternalLink, Link2, MoreVertical, SlidersHorizontal, Power, QrCode, ScanLine, History } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { ProductStockQrDialog } from "./ProductStockQrDialog";
+import { StockQrScanner } from "./StockQrScanner";
+import { StockHistoryDialog } from "./StockHistoryDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Product {
@@ -44,12 +47,21 @@ interface ProductsTableProps {
   primaryColor: string;
   orders: { id?: string; products_summary?: string | null; order_items?: { product_id: string; quantity: number }[] }[];
   shopSlug?: string;
+  shopId?: string;
+  /** Stock par QR code activé pour cette boutique (Paramètres). */
+  stockQrEnabled?: boolean;
+  onStockChanged?: () => void;
 }
 
 export function ProductsTable({
   products, searchQuery, onSearchChange, onAddProduct,
-  onEditProduct, onDeleteProduct, onToggleStatus, onUploadImage, onPreviewProduct, primaryColor, orders, shopSlug,
+  onEditProduct, onDeleteProduct, onToggleStatus, onUploadImage, onPreviewProduct, primaryColor, orders, shopSlug, shopId, stockQrEnabled, onStockChanged,
 }: ProductsTableProps) {
+  const [qrProduct, setQrProduct] = useState<Product | null>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyProduct, setHistoryProduct] = useState<{ id: string; name: string } | null>(null);
+  const openHistory = (p: { id: string; name: string } | null) => { setHistoryProduct(p); setHistoryOpen(true); };
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("recent");
@@ -135,10 +147,29 @@ export function ProductsTable({
       {/* Header */}
       <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
         <h2 className="text-xl font-bold">Produits</h2>
-        <Button className="gap-2" onClick={onAddProduct}>
-          <Plus className="h-4 w-4" /> Nouveau produit
-        </Button>
+        <div className="flex gap-2">
+          {stockQrEnabled && shopId && (
+            <Button variant="outline" className="gap-2" onClick={() => setScannerOpen(true)}>
+              <ScanLine className="h-4 w-4" /> Scanner le stock
+            </Button>
+          )}
+          {stockQrEnabled && shopId && (
+            <Button variant="outline" className="gap-2" onClick={() => openHistory(null)}>
+              <History className="h-4 w-4" /> Historique du stock
+            </Button>
+          )}
+          <Button className="gap-2" onClick={onAddProduct}>
+            <Plus className="h-4 w-4" /> Nouveau produit
+          </Button>
+        </div>
       </div>
+      {stockQrEnabled && shopId && (
+        <StockQrScanner open={scannerOpen} shopId={shopId} onClose={() => setScannerOpen(false)} onStockChanged={onStockChanged} />
+      )}
+      {stockQrEnabled && shopId && (
+        <StockHistoryDialog open={historyOpen} shopId={shopId} product={historyProduct} onClose={() => setHistoryOpen(false)} />
+      )}
+      <ProductStockQrDialog product={qrProduct} onClose={() => setQrProduct(null)} />
 
       {/* Search & Filters */}
       <Card className="p-3">
@@ -275,6 +306,16 @@ export function ProductsTable({
                           <ExternalLink className="h-4 w-4 mr-2" /> Voir en magasin
                         </DropdownMenuItem>
                       )}
+                      {stockQrEnabled && (
+                        <DropdownMenuItem onClick={() => setQrProduct(product)}>
+                          <QrCode className="h-4 w-4 mr-2" /> QR code stock
+                        </DropdownMenuItem>
+                      )}
+                      {stockQrEnabled && (
+                        <DropdownMenuItem onClick={() => openHistory({ id: product.id, name: product.name })}>
+                          <History className="h-4 w-4 mr-2" /> Historique du stock
+                        </DropdownMenuItem>
+                      )}
                       {shopSlug && product.slug && (
                         <DropdownMenuItem onClick={() => copyProductLink(product.slug!)}>
                           <Link2 className="h-4 w-4 mr-2" /> Copier le lien
@@ -380,6 +421,16 @@ export function ProductsTable({
                               onClick={() => copyProductLink(product.slug!)}
                             >
                               <Link2 className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          )}
+                          {stockQrEnabled && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title="QR code stock" onClick={() => setQrProduct(product)}>
+                              <QrCode className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          )}
+                          {stockQrEnabled && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Historique du stock" onClick={() => openHistory({ id: product.id, name: product.name })}>
+                              <History className="h-4 w-4 text-muted-foreground" />
                             </Button>
                           )}
                           <Button variant="ghost" size="icon" className="h-8 w-8" title="Modifier" onClick={() => onEditProduct(product)}>

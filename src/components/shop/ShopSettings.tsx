@@ -63,6 +63,7 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
   const [deleting, setDeleting] = useState(false);
   const [savingSocialProof, setSavingSocialProof] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [savingStockQr, setSavingStockQr] = useState(false);
 
   // Pixel state
   const [newFbPixel, setNewFbPixel] = useState("");
@@ -124,6 +125,20 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
       return;
     }
     toast({ title: enabled ? "Preuve sociale activée ✓" : "Preuve sociale désactivée" });
+  };
+
+  const updateStockQr = async (enabled: boolean) => {
+    const previous = !!shop.stock_qr_enabled;
+    setShop({ ...shop, stock_qr_enabled: enabled });
+    setSavingStockQr(true);
+    const { error } = await supabase.from("shops").update({ stock_qr_enabled: enabled }).eq("id", shop.id);
+    setSavingStockQr(false);
+    if (error) {
+      setShop({ ...shop, stock_qr_enabled: previous });
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: enabled ? "Stock par QR code activé ✓" : "Stock par QR code désactivé" });
   };
 
   const canConfirmDelete = !!shop.business_name?.trim() && deleteConfirmText === shop.business_name;
@@ -471,6 +486,14 @@ export function ShopSettings({ shop, setShop, onDeleteShop }: ShopSettingsProps)
                       <p className="text-sm text-muted-foreground mt-0.5">Affiche à vos visiteurs vos vraies commandes des 7 derniers jours (prénom du client et produit commandé, hors commandes annulées ou retournées) pour renforcer la confiance. Rien ne s'affiche tant que vous n'avez pas de commande récente.</p>
                     </div>
                     <Switch checked={shop.social_proof_enabled || false} onCheckedChange={updateSocialProof} disabled={savingSocialProof} className="data-[state=checked]:bg-primary" />
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 rounded-xl border border-border/60 hover:border-primary/30 transition-colors bg-muted/10">
+                    <div className="pr-4">
+                      <p className="font-bold flex items-center gap-2">Stock par QR code {savingStockQr && <Loader2 className="h-3 w-3 animate-spin text-primary" />}</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">Génère un QR code par produit à imprimer et coller. Scannez-le pour ajouter ou retirer du stock ; chaque mouvement est enregistré dans un journal. Désactivé par défaut, propre à cette boutique.</p>
+                    </div>
+                    <Switch checked={!!shop.stock_qr_enabled} onCheckedChange={updateStockQr} disabled={savingStockQr} className="data-[state=checked]:bg-primary" />
                   </div>
                 </div>
               </Card>
