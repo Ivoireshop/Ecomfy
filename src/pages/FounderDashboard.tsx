@@ -38,6 +38,7 @@ import {
 import PromoCodeManager from "./PromoCodeManager";
 import { FounderManager } from "@/components/founder/FounderManager";
 import { FounderAffiliateAdmin } from "@/components/founder/FounderAffiliateAdmin";
+import { FounderWithdrawalsPanel } from "@/components/founder/FounderWithdrawalsPanel";
 import { Session } from "@supabase/supabase-js";
 import { FinancialMetricsService, FinancialMetrics, TimeRangeFilter, TransactionDetail } from "@/services/financialMetricsService";
 import { RevenueAuditModal } from "@/components/founder/RevenueAuditModal";
@@ -1054,6 +1055,10 @@ const FounderDashboard = () => {
               <CreditCard className="h-4 w-4" />
               <span>Paiements</span>
             </TabsTrigger>
+            <TabsTrigger value="withdrawals" className="rounded-xl text-xs font-bold gap-1.5 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
+              <CreditCard className="h-4 w-4" />
+              <span>Retraits</span>
+            </TabsTrigger>
             <TabsTrigger value="promos" className="rounded-xl text-xs font-bold gap-1.5 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
               <Ticket className="h-4 w-4" />
               <span>Codes Promo ({topPromoCodes.length})</span>
@@ -1222,6 +1227,10 @@ const FounderDashboard = () => {
           </TabsContent>
 
           {/* TAB 3: PAYMENTS & BILLING */}
+          <TabsContent value="withdrawals" className="mt-6">
+            <FounderWithdrawalsPanel />
+          </TabsContent>
+
           <TabsContent value="payments" className="mt-6">
             <Card className="bg-slate-900/90 border-slate-800 rounded-3xl p-6 shadow-xl">
               <div className="mb-6">

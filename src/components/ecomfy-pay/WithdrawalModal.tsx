@@ -88,7 +88,7 @@ export const WithdrawalModal: React.FC<WithdrawalModalProps> = ({
     if (res.success) {
       toast({
         title: "Retrait enregistré ✓",
-        description: `Référence: ${res.withdrawal_reference}. Transfert en cours.`,
+        description: `Référence: ${res.withdrawal_reference}. En attente de validation par l'équipe Ecomfy.`,
       });
       onOpenChange(false);
       setAmount("");

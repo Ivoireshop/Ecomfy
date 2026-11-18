@@ -101,7 +101,7 @@ export const WalletTab: React.FC<WalletTabProps> = ({
                             : "bg-rose-100 text-rose-800 text-[10px]"
                         }
                       >
-                        {w.status}
+                        {w.status === "REQUESTED" ? "En attente de validation" : w.status}
                       </Badge>
                     </td>
                     <td className="py-3 px-3 text-slate-400 text-xs">
