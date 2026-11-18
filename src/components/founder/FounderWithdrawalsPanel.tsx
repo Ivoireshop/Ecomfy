@@ -59,6 +59,11 @@ const STATUS_LABELS: Record<string, string> = {
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
+type RpcResult = { data: { success?: boolean; error?: string; withdrawals?: AdminWithdrawal[] } | null; error: { message?: string } | null };
+// Les RPC fondateur ne figurent pas dans les types générés.
+const callRpc = (fn: string, args: Record<string, unknown>) =>
+  (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => PromiseLike<RpcResult> }).rpc(fn, args);
+
 export const FounderWithdrawalsPanel = () => {
   const { toast } = useToast();
   const [filter, setFilter] = useState<Filter>("REQUESTED");
@@ -75,7 +80,7 @@ export const FounderWithdrawalsPanel = () => {
   const load = useCallback(async () => {
     setLoading(true);
     const status = filter === "ALL" ? null : filter;
-    const { data, error } = await (supabase as any).rpc("founder_list_withdrawals", { p_status: status, p_limit: 200 });
+    const { data, error } = await callRpc("founder_list_withdrawals", { p_status: status, p_limit: 200 });
     setLoading(false);
     if (error || !data?.success) {
       toast({ title: "Chargement impossible", description: error?.message || "Accès refusé.", variant: "destructive" });
@@ -106,12 +111,12 @@ export const FounderWithdrawalsPanel = () => {
     setSaving(true);
     const { data, error } =
       mode === "approve"
-        ? await (supabase as any).rpc("founder_approve_withdrawal", {
+        ? await callRpc("founder_approve_withdrawal", {
             p_withdrawal_reference: target.withdrawal_reference,
             p_manual_reference: text,
             p_note: note || null,
           })
-        : await (supabase as any).rpc("founder_reject_withdrawal", {
+        : await callRpc("founder_reject_withdrawal", {
             p_withdrawal_reference: target.withdrawal_reference,
             p_reason: text,
           });
