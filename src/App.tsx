@@ -98,6 +98,7 @@ const DeliveryAdminPage = lazyWithRetry(() => import("./pages/DeliveryAdminPage"
 const DeliveryPartnerDashboard = lazyWithRetry(() => import("./pages/DeliveryPartnerDashboard"));
 const DeliveryResubmissionPage = lazyWithRetry(() => import("./pages/DeliveryResubmissionPage"));
 const DeliveryJoinPage = lazyWithRetry(() => import("./pages/DeliveryJoinPage"));
+const DeliveryOperationsPage = lazyWithRetry(() => import("./pages/DeliveryOperationsPage"));
 const EcomfyPay = lazyWithRetry(() => import("./pages/EcomfyPay"));
 const EcomfyPayCheckout = lazyWithRetry(() => import("./pages/EcomfyPayCheckout"));
 const EcomfyPaySandboxCheckout = lazyWithRetry(() => import("./pages/EcomfyPaySandboxCheckout"));
@@ -459,6 +460,7 @@ const AppContent = () => {
           <Route path="/delivery/resubmit" element={<ProtectedRoute><DeliveryResubmissionPage /></ProtectedRoute>} />
           <Route path="/delivery/join" element={<ProtectedRoute><DeliveryJoinPage /></ProtectedRoute>} />
           <Route path="/delivery-admin" element={<ProtectedRoute><DeliveryAdminPage /></ProtectedRoute>} />
+          <Route path="/delivery-admin/operations" element={<ProtectedRoute><DeliveryOperationsPage /></ProtectedRoute>} />
           <Route path="/delivery/partner-dashboard" element={<ProtectedRoute><DeliveryPartnerDashboard /></ProtectedRoute>} />
 
           <Route path="/delivery/driver" element={<ProtectedRoute><DriverApp /></ProtectedRoute>}>

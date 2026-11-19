@@ -385,3 +385,22 @@ export interface DeliveryDriverStats {
   success_rate: number | null;
   avg_delivery_minutes: number | null;
 }
+
+export interface DeliveryAdminOperations {
+  days: number;
+  totals: {
+    transmitted: number; accepted: number; refused: number; in_progress: number; delivered: number;
+    failed: number; returned: number; cancelled: number; cod_total: number;
+  };
+  companies: {
+    company_id: string; company_name: string; verification_status: string; transmitted: number; accepted: number;
+    refused: number; delivered: number; failed: number; success_rate: number | null; active_drivers: number;
+  }[];
+  disputes: {
+    dispatch_id: string; company_name: string; shop_name: string | null; recipient_name: string;
+    cod_amount: number; currency: string; reason: string | null; raised_at: string | null;
+  }[];
+  incidents: {
+    dispatch_id: string; company_name: string; recipient_name: string; city: string; reason: string | null; failed_at: string | null;
+  }[];
+}

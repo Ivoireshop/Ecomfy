@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   AlertTriangle,
   BadgeCheck,
+  BarChart3,
   CheckCircle2,
   ExternalLink,
   Eye,
@@ -271,6 +273,9 @@ export default function DeliveryAdminPage() {
           </div>
           <div className="flex items-center gap-2">
             <DeliveryNotificationBell onNew={() => void fetchApplications()} />
+            <Button asChild variant="outline" size="sm" className="bg-slate-900 hover:text-white border-slate-800 text-slate-300 hover:bg-slate-900">
+              <Link to="/delivery-admin/operations"><BarChart3 className="w-4 h-4 mr-2" /> Opérations</Link>
+            </Button>
             <Button onClick={() => void fetchApplications()} variant="outline" size="sm" className="bg-slate-900 hover:text-white border-slate-800 text-slate-300 hover:bg-slate-900">
               <RefreshCw className="w-4 h-4 mr-2" /> Actualiser
             </Button>

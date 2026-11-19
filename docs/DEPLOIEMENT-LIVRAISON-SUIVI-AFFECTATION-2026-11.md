@@ -28,3 +28,8 @@
 - La notification du livreur n'existe que s'il a accepté une invitation (compte lié). Un livreur sans compte n'est pas prévenu.
 - Le marchand voit le suivi dans la liste de ses commandes ; il n'y a pas de page dédiée.
 - Bande blanche sous le contenu des pages sombres : défaut de mise en page global, non traité.
+
+## Étape E — contrôle des opérations par l'administration (§11.2)
+- Migration `20261119130000_delivery_admin_operations.sql` : fonction `delivery_admin_operations(_days)`, réservée aux administrateurs de la plateforme (un autre compte reçoit « Accès réservé à l'administration »).
+- Page `/delivery-admin/operations` (`DeliveryOperationsPage.tsx`), lien « Opérations » dans le back-office. À appliquer après `20261119120000`.
+- Limites : litiges et incidents plafonnés à 50 lignes ; vue non testée avec un compte non administrateur en navigateur.

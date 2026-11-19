@@ -7,6 +7,7 @@ import {
   DeliveryDispatch,
   DeliveryDispatchHistoryEntry,
   DeliveryDriverStats,
+  DeliveryAdminOperations,
   DeliveryWorkspace,
   DeliveryStaffMember,
   DeliveryStaffRole,
@@ -571,6 +572,13 @@ export const deliveryService = {
       return [];
     }
     return (data ?? []) as unknown as DeliveryDriverStats[];
+  },
+
+  /** Contrôle des opérations par l administration Ecomfy (§11.2). Le serveur refuse tout compte non administrateur. */
+  async getAdminOperations(days = 30): Promise<DeliveryAdminOperations> {
+    const { data, error } = await supabase.rpc("delivery_admin_operations" as never, { _days: days } as never);
+    if (error) throw new Error(error.message);
+    return data as unknown as DeliveryAdminOperations;
   },
 
   /** Boutiques ayant transmis au moins une commande à la structure (filtre « commerçant » du suivi). */
