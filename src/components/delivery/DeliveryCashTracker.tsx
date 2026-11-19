@@ -21,6 +21,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { deliveryService } from "@/lib/deliveryService";
 import { DeliveryDispatch, DeliveryCashTransfer } from "@/types/delivery";
 
+const COD_COLLECTED_STATUSES = new Set(["delivered", "cod_collected", "completed"]);
+
 interface DeliveryCashTrackerProps {
   dispatch: DeliveryDispatch;
   userRole: 'seller' | 'partner' | 'admin';
@@ -167,8 +169,8 @@ export default function DeliveryCashTracker({
       {/* Cycle Progress Tracker */}
       <div className="grid grid-cols-4 gap-2 relative text-center">
         {[
-          { step: 1, label: "Encaissé au Client", done: true },
-          { step: 2, label: "Reçu en Entrepôt", done: cash?.status !== 'pending_collection' },
+          { step: 1, label: "Encaissé au Client", done: cash ? cash.status !== 'pending_collection' : COD_COLLECTED_STATUSES.has(dispatch.status) },
+          { step: 2, label: "Reçu en Entrepôt", done: !!cash && ['deposited_to_company', 'transfer_initiated_to_seller', 'confirmed_by_seller'].includes(cash.status) },
           { step: 3, label: "Dépôt Initié", done: isTransferSent || isConfirmed },
           { step: 4, label: "Validé Vendeur", done: isConfirmed },
         ].map((s) => (

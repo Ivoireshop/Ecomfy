@@ -90,21 +90,15 @@ export default function DispatchOrderModal({
     try {
       await deliveryService.createDispatch({
         order_id: order.id,
-        shop_id: order.shop_id,
         company_id: selectedCompanyId,
-        delivery_address: order.delivery_address,
-        recipient_name: order.customer_name,
-        recipient_phone: order.customer_phone,
-        city: order.city || "Abidjan",
-        cod_amount: order.total_amount,
         delivery_fee: deliveryFee,
         delivery_note: deliveryNote,
         customer_parcel_photo_url: customerParcelPhotoUrl,
       });
 
       toast({
-        title: "Commande transmise au livreur !",
-        description: "Le partenaire de livraison et son livreur ont été notifiés instantanément sur la plateforme Ecomfy.",
+        title: "Commande transmise à la structure",
+        description: "La structure est notifiée. Vous serez prévenu dès qu'elle accepte ou refuse la commande.",
       });
 
       if (onSuccess) onSuccess();
@@ -225,7 +219,7 @@ export default function DispatchOrderModal({
                           </div>
 
                           <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-0.5">
-                            <span>{company.total_drivers_count || 1} livreurs</span>
+                            <span>{company.total_drivers_count || 1} {(company.total_drivers_count || 1) > 1 ? "livreurs" : "livreur"}</span>
                             <span>•</span>
                             <span className="flex items-center gap-1 text-amber-400">
                               <Star className="w-3 h-3 fill-amber-400" /> {company.rating_score || 5.0} ({company.reviews_count || 0} avis)

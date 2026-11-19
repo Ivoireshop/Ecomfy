@@ -5,6 +5,11 @@ import {
   DeliveryCompanyKyc,
   DeliveryCompanyLocation,
   DeliveryDispatch,
+  DeliveryDispatchHistoryEntry,
+  DeliveryWorkspace,
+  DeliveryStaffMember,
+  DeliveryStaffRole,
+  DeliveryAssignableDriver,
   DeliveryCashTransfer,
   DeliveryNotification,
   DeliveryVerificationStatus,
@@ -177,6 +182,61 @@ export const deliveryService = {
     return data ? withKyc(data) : null;
   },
 
+  /** Espace de travail (propriétaire ou collaborateur) ; null si le compte n'appartient à aucune structure. */
+  async getMyWorkspace(): Promise<DeliveryWorkspace | null> {
+    const { data, error } = await db.rpc("delivery_my_workspace");
+    if (error) {
+      console.error("Error fetching delivery workspace:", error);
+      return null;
+    }
+    return (data as DeliveryWorkspace | null) ?? null;
+  },
+
+  async getAssignableDrivers(companyId: string): Promise<DeliveryAssignableDriver[]> {
+    const { data, error } = await db.rpc("delivery_company_drivers", { _company_id: companyId });
+    if (error) throw new Error(error.message);
+    return (data || []) as DeliveryAssignableDriver[];
+  },
+
+  async listTeam(companyId: string): Promise<DeliveryStaffMember[]> {
+    const { data, error } = await db.rpc("delivery_staff_list", { _company_id: companyId });
+    if (error) throw new Error(error.message);
+    return (data || []) as DeliveryStaffMember[];
+  },
+
+  /** Renvoie le jeton d'invitation : le lien à transmettre est /delivery/join?token=… */
+  async inviteStaff(companyId: string, email: string, role: DeliveryStaffRole, driverId?: string | null): Promise<string> {
+    const { data, error } = await db.rpc("delivery_staff_invite", {
+      _company_id: companyId,
+      _email: email,
+      _role: role,
+      _driver_id: driverId || null,
+    });
+    if (error) throw new Error(error.message);
+    return (data as { token: string }).token;
+  },
+
+  async acceptInvitation(token: string): Promise<{ success: boolean; error?: string; company_name?: string; role?: string }> {
+    const { data, error } = await db.rpc("delivery_staff_accept", { _token: token });
+    if (error) throw new Error(error.message);
+    return data as { success: boolean; error?: string; company_name?: string; role?: string };
+  },
+
+  async setStaffStatus(staffId: string, status: "active" | "inactive"): Promise<void> {
+    const { error } = await db.rpc("delivery_staff_set_status", { _staff_id: staffId, _status: status });
+    if (error) throw new Error(error.message);
+  },
+
+  async setStaffRole(staffId: string, role: DeliveryStaffRole, driverId?: string | null): Promise<void> {
+    const { error } = await db.rpc("delivery_staff_set_role", { _staff_id: staffId, _role: role, _driver_id: driverId || null });
+    if (error) throw new Error(error.message);
+  },
+
+  async revokeStaffInvite(staffId: string): Promise<void> {
+    const { error } = await db.rpc("delivery_staff_revoke_invite", { _staff_id: staffId });
+    if (error) throw new Error(error.message);
+  },
+
   /** Annuaire des vendeurs : structures approuvées (sans livreurs ni identité, que la base ne leur montre pas). */
   async getVerifiedCompaniesForCity(city: string): Promise<DeliveryCompany[]> {
     const { data, error } = await db
@@ -323,67 +383,27 @@ export const deliveryService = {
   },
 
   /**
-   * Part 1: Seller dispatches order to a delivery partner (2-3 clicks)
+   * Le marchand transmet une commande à une structure. Adresse, destinataire et montant à encaisser sont lus
+   * sur la commande par le serveur ; la structure doit ensuite l'accepter ou la refuser.
    */
   async createDispatch(payload: {
     order_id: string;
-    shop_id: string;
     company_id: string;
-    delivery_address: string;
-    recipient_name: string;
-    recipient_phone: string;
-    city: string;
-    cod_amount: number;
     delivery_fee: number;
     delivery_note?: string;
     customer_parcel_photo_url?: string;
-  }): Promise<DeliveryDispatch> {
-    // 1. Insert Dispatch record
-    const { data: dispatch, error: dispatchErr } = await supabase
-      .from("delivery_dispatches" as any)
-      .insert({
-        order_id: payload.order_id,
-        shop_id: payload.shop_id,
-        company_id: payload.company_id,
-        status: "assigned",
-        delivery_address: payload.delivery_address,
-        recipient_name: payload.recipient_name,
-        recipient_phone: payload.recipient_phone,
-        city: payload.city,
-        cod_amount: payload.cod_amount,
-        delivery_fee: payload.delivery_fee,
-        delivery_note: payload.delivery_note || null,
-        customer_parcel_photo_url: payload.customer_parcel_photo_url || null,
-        assigned_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (dispatchErr || !dispatch) {
-      console.error("Error creating order dispatch:", dispatchErr);
-      throw new Error(dispatchErr?.message || "Impossible d'assigner le livreur.");
+  }): Promise<string> {
+    const { data, error } = await db.rpc("delivery_dispatch_transmit", {
+      _order_id: payload.order_id,
+      _company_id: payload.company_id,
+      _delivery_fee: payload.delivery_fee,
+      _note: payload.delivery_note || null,
+      _parcel_photo_url: payload.customer_parcel_photo_url || null,
+    });
+    if (error || !data) {
+      throw new Error(error?.message || "Impossible de transmettre la commande.");
     }
-
-    // 2. Initialize Cash Transfer Audit Record
-    const netSeller = payload.cod_amount - payload.delivery_fee;
-    const { error: cashErr } = await supabase
-      .from("delivery_cash_transfers" as any)
-      .insert({
-        dispatch_id: (dispatch as any).id,
-        company_id: payload.company_id,
-        shop_id: payload.shop_id,
-        cod_amount: payload.cod_amount,
-        delivery_fee: payload.delivery_fee,
-        net_seller_amount: netSeller > 0 ? netSeller : payload.cod_amount,
-        currency: "XOF",
-        status: "pending_collection",
-      });
-
-    if (cashErr) {
-      console.warn("Warning: Could not create cash audit entry:", cashErr);
-    }
-
-    return (dispatch as unknown) as DeliveryDispatch;
+    return data as string;
   },
 
   /**
@@ -402,43 +422,48 @@ export const deliveryService = {
     return true;
   },
 
-  /**
-   * Update Dispatch Status (Driver / Company / Seller)
-   */
-  async updateDispatchStatus(
-    dispatchId: string,
-    status: DeliveryDispatchStatus,
-    driverId?: string
-  ): Promise<boolean> {
-    const updateObj: any = { status };
-    const now = new Date().toISOString();
-
-    if (driverId) updateObj.assigned_driver_id = driverId;
-    if (status === 'picked_up') updateObj.picked_up_at = now;
-    if (status === 'delivered' || status === 'cod_collected') {
-      updateObj.delivered_at = now;
-      updateObj.cod_collected_at = now;
-    }
-
-    const { error } = await supabase
-      .from("delivery_dispatches" as any)
-      .update(updateObj)
-      .eq("id", dispatchId);
-
-    if (error) {
-      console.error("Error updating dispatch status:", error);
-      throw new Error(error.message);
-    }
-
-    // Also sync cash status if collected
-    if (status === 'cod_collected' || status === 'delivered') {
-      await supabase
-        .from("delivery_cash_transfers" as any)
-        .update({ status: 'collected_by_driver' })
-        .eq("dispatch_id", dispatchId);
-    }
-
+  /** Transition de statut contrôlée par le serveur (qui, depuis quel statut, motif obligatoire pour échec/litige/annulation). */
+  async updateDispatchStatus(dispatchId: string, status: DeliveryDispatchStatus, note?: string): Promise<boolean> {
+    const { error } = await db.rpc("delivery_dispatch_set_status", {
+      _dispatch_id: dispatchId,
+      _status: status,
+      _note: note || null,
+    });
+    if (error) throw new Error(error.message);
     return true;
+  },
+
+  async receiveDispatch(dispatchId: string): Promise<void> {
+    const { error } = await db.rpc("delivery_dispatch_receive", { _dispatch_id: dispatchId });
+    if (error) throw new Error(error.message);
+  },
+
+  async acceptDispatch(dispatchId: string): Promise<void> {
+    const { error } = await db.rpc("delivery_dispatch_accept", { _dispatch_id: dispatchId });
+    if (error) throw new Error(error.message);
+  },
+
+  async refuseDispatch(dispatchId: string, reason: string): Promise<void> {
+    const { error } = await db.rpc("delivery_dispatch_refuse", { _dispatch_id: dispatchId, _reason: reason });
+    if (error) throw new Error(error.message);
+  },
+
+  async assignDispatch(dispatchId: string, driverId: string): Promise<void> {
+    const { error } = await db.rpc("delivery_dispatch_assign", { _dispatch_id: dispatchId, _driver_id: driverId });
+    if (error) throw new Error(error.message);
+  },
+
+  async getDispatchHistory(dispatchId: string): Promise<DeliveryDispatchHistoryEntry[]> {
+    const { data, error } = await supabase
+      .from("delivery_dispatch_history" as any)
+      .select("*")
+      .eq("dispatch_id", dispatchId)
+      .order("created_at", { ascending: true });
+    if (error) {
+      console.error("Error fetching dispatch history:", error);
+      return [];
+    }
+    return ((data || []) as unknown) as DeliveryDispatchHistoryEntry[];
   },
 
   /**
@@ -468,11 +493,7 @@ export const deliveryService = {
       throw new Error(error.message);
     }
 
-    await supabase
-      .from("delivery_dispatches" as any)
-      .update({ status: "deposit_pending" })
-      .eq("id", dispatchId);
-
+    await this.updateDispatchStatus(dispatchId, "deposit_pending");
     return true;
   },
 
@@ -495,14 +516,7 @@ export const deliveryService = {
       throw new Error(error.message);
     }
 
-    await supabase
-      .from("delivery_dispatches" as any)
-      .update({
-        status: "completed",
-        seller_payout_completed_at: now,
-      })
-      .eq("id", dispatchId);
-
+    await this.updateDispatchStatus(dispatchId, "completed");
     return true;
   },
 
@@ -527,11 +541,7 @@ export const deliveryService = {
       throw new Error(error.message);
     }
 
-    await supabase
-      .from("delivery_dispatches" as any)
-      .update({ status: "disputed" })
-      .eq("id", dispatchId);
-
+    await this.updateDispatchStatus(dispatchId, "disputed", reason);
     return true;
   },
 

@@ -17,6 +17,12 @@ export type LicenseCategory = 'A' | 'B' | 'C' | 'D' | 'E';
 export type IdDocumentType = 'cni' | 'passport';
 
 export type DeliveryDispatchStatus =
+  | 'transmitted'
+  | 'accepted'
+  | 'refused'
+  | 'preparing'
+  | 'failed'
+  | 'returned'
   | 'pending_assignment'
   | 'assigned'
   | 'picked_up'
@@ -245,6 +251,16 @@ export interface DeliveryDispatch {
   delivered_at?: string | null;
   cod_collected_at?: string | null;
   seller_payout_completed_at?: string | null;
+  transmitted_at?: string | null;
+  received_at?: string | null;
+  accepted_at?: string | null;
+  refused_at?: string | null;
+  refusal_reason?: string | null;
+  failed_at?: string | null;
+  failure_reason?: string | null;
+  returned_at?: string | null;
+  cancelled_at?: string | null;
+  cancel_reason?: string | null;
   
   created_at: string;
   updated_at: string;
@@ -292,4 +308,69 @@ export interface DeliveryCompanyReview {
   rating: number;
   comment?: string | null;
   created_at: string;
+}
+
+export interface DeliveryDispatchHistoryEntry {
+  id: string;
+  dispatch_id: string;
+  event: string;
+  from_status?: string | null;
+  to_status?: string | null;
+  driver_id?: string | null;
+  reason?: string | null;
+  note?: string | null;
+  actor_id?: string | null;
+  actor_kind: 'seller' | 'company' | 'admin' | 'system' | 'other';
+  created_at: string;
+}
+
+export type DeliveryStaffRole = 'admin' | 'operations' | 'reception' | 'driver';
+export type DeliveryWorkspaceRole = DeliveryStaffRole | 'owner';
+export type DeliveryPerm = 'member' | 'read' | 'operate' | 'assign' | 'cash' | 'stats' | 'manage_team';
+
+export const DELIVERY_ROLE_LABELS: Record<DeliveryWorkspaceRole, string> = {
+  owner: 'Propriétaire',
+  admin: 'Administrateur de la structure',
+  operations: 'Responsable des opérations',
+  reception: 'Agent de réception',
+  driver: 'Livreur',
+};
+
+/** Espace de travail du compte connecté : propriétaire ou collaborateur d'une structure. */
+export interface DeliveryWorkspace {
+  company_id: string;
+  company_name: string;
+  city: string;
+  country: string;
+  verification_status: DeliveryVerificationStatus;
+  trust_badge_active: boolean;
+  rating_score: number | null;
+  drivers_count: number;
+  role: DeliveryWorkspaceRole;
+  perms: DeliveryPerm[];
+  driver_id: string | null;
+}
+
+export interface DeliveryStaffMember {
+  id: string;
+  invited_email: string;
+  role: DeliveryStaffRole;
+  status: 'invited' | 'active' | 'inactive';
+  driver_id: string | null;
+  driver_name: string | null;
+  invitation_token: string | null;
+  invited_at: string;
+  accepted_at: string | null;
+  assigned_total: number;
+  in_progress: number;
+  delivered: number;
+  actions_30d: number;
+}
+
+export interface DeliveryAssignableDriver {
+  id: string;
+  full_name: string;
+  vehicle_type: string;
+  is_active: boolean;
+  verification_status: string;
 }

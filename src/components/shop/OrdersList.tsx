@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { openDeliveryProof } from "@/lib/deliveryRpc";
 import * as XLSX from "xlsx";
 import { PushToDeliveryModal } from "./PushToDeliveryModal";
+import DispatchOrderModal from "@/components/delivery/DispatchOrderModal";
 import { StoreRestrictedLockScreen } from "./StoreRestrictedLockScreen";
 import { ScheduleDeliveryModal } from "./ScheduleDeliveryModal";
 
@@ -83,6 +84,7 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
   const [search, setSearch] = useState("");
   const [pushModalOpen, setPushModalOpen] = useState(false);
   const [orderToPush, setOrderToPush] = useState<string | null>(null);
+  const [orderToDispatch, setOrderToDispatch] = useState<Order | null>(null);
   
   // Delivery Schedule state & modals
   const [scheduleModalOrder, setScheduleModalOrder] = useState<Order | null>(null);
@@ -727,6 +729,19 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
                             <Send className="h-4 w-4 mr-1" /> Expédier
                           </Button>
                         )}
+                        {!NOT_SHIPPABLE.has(order.order_status) && !order.order_deliveries?.some((d) => DELIVERY_IN_PROGRESS.has(d.status)) && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-10 min-h-10 flex-1 sm:flex-none"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOrderToDispatch(order);
+                            }}
+                          >
+                            <Truck className="h-4 w-4 mr-1" /> Transmettre à une structure
+                          </Button>
+                        )}
                         <Button asChild size="sm" variant="outline" className="h-10 min-h-10 flex-1 sm:flex-none">
                           <a href={`tel:${order.customer_phone.replace(/[^0-9+]/g, "")}`} onClick={(e) => e.stopPropagation()}>
                             <Phone className="h-4 w-4 mr-1" /> Appeler
@@ -761,6 +776,25 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
           }}
           orderId={orderToPush}
           shopId={shopId}
+          onSuccess={() => {
+            if (onOrderUpdated) onOrderUpdated();
+          }}
+        />
+      )}
+
+      {orderToDispatch && (
+        <DispatchOrderModal
+          isOpen
+          onClose={() => setOrderToDispatch(null)}
+          order={{
+            id: orderToDispatch.id,
+            shop_id: shopId,
+            customer_name: orderToDispatch.customer_name,
+            customer_phone: orderToDispatch.customer_phone,
+            delivery_address: orderToDispatch.customer_address || "",
+            city: orderToDispatch.customer_city || "",
+            total_amount: orderToDispatch.total,
+          }}
           onSuccess={() => {
             if (onOrderUpdated) onOrderUpdated();
           }}
