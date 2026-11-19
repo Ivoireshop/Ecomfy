@@ -10,11 +10,12 @@
 | C | Filtre « commerçant » | migration `20261119100000_delivery_company_dispatch_shops.sql` (RPC `delivery_company_dispatch_shops`) |
 | D | Notification au livreur (affectation / retrait) | migration `20261119110000_delivery_driver_assignment.sql` |
 | D | Performances individuelles des livreurs | même migration (RPC `delivery_company_driver_stats`) + `DeliveryDriverStatsPanel.tsx` |
+| C/D | Temps réel (publication de `delivery_dispatches`) | migration `20261119120000_delivery_dispatches_realtime.sql` ; abonnements dans `DispatchTrackingBoard.tsx` et `DeliveryPartnerDashboard.tsx` |
 | D | Réaffectation d'une commande déjà affectée | `DeliveryPartnerDashboard.tsx` (la transition `assigned>assigned` existait déjà côté serveur) |
 
 ## Ordre en production
 1. Prérequis : migrations `20261118100000`, `20261118110000`, `20261118120000` (étapes A et B) déjà appliquées.
-2. Appliquer `20261119100000` puis `20261119110000` (pas de `db push` : voir `prod-deploy-2026-11-07`).
+2. Appliquer `20261119100000`, `20261119110000` puis `20261119120000` (pas de `db push` : voir `prod-deploy-2026-11-07`).
 3. Vérifier que le lien du CLI est bien sur la prod avant d'appliquer : `cat supabase/.temp/project-ref` doit afficher `yfggrceynzcwklbxhgix`.
 4. Déployer le front **après** les migrations.
 

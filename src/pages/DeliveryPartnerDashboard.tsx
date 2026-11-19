@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { deliveryService } from "@/lib/deliveryService";
 import { DeliveryWorkspace, DeliveryAssignableDriver, DeliveryDispatch, DeliveryDispatchStatus, DELIVERY_ROLE_LABELS, DeliveryPerm } from "@/types/delivery";
 import { DeliveryTeamPanel } from "@/components/delivery/DeliveryTeamPanel";
@@ -71,6 +72,19 @@ export default function DeliveryPartnerDashboard() {
   useEffect(() => {
     loadDashboard();
   }, []);
+
+  // Temps réel (§10) : une nouvelle transmission ou un changement de statut apparaît sans recharger la page.
+  const companyId = company?.company_id;
+  useEffect(() => {
+    if (!companyId) return;
+    const channel = supabase
+      .channel(`company-dispatches-${companyId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "delivery_dispatches", filter: `company_id=eq.${companyId}` }, () => {
+        deliveryService.getCompanyDispatches(companyId).then(setDispatches);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [companyId]);
 
   // Une action serveur à la fois par course ; le message d'erreur du serveur (transition refusée, motif manquant) s'affiche tel quel.
   const [busyId, setBusyId] = useState<string | null>(null);
