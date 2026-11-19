@@ -2,6 +2,7 @@
 
 > **Version** : 12/11/2026, branche `jeanmarc` (`c35aeec`). Chiffres recomptés dans le code et les migrations.
 > **Statut** : plan validé dans ses principes ; aucune phase commencée (`backend/`, `src/core/`, `src/features/` n'existent pas).
+> **Mise à jour 19/11/2026** : ajout du §7.4 (coexistence avec le legacy : états par domaine, registre des changements, règles SQL et branches). Reste du plan inchangé.
 > **Plan lié** : `docs/FRONTEND-MVC.md` (restructuration du front, qui sert de couture à cette migration).
 
 ## Sommaire
@@ -12,7 +13,7 @@
 4. [Architecture cible](#4-architecture-cible)
 5. [Catalogue des domaines](#5-catalogue-des-domaines)
 6. [Phases](#6-phases)
-7. [Processus de migration d'un domaine](#7-processus-de-migration-dun-domaine)
+7. [Processus de migration d'un domaine](#7-processus-de-migration-dun-domaine) (dont [7.4 Coexistence avec le legacy](#74-coexistence-avec-le-legacy-travail-en-parallèle))
 8. [Vérification](#8-vérification)
 9. [Référentiel des fichiers](#9-référentiel-des-fichiers)
 10. [Points ouverts](#10-points-ouverts)
@@ -478,6 +479,58 @@ Chaque phase suit la même fiche : **Objectif · Prérequis · Périmètre · Li
 | Données écrites par Laravel incorrectes | Correctif + script de réparation ; procédure `docs/PROCEDURE-ROLLBACK-2026-10.md` si nécessaire |
 | Trigger SQL supprimé trop tôt | Le recréer depuis le baseline ; jamais avant l'équivalence testée (P6) |
 
+### 7.4 Coexistence avec le legacy (travail en parallèle)
+
+Pendant toute la migration, le legacy (React + Supabase) continue de recevoir des correctifs et des fonctionnalités. Ce paragraphe fixe comment éviter le double travail et les oublis.
+
+#### 7.4.1 Trois états par domaine
+
+| État | Définition | Ce qu'on peut faire dans le legacy |
+|---|---|---|
+| **Legacy actif** | Aucune étape du §7.1 commencée | Correctifs **et** nouvelles fonctionnalités, comme aujourd'hui |
+| **En portage** | Entre l'étape 3 (caractérisation) et l'étape 8 (bascule à 100 %) du §7.1 | **Correctifs critiques uniquement** (bug bloquant, sécurité, argent). Chaque correctif est reporté dans Laravel dans la même semaine. Pas de nouvelle fonctionnalité : elle va directement dans Laravel |
+| **Basculé** | Étape 8 atteinte, flag à 100 % | Rien dans le legacy. Tout changement se fait dans Laravel. Le code legacy n'est conservé que le temps de l'observation (étape 9) |
+
+L'état de chaque domaine est tenu dans le registre (§7.4.3). Un domaine passe « en portage » par une décision explicite, inscrite dans le registre avec la date.
+
+#### 7.4.2 Où développer une nouvelle fonctionnalité
+
+| Situation du domaine concerné | Où développer |
+|---|---|
+| Legacy actif, phase de migration lointaine (6, 7, 8) | Legacy. Écrire un test (vitest ou `supabase/tests/`) : il servira de caractérisation à l'étape 3 |
+| Legacy actif, phase proche (3, 4, 5) | Legacy si urgent, sinon attendre le portage et développer dans Laravel |
+| En portage ou basculé | Laravel uniquement |
+| Transverse (auth, erreurs HTTP, CORS) | Legacy dans le respect du contrat §4.5, car il sert de contrat à l'API |
+
+Règle : **une fonctionnalité nouvelle ne doit jamais exister dans les deux codes en même temps**, sauf pendant la fenêtre de bascule.
+
+#### 7.4.3 Registre des changements legacy
+
+Fichier `docs/MIGRATION-LARAVEL-REGISTRE.md`, créé à la première bascule de domaine. Il contient :
+
+1. Un tableau d'état par domaine (§5) : `legacy actif`, `en portage (depuis le …)`, `basculé (le …)`.
+2. Un journal, une ligne par changement du legacy touchant un domaine déjà « en portage » ou dont la phase est ouverte :
+
+| Date | Domaine | Commit / PR | Nature (correctif, fonctionnalité, migration SQL) | Test associé | Porté dans Laravel |
+|---|---|---|---|---|---|
+| jj/mm | ex. Delivery | `abc1234` | correctif RPC | `supabase/tests/…` | non / oui (PR) |
+
+Un domaine ne peut passer à l'étape 8 du §7.1 que si toutes les lignes de son journal sont « oui ».
+
+#### 7.4.4 Règles pour les migrations SQL pendant la transition
+
+- Le schéma reste piloté par `supabase/migrations/` jusqu'à la Phase 9 (la base est partagée, P1). Laravel ne crée pas de migration de tables tant que Supabase est actif.
+- Une migration SQL qui touche une table ou une fonction d'un domaine **en portage** est inscrite au registre, car elle modifie le contrat que Laravel doit respecter.
+- Un trigger ou une policy n'est supprimé qu'une fois l'équivalent Laravel testé (P6, étape 10). Aucune suppression « de ménage » dans le cadre d'un correctif legacy.
+- Toute migration reste appliquée à la main en prod (P8).
+
+#### 7.4.5 Organisation du dépôt et du temps
+
+- **Branches distinctes** : le travail Laravel vit sur sa propre branche (par exemple `laravel/<domaine>`) avec ses PR, séparées des PR du legacy. Jamais de commit qui mélange legacy et `backend/`.
+- Les correctifs legacy suivent le circuit actuel (branche `jeanmarc` → PR → déploiement). Les PR Laravel sont rebasées sur `main` régulièrement, sans fusion de longue durée.
+- La CI de `backend/` est un job séparé (§Phase 0, point 6) : un échec Laravel ne bloque pas un déploiement du legacy tant qu'aucun domaine n'est basculé.
+- Le **déploiement régulier du legacy en prod** conditionne la Phase 0 (« `jeanmarc` = prod ») : un lot appliqué seulement sur la dev repousse le moment où un domaine peut être porté (P7). Chaque lot terminé est donc déployé avant d'ouvrir le suivant, ou au minimum listé dans `docs/DEPLOIEMENT-RESTE-A-FAIRE-2026-11.md`.
+
 ---
 
 ## 8. Vérification
@@ -510,7 +563,7 @@ Chaque phase suit la même fiche : **Objectif · Prérequis · Périmètre · Li
 | # | Question | À trancher avant |
 |---|---|---|
 | O1 | Hébergement (Reverb, workers, coût, taille de la base) | Phase 2 en production |
-| O2 | Monorepo (`backend/` ici, proposé) ou dépôt séparé | Phase 0 (création de `backend/`) |
+| O2 | Monorepo (`backend/` ici, proposé) ou dépôt séparé. Impact sur le travail en parallèle : voir §7.4.5 (branches et PR séparées dans les deux cas) | Phase 0 (création de `backend/`) |
 | O3 | Pour chaque fonction SQL métier : appel transitoire depuis un service ou réécriture immédiate | Début de chaque domaine concerné |
 | O4 | Sort de la fonction `mcp` (Lovable) | Phase 4 |
 | O5 | Prix d'une vidéo (3 crédits supposés) | Phase 4, lot 4.2 |
