@@ -22,6 +22,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { deliveryService } from "@/lib/deliveryService";
 import { DeliveryWorkspace, DeliveryAssignableDriver, DeliveryDispatch, DeliveryDispatchStatus, DELIVERY_ROLE_LABELS, DeliveryPerm } from "@/types/delivery";
 import { DeliveryTeamPanel } from "@/components/delivery/DeliveryTeamPanel";
+import { DeliveryDriverStatsPanel } from "@/components/delivery/DeliveryDriverStatsPanel";
 import DeliveryCashTracker from "@/components/delivery/DeliveryCashTracker";
 import { DeliveryNotificationBell } from "@/components/delivery/DeliveryNotificationBell";
 
@@ -38,6 +39,13 @@ export default function DeliveryPartnerDashboard() {
   const [company, setCompany] = useState<DeliveryWorkspace | null>(null);
   const [drivers, setDrivers] = useState<DeliveryAssignableDriver[]>([]);
   const [dispatches, setDispatches] = useState<DeliveryDispatch[]>([]);
+  // Filtres du §7.2 : statut, livreur affecté, zone (ville), date.
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [driverFilter, setDriverFilter] = useState<string>("all");
+  const [periodFilter, setPeriodFilter] = useState<string>("all");
+  const [search, setSearch] = useState<string>("");
+  const [shopFilter, setShopFilter] = useState<string>("all");
+  const [shops, setShops] = useState<{ shop_id: string; business_name: string }[]>([]);
 
   const loadDashboard = async () => {
     setLoading(true);
@@ -48,6 +56,7 @@ export default function DeliveryPartnerDashboard() {
       if (ws) {
         const list = await deliveryService.getCompanyDispatches(ws.company_id);
         setDispatches(list);
+        setShops(ws.perms.includes("read") ? await deliveryService.getCompanyDispatchShops(ws.company_id) : []);
         // Les livreurs affectables ne sont chargés que pour qui a le droit d'affecter.
         setDrivers(ws.perms.includes("assign") ? await deliveryService.getAssignableDrivers(ws.company_id) : []);
       }
@@ -116,6 +125,21 @@ export default function DeliveryPartnerDashboard() {
   const pendingDispatches = dispatches.filter((d) => ['accepted', 'preparing', 'assigned', 'pending_assignment'].includes(d.status));
   const activeDispatches = dispatches.filter((d) => d.status === 'picked_up' || d.status === 'in_transit');
   const completedDispatches = dispatches.filter((d) => d.status === 'delivered' || d.status === 'completed' || d.status === 'cod_collected');
+
+  const periodStart = periodFilter === "today" ? new Date(new Date().setHours(0, 0, 0, 0)).getTime()
+    : periodFilter === "7d" ? Date.now() - 7 * 86400000
+    : periodFilter === "30d" ? Date.now() - 30 * 86400000 : 0;
+  const needle = search.trim().toLowerCase();
+  const filteredDispatches = dispatches.filter((d) => {
+    if (statusFilter !== "all" && d.status !== statusFilter) return false;
+    if (shopFilter !== "all" && d.shop_id !== shopFilter) return false;
+    if (driverFilter === "none" ? !!d.assigned_driver_id : driverFilter !== "all" && d.assigned_driver_id !== driverFilter) return false;
+    if (periodStart && new Date(d.transmitted_at ?? d.created_at).getTime() < periodStart) return false;
+    if (needle && !`${d.recipient_name} ${d.recipient_phone} ${d.city} ${d.delivery_address}`.toLowerCase().includes(needle)) return false;
+    return true;
+  });
+  const filtersActive = shopFilter !== "all" || statusFilter !== "all" || driverFilter !== "all" || periodFilter !== "all" || needle !== "";
+  const selectClass = "h-9 rounded-md bg-slate-900 border border-slate-700 text-xs text-slate-200 px-2";
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 lg:p-8 font-sans">
@@ -191,6 +215,8 @@ export default function DeliveryPartnerDashboard() {
 
         {can("manage_team") && <DeliveryTeamPanel companyId={company.company_id} role={company.role} />}
 
+        {can("stats") && <DeliveryDriverStatsPanel companyId={company.company_id} refreshKey={dispatches.map((d) => `${d.id}${d.status}${d.assigned_driver_id ?? ""}`).join("|")} />}
+
         {/* Dispatches List */}
         <div className="space-y-4">
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
@@ -203,7 +229,52 @@ export default function DeliveryPartnerDashboard() {
             </div>
           ) : (
             <div className="space-y-4">
-              {dispatches.map((dispatch) => (
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Client, téléphone, ville…"
+                  aria-label="Rechercher une commande"
+                  className="h-9 w-full sm:w-56 rounded-md bg-slate-900 border border-slate-700 text-xs text-slate-200 px-3 placeholder:text-slate-500"
+                />
+                <select aria-label="Filtrer par statut" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={selectClass}>
+                  <option value="all">Tous les statuts</option>
+                  {Object.entries(DISPATCH_STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+                {shops.length > 0 && (
+                  <select aria-label="Filtrer par commerçant" value={shopFilter} onChange={(e) => setShopFilter(e.target.value)} className={selectClass}>
+                    <option value="all">Tous les commerçants</option>
+                    {shops.map((s) => <option key={s.shop_id} value={s.shop_id}>{s.business_name}</option>)}
+                  </select>
+                )}
+                <select aria-label="Filtrer par livreur" value={driverFilter} onChange={(e) => setDriverFilter(e.target.value)} className={selectClass}>
+                  <option value="all">Tous les livreurs</option>
+                  <option value="none">Sans livreur</option>
+                  {drivers.map((d) => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+                </select>
+                <select aria-label="Filtrer par date" value={periodFilter} onChange={(e) => setPeriodFilter(e.target.value)} className={selectClass}>
+                  <option value="all">Toutes les dates</option>
+                  <option value="today">Aujourd'hui</option>
+                  <option value="7d">7 derniers jours</option>
+                  <option value="30d">30 derniers jours</option>
+                </select>
+                {filtersActive && (
+                  <button
+                    type="button"
+                    className="text-xs text-emerald-400 hover:underline"
+                    onClick={() => { setShopFilter("all"); setStatusFilter("all"); setDriverFilter("all"); setPeriodFilter("all"); setSearch(""); }}
+                  >
+                    Réinitialiser
+                  </button>
+                )}
+                <span className="text-xs text-slate-500 ml-auto">{filteredDispatches.length} / {dispatches.length}</span>
+              </div>
+              {filteredDispatches.length === 0 && (
+                <div className="py-10 text-center text-slate-500 text-sm bg-slate-900/50 rounded-2xl border border-slate-800">
+                  Aucune commande ne correspond à ces filtres.
+                </div>
+              )}
+              {filteredDispatches.map((dispatch) => (
                 <Card key={dispatch.id} className="bg-slate-900 border-slate-800 p-4 space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
                     <div>
@@ -241,7 +312,7 @@ export default function DeliveryPartnerDashboard() {
                         </>
                       )}
 
-                      {can('read') && (dispatch.status === 'accepted' || dispatch.status === 'preparing' || dispatch.status === 'pending_assignment' || dispatch.status === 'failed') && (
+                      {can('read') && (dispatch.status === 'accepted' || dispatch.status === 'preparing' || dispatch.status === 'pending_assignment' || dispatch.status === 'assigned' || dispatch.status === 'failed') && (
                         <>
                           {dispatch.status === 'accepted' && (
                             <Button
@@ -261,11 +332,11 @@ export default function DeliveryPartnerDashboard() {
                               aria-label="Affecter à un livreur"
                               defaultValue=""
                               disabled={busyId === dispatch.id}
-                              onChange={(e) => e.target.value && run(dispatch.id, () => deliveryService.assignDispatch(dispatch.id, e.target.value), "Livreur affecté")}
+                              onChange={(e) => e.target.value && run(dispatch.id, () => deliveryService.assignDispatch(dispatch.id, e.target.value), dispatch.status === "assigned" ? "Commande réaffectée" : "Livreur affecté")}
                               className="h-8 rounded-md bg-slate-950 border border-slate-700 text-xs px-2 text-slate-200"
                             >
-                              <option value="">Affecter à…</option>
-                              {activeDrivers.map((d) => (
+                              <option value="">{dispatch.status === "assigned" ? "Réaffecter à…" : "Affecter à…"}</option>
+                              {activeDrivers.filter((d) => d.id !== dispatch.assigned_driver_id).map((d) => (
                                 <option key={d.id} value={d.id}>{d.full_name}</option>
                               ))}
                             </select>

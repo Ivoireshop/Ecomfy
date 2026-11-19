@@ -374,3 +374,14 @@ export interface DeliveryAssignableDriver {
   is_active: boolean;
   verification_status: string;
 }
+
+export interface DeliveryDriverStats {
+  driver_id: string;
+  full_name: string;
+  is_active: boolean;
+  in_progress: number;
+  delivered: number;
+  failed: number;
+  success_rate: number | null;
+  avg_delivery_minutes: number | null;
+}

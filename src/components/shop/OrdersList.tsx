@@ -10,6 +10,7 @@ import { openDeliveryProof } from "@/lib/deliveryRpc";
 import * as XLSX from "xlsx";
 import { PushToDeliveryModal } from "./PushToDeliveryModal";
 import DispatchOrderModal from "@/components/delivery/DispatchOrderModal";
+import DispatchTrackingBoard from "@/components/delivery/DispatchTrackingBoard";
 import { StoreRestrictedLockScreen } from "./StoreRestrictedLockScreen";
 import { ScheduleDeliveryModal } from "./ScheduleDeliveryModal";
 
@@ -413,6 +414,8 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
           </Button>
         </div>
       )}
+
+      <DispatchTrackingBoard shopId={shopId} />
 
       {/* Delivery Schedule Indicator Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-2">

@@ -6,6 +6,7 @@ import {
   DeliveryCompanyLocation,
   DeliveryDispatch,
   DeliveryDispatchHistoryEntry,
+  DeliveryDriverStats,
   DeliveryWorkspace,
   DeliveryStaffMember,
   DeliveryStaffRole,
@@ -560,6 +561,26 @@ export const deliveryService = {
       return [];
     }
     return ((data || []) as unknown) as DeliveryDispatch[];
+  },
+
+  /** Performances individuelles des livreurs de la structure (§9). */
+  async getDriverStats(companyId: string): Promise<DeliveryDriverStats[]> {
+    const { data, error } = await supabase.rpc("delivery_company_driver_stats" as never, { _company_id: companyId } as never);
+    if (error) {
+      console.error("Error fetching driver stats:", error);
+      return [];
+    }
+    return (data ?? []) as unknown as DeliveryDriverStats[];
+  },
+
+  /** Boutiques ayant transmis au moins une commande à la structure (filtre « commerçant » du suivi). */
+  async getCompanyDispatchShops(companyId: string): Promise<{ shop_id: string; business_name: string }[]> {
+    const { data, error } = await supabase.rpc("delivery_company_dispatch_shops" as never, { _company_id: companyId } as never);
+    if (error) {
+      console.error("Error fetching dispatch shops:", error);
+      return [];
+    }
+    return (data ?? []) as unknown as { shop_id: string; business_name: string }[];
   },
 
   /**
