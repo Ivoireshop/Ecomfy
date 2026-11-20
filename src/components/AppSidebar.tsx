@@ -265,7 +265,7 @@ export function AppSidebar() {
   ];
 
   return (
-    <Sidebar collapsible="none" className="hidden md:flex bg-white border-r border-slate-200">
+    <Sidebar collapsible="none" className="hidden md:flex sticky top-0 h-screen shrink-0 self-start bg-white border-r border-slate-200">
       <SidebarContent className="flex flex-col h-full bg-white">
         <TooltipProvider>
           {/* Header */}
@@ -287,7 +287,7 @@ export function AppSidebar() {
           </SidebarGroup>
 
           {/* Navigation groups */}
-          <div className="flex-1 overflow-y-auto space-y-2 pt-1">
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pt-1">
             {/* Options Actives Disponibles */}
             <NavSection items={activeMainItems} isCollapsed={isCollapsed} />
             
