@@ -1,5 +1,5 @@
 import { 
-  Home, Image, Video, Store, BarChart2, Settings, LogOut, Code2, Bug, Book, Tag, Users, CreditCard, FolderHeart, Truck, GraduationCap, Globe, Search, Boxes, ShieldCheck
+  Home, Image, Video, Store, BarChart2, Settings, LogOut, Code2, Bug, Book, Tag, Users, CreditCard, FolderHeart, Truck, GraduationCap, Globe, Search, Boxes, ShieldCheck, Activity
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -100,7 +100,7 @@ const NavItem = ({ item, isCollapsed }: NavItemProps) => {
             ) : (
               <NavLink
                 to={item.url}
-                end={item.url === "/"}
+                end={item.url === "/" || item.url === "/delivery-admin"}
                 className={({ isActive }) => {
                   const isCurrent = isActive;
                   return `flex items-center gap-2.5 rounded-r-[9px] px-2.5 py-2 transition-all duration-200 font-inter text-[13.5px] font-medium border-l-4 ${
@@ -233,6 +233,7 @@ export function AppSidebar() {
   const founderItems = [
     { title: t("sidebar.items.dashboard"), url: "/founder-dashboard", icon: BarChart2 },
     { title: "Fondation Livraison 🛡️", url: "/delivery-admin", icon: Truck },
+    { title: "Opérations Livraison", url: "/delivery-admin/operations", icon: Activity },
     { title: "Revue KYC", url: "/founder/kyc-review", icon: ShieldCheck },
     { title: "Abonnements & commissions", url: "/founder/subscription-plans", icon: CreditCard },
     { title: t("sidebar.items.troubleshooting"), url: "/founder-troubleshooting", icon: Bug },
