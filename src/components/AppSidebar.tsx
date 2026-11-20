@@ -192,6 +192,7 @@ export function AppSidebar() {
     { title: "Bibliothèque", url: "/library", icon: FolderHeart },
     { title: "Ecomfy Pay 💳", url: "/ecomfy-pay", icon: CreditCard },
     { title: "Ecomfy Livraison 🚚", url: "/delivery/register", icon: Truck },
+    { title: "Répertoire livreurs", url: "/delivery/directory", icon: Search },
     { title: "ConnectUs 🌐", url: "/connectus", icon: Globe },
   ];
 

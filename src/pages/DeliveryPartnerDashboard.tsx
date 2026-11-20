@@ -23,6 +23,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { deliveryService } from "@/lib/deliveryService";
 import { DeliveryWorkspace, DeliveryAssignableDriver, DeliveryDispatch, DeliveryDispatchStatus, DELIVERY_ROLE_LABELS, DeliveryPerm } from "@/types/delivery";
+import DeliveryProfileEditor from "@/components/delivery/DeliveryProfileEditor";
 import { DeliveryTeamPanel } from "@/components/delivery/DeliveryTeamPanel";
 import { DeliveryDriverStatsPanel } from "@/components/delivery/DeliveryDriverStatsPanel";
 import DeliveryCashTracker from "@/components/delivery/DeliveryCashTracker";
@@ -39,6 +40,7 @@ export default function DeliveryPartnerDashboard() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState<boolean>(true);
+  const [showProfile, setShowProfile] = useState<boolean>(false);
   const [company, setCompany] = useState<DeliveryWorkspace | null>(null);
   const [drivers, setDrivers] = useState<DeliveryAssignableDriver[]>([]);
   const [dispatches, setDispatches] = useState<DeliveryDispatch[]>([]);
@@ -239,6 +241,20 @@ export default function DeliveryPartnerDashboard() {
             <div className="text-2xl font-bold text-white">⭐ {company.rating_score || 5.0}</div>
           </Card>
         </div>
+
+        {company.role === "owner" && (
+          <div className="space-y-3">
+            <Button
+              type="button"
+              onClick={() => setShowProfile((v) => !v)}
+              aria-expanded={showProfile}
+              className="bg-slate-800 text-slate-100 hover:bg-slate-700 border border-slate-700 text-xs"
+            >
+              {showProfile ? "Masquer le profil" : "Modifier le profil de ma structure"}
+            </Button>
+            {showProfile && <DeliveryProfileEditor onSaved={() => void loadDashboard()} />}
+          </div>
+        )}
 
         {can("manage_team") && <DeliveryTeamPanel companyId={company.company_id} role={company.role} />}
 

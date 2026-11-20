@@ -4,6 +4,10 @@ import {
   DeliveryCompany,
   DeliveryCompanyKyc,
   DeliveryCompanyLocation,
+  DeliveryDirectoryCard,
+  DeliveryDirectoryResult,
+  DeliveryProfileInput,
+  DeliveryProfileType,
   DeliveryDispatch,
   DeliveryDispatchHistoryEntry,
   DeliveryDriverStats,
@@ -237,6 +241,68 @@ export const deliveryService = {
   async revokeStaffInvite(staffId: string): Promise<void> {
     const { error } = await db.rpc("delivery_staff_revoke_invite", { _staff_id: staffId });
     if (error) throw new Error(error.message);
+  },
+
+  /** Répertoire (cahier §2) : structures et livreurs indépendants vérifiés. Seuls les champs publics sortent de la base. */
+  async searchDirectory(params: {
+    query?: string;
+    city?: string;
+    profileType?: DeliveryProfileType | null;
+    limit?: number;
+    offset?: number;
+  } = {}): Promise<DeliveryDirectoryResult> {
+    const { data, error } = await db.rpc("delivery_directory_search", {
+      _query: params.query?.trim() || null,
+      _city: params.city?.trim() || null,
+      _profile_type: params.profileType ?? null,
+      _limit: params.limit ?? 24,
+      _offset: params.offset ?? 0,
+    });
+    if (error) throw new Error(error.message);
+    const result = (data ?? { total: 0, items: [] }) as DeliveryDirectoryResult;
+    return { total: result.total ?? 0, items: result.items ?? [] };
+  },
+
+  async getDirectoryCard(companyId: string): Promise<DeliveryDirectoryCard> {
+    const { data, error } = await db.rpc("delivery_directory_get", { _company_id: companyId });
+    if (error) throw new Error(error.message);
+    return data as DeliveryDirectoryCard;
+  },
+
+  /** URL publique d'un logo (bucket « delivery-logos »). */
+  logoPublicUrl(path: string | null | undefined): string | null {
+    if (!path) return null;
+    return supabase.storage.from("delivery-logos").getPublicUrl(path).data.publicUrl;
+  },
+
+  /** Dépose un logo dans le dossier de l'utilisateur et renvoie son chemin. */
+  async uploadLogo(file: File): Promise<string> {
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) throw new Error("Connexion requise.");
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) throw new Error("Le logo doit être une image JPG, PNG ou WEBP.");
+    if (file.size > 2 * 1024 * 1024) throw new Error("Le logo ne doit pas dépasser 2 Mo.");
+    const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+    const path = `${userData.user.id}/logo-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("delivery-logos").upload(path, file, { contentType: file.type, upsert: false });
+    if (error) throw new Error(error.message);
+    return path;
+  },
+
+  /**
+   * Met à jour la fiche du responsable. La base impose ses règles : une modification de l'adresse, de la ville ou du nom
+   * d'une structure approuvée la renvoie en vérification (badge retiré), et les indicateurs de performance sont intouchables.
+   * Renvoie le dossier après mise à jour pour que l'écran affiche le statut réel.
+   */
+  async updateMyProfile(companyId: string, input: Partial<DeliveryProfileInput>): Promise<DeliveryCompany> {
+    const { data, error } = await db
+      .from("delivery_companies")
+      .update(input)
+      .eq("id", companyId)
+      .select(COMPANY_SELECT)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error("Modification refusée : ce dossier n'est pas le vôtre.");
+    return withKyc(data);
   },
 
   /** Annuaire des vendeurs : structures approuvées (sans livreurs ni identité, que la base ne leur montre pas). */

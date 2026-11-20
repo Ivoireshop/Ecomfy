@@ -155,6 +155,13 @@ export interface DeliveryCompany {
   
   covered_cities: string[];
   total_drivers_count: number;
+
+  /** Fiche publique (répertoire). */
+  description?: string | null;
+  services_info?: string | null;
+  logo_url?: string | null;
+  public_phone?: string | null;
+  public_email?: string | null;
   
   verification_status: DeliveryVerificationStatus;
   trust_badge_active: boolean;
@@ -403,4 +410,49 @@ export interface DeliveryAdminOperations {
   incidents: {
     dispatch_id: string; company_name: string; recipient_name: string; city: string; reason: string | null; failed_at: string | null;
   }[];
+}
+
+/** Fiche publique d'une structure ou d'un livreur indépendant, telle que la renvoie le répertoire (cahier §2). */
+export interface DeliveryDirectoryCard {
+  id: string;
+  profile_type: DeliveryProfileType;
+  company_name: string;
+  /** Chemin dans le bucket public « delivery-logos » (pas une URL). */
+  logo_url: string | null;
+  description: string | null;
+  services_info: string | null;
+  city: string;
+  country: string;
+  /** Absente pour un livreur indépendant (c'est son domicile). */
+  address: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  email: string | null;
+  covered_cities: string[];
+  rating_score: number | null;
+  reviews_count: number;
+  successful_deliveries_count: number;
+  drivers_count: number;
+  verified: boolean;
+  verified_at: string | null;
+}
+
+export interface DeliveryDirectoryResult {
+  total: number;
+  items: DeliveryDirectoryCard[];
+}
+
+/** Champs de la fiche que le responsable peut modifier lui-même. */
+export interface DeliveryProfileInput {
+  company_name: string;
+  description: string;
+  services_info: string;
+  headquarters_address: string;
+  city: string;
+  manager_phone: string;
+  manager_whatsapp: string;
+  public_phone: string;
+  public_email: string;
+  covered_cities: string[];
+  logo_url: string | null;
 }
