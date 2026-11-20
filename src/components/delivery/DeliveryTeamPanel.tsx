@@ -119,7 +119,7 @@ export function DeliveryTeamPanel({ companyId, role }: Props) {
       <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto_auto] items-end rounded-lg border border-slate-800 bg-slate-950 p-3">
         <div>
           <label className="text-xs text-slate-400" htmlFor="staff-email">E-mail du collaborateur</label>
-          <Input id="staff-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="prenom@exemple.com" className="bg-slate-900 border-slate-700" />
+          <Input id="staff-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="prenom@exemple.com" className="bg-slate-900 border-slate-700 text-slate-100 placeholder:text-slate-500" />
         </div>
         <div>
           <label className="text-xs text-slate-400" htmlFor="staff-role">Rôle</label>

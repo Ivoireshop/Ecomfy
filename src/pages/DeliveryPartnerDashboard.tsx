@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { 
+import { useNavigate } from "react-router-dom";
+import {
   Truck, 
   ShieldCheck, 
   Package, 
@@ -36,6 +37,7 @@ const DISPATCH_STATUS_LABELS: Record<string, string> = {
 
 export default function DeliveryPartnerDashboard() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState<boolean>(true);
   const [company, setCompany] = useState<DeliveryWorkspace | null>(null);
   const [drivers, setDrivers] = useState<DeliveryAssignableDriver[]>([]);
@@ -188,6 +190,17 @@ export default function DeliveryPartnerDashboard() {
 
           <div className="flex items-center gap-2">
             <DeliveryNotificationBell />
+            {/* Le dossier (KYC, statut, pièces) appartient au propriétaire : lui seul peut le consulter. */}
+            {company.role === "owner" && (
+              <Button
+                onClick={() => navigate("/delivery/status")}
+                variant="outline"
+                size="sm"
+                className="bg-slate-900 hover:text-white border-slate-800 text-slate-300 hover:bg-slate-900"
+              >
+                <ShieldCheck className="w-4 h-4 mr-2" /> Suivi du dossier
+              </Button>
+            )}
             <Button
               onClick={loadDashboard}
               variant="outline"

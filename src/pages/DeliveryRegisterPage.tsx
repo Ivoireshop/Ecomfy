@@ -11,11 +11,17 @@ export default function DeliveryRegisterPage() {
   // Un compte = un dossier : quelqu'un qui a déjà déposé sa demande va sur le suivi de celle-ci, pas sur un formulaire vide.
   useEffect(() => {
     let active = true;
-    deliveryService
-      .getMyCompany()
-      .then((company) => {
+    // Aiguillage du menu « Ecomfy Livraison » :
+    // - structure validée (propriétaire ou collaborateur) → tableau de bord ;
+    // - dossier déposé mais pas encore validé → suivi de la demande ;
+    // - collaborateur d'une structure pas encore validée → tableau de bord (il n'a pas de dossier à suivre) ;
+    // - aucun dossier ni équipe → formulaire d'inscription.
+    Promise.all([deliveryService.getMyWorkspace(), deliveryService.getMyCompany()])
+      .then(([workspace, company]) => {
         if (!active) return;
-        if (company) navigate("/delivery/status", { replace: true });
+        if (workspace?.verification_status === "approved") navigate("/delivery/partner-dashboard", { replace: true });
+        else if (company) navigate("/delivery/status", { replace: true });
+        else if (workspace) navigate("/delivery/partner-dashboard", { replace: true });
         else setChecking(false);
       })
       .catch(() => {
