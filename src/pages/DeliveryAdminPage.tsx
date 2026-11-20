@@ -5,6 +5,7 @@ import {
   BadgeCheck,
   BarChart3,
   ClipboardCheck,
+  Wallet,
   CheckCircle2,
   ExternalLink,
   Eye,
@@ -279,6 +280,9 @@ export default function DeliveryAdminPage() {
             </Button>
             <Button asChild variant="outline" size="sm" className="bg-slate-900 hover:text-white border-slate-800 text-slate-300 hover:bg-slate-900">
               <Link to="/delivery-admin/visits"><ClipboardCheck className="w-4 h-4 mr-2" /> Visites terrain</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="bg-slate-900 hover:text-white border-slate-800 text-slate-300 hover:bg-slate-900">
+              <Link to="/delivery-admin/fees"><Wallet className="w-4 h-4 mr-2" /> Cotisations</Link>
             </Button>
             <Button onClick={() => void fetchApplications()} variant="outline" size="sm" className="bg-slate-900 hover:text-white border-slate-800 text-slate-300 hover:bg-slate-900">
               <RefreshCw className="w-4 h-4 mr-2" /> Actualiser

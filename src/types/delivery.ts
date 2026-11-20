@@ -574,3 +574,86 @@ export interface DeliveryVisitSummary {
   field_status: DeliveryFieldStatus;
   visit: { status: DeliveryVisitStatus; scheduled_for: string; visited_on: string | null } | null;
 }
+
+// ─── Cotisation, caution et activation opérationnelle (cahier §4.1) ───
+export type DeliveryFeeKind = "membership" | "deposit";
+export type DeliveryFeePaymentStatus = "pending" | "confirmed" | "rejected" | "refunded";
+export type DeliveryFeeState = "not_applicable" | "suspended" | "waived" | "active" | "payment_review" | "expired" | "payment_due";
+
+export const FEE_KIND_LABELS: Record<DeliveryFeeKind, string> = { membership: "Cotisation", deposit: "Caution" };
+export const FEE_PAYMENT_STATUS_LABELS: Record<DeliveryFeePaymentStatus, string> = {
+  pending: "En contrôle",
+  confirmed: "Confirmé",
+  rejected: "Rejeté",
+  refunded: "Restitué",
+};
+export const FEE_STATE_LABELS: Record<DeliveryFeeState, string> = {
+  not_applicable: "Non concerné",
+  suspended: "Accès suspendu",
+  waived: "Dispensée",
+  active: "À jour",
+  payment_review: "Paiement en contrôle",
+  expired: "Cotisation expirée",
+  payment_due: "Paiement à effectuer",
+};
+
+export interface DeliveryFeePayment {
+  id: string;
+  kind: DeliveryFeeKind;
+  amount: number;
+  currency: string;
+  method: string;
+  reference: string | null;
+  status: DeliveryFeePaymentStatus;
+  source: "declared" | "admin";
+  period_end: string | null;
+  decision_note: string | null;
+  created_at: string;
+  decided_at: string | null;
+  refunded_at: string | null;
+}
+
+export interface DeliveryFeeStatus {
+  company_id: string;
+  applicable: boolean;
+  enforced: boolean;
+  state: DeliveryFeeState;
+  operational: boolean;
+  suspended: boolean;
+  suspended_reason: string | null;
+  waived: boolean;
+  membership: {
+    amount: number;
+    currency: string;
+    period_months: number | null;
+    ok: boolean;
+    paid_until: string | null;
+    no_expiry: boolean;
+    pending: boolean;
+  };
+  deposit: { amount: number; currency: string; ok: boolean; held: boolean; pending: boolean; policy: string | null };
+  payments?: DeliveryFeePayment[];
+}
+
+export interface DeliveryFeeSettings {
+  require_company_activation: boolean;
+  membership_fee: { amount?: number; currency?: string; period_months?: number };
+  deposit_fee: { amount?: number; currency?: string };
+  deposit_refund_policy: string;
+}
+
+export interface DeliveryFeeOverview {
+  pending: Array<{
+    id: string;
+    company_id: string;
+    company_name: string;
+    kind: DeliveryFeeKind;
+    amount: number;
+    currency: string;
+    method: string;
+    reference: string | null;
+    note: string | null;
+    created_at: string;
+  }>;
+  companies: Array<{ company_id: string; company_name: string; city: string; verification_status: string; fees: DeliveryFeeStatus }>;
+}

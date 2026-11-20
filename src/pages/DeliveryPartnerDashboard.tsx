@@ -13,7 +13,8 @@ import {
   Phone,
   MapPin,
   Camera,
-  Search
+  Search,
+  Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -201,6 +202,16 @@ export default function DeliveryPartnerDashboard() {
                 className="bg-slate-900 hover:text-white border-slate-800 text-slate-300 hover:bg-slate-900"
               >
                 <ShieldCheck className="w-4 h-4 mr-2" /> Suivi du dossier
+              </Button>
+            )}
+            {company.role === "owner" && (
+              <Button
+                onClick={() => navigate("/delivery/fees")}
+                variant="outline"
+                size="sm"
+                className="bg-slate-900 hover:text-white border-slate-800 text-slate-300 hover:bg-slate-900"
+              >
+                <Wallet className="w-4 h-4 mr-2" /> Cotisation et caution
               </Button>
             )}
             <Button

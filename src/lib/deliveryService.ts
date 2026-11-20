@@ -13,6 +13,10 @@ import {
   DeliveryVisitSummary,
   VisitChecks,
   DeliveryDirectoryResult,
+  DeliveryFeeKind,
+  DeliveryFeeOverview,
+  DeliveryFeeSettings,
+  DeliveryFeeStatus,
   DeliveryProfileInput,
   DeliveryProfileType,
   DeliveryDispatch,
@@ -305,6 +309,87 @@ export const deliveryService = {
 
   async setRequireVisit(required: boolean): Promise<void> {
     const { error } = await db.rpc("delivery_admin_set_require_visit", { _required: required });
+    if (error) throw new Error(error.message);
+  },
+
+  // ─── Cotisation, caution et activation (§4.1) ───
+  async getCompanyFees(companyId: string): Promise<DeliveryFeeStatus> {
+    const { data, error } = await db.rpc("delivery_company_fees", { _company_id: companyId });
+    if (error) throw new Error(error.message);
+    return data as DeliveryFeeStatus;
+  },
+
+  async declareFeePayment(input: { companyId: string; kind: DeliveryFeeKind; method: string; reference?: string; note?: string }): Promise<void> {
+    const { error } = await db.rpc("delivery_company_declare_payment", {
+      _company_id: input.companyId,
+      _kind: input.kind,
+      _method: input.method,
+      _reference: input.reference || null,
+      _note: input.note || null,
+    });
+    if (error) throw new Error(error.message);
+  },
+
+  async getFeeSettings(): Promise<DeliveryFeeSettings> {
+    const { data, error } = await db.rpc("delivery_admin_fee_settings");
+    if (error) throw new Error(error.message);
+    return data as DeliveryFeeSettings;
+  },
+
+  async setFeeSettings(input: {
+    membershipAmount: number;
+    membershipPeriodMonths: number;
+    depositAmount: number;
+    currency: string;
+    refundPolicy: string;
+    requireActivation: boolean;
+  }): Promise<void> {
+    const { error } = await db.rpc("delivery_admin_set_fee_settings", {
+      _membership_amount: input.membershipAmount,
+      _membership_period_months: input.membershipPeriodMonths,
+      _deposit_amount: input.depositAmount,
+      _currency: input.currency,
+      _refund_policy: input.refundPolicy,
+      _require_activation: input.requireActivation,
+    });
+    if (error) throw new Error(error.message);
+  },
+
+  async getFeeOverview(): Promise<DeliveryFeeOverview> {
+    const { data, error } = await db.rpc("delivery_admin_fee_overview");
+    if (error) throw new Error(error.message);
+    return data as DeliveryFeeOverview;
+  },
+
+  async decideFeePayment(paymentId: string, approve: boolean, note?: string): Promise<void> {
+    const { error } = await db.rpc("delivery_admin_decide_payment", { _payment_id: paymentId, _approve: approve, _note: note || null });
+    if (error) throw new Error(error.message);
+  },
+
+  async recordFeePayment(input: { companyId: string; kind: DeliveryFeeKind; amount: number; method: string; reference?: string; note?: string }): Promise<void> {
+    const { error } = await db.rpc("delivery_admin_record_payment", {
+      _company_id: input.companyId,
+      _kind: input.kind,
+      _amount: input.amount,
+      _method: input.method,
+      _reference: input.reference || null,
+      _note: input.note || null,
+    });
+    if (error) throw new Error(error.message);
+  },
+
+  async refundDeposit(companyId: string, note: string): Promise<void> {
+    const { error } = await db.rpc("delivery_admin_refund_deposit", { _company_id: companyId, _note: note });
+    if (error) throw new Error(error.message);
+  },
+
+  async setActivation(companyId: string, suspended: boolean, waived: boolean, reason?: string): Promise<void> {
+    const { error } = await db.rpc("delivery_admin_set_activation", {
+      _company_id: companyId,
+      _suspended: suspended,
+      _waived: waived,
+      _reason: reason || null,
+    });
     if (error) throw new Error(error.message);
   },
 
