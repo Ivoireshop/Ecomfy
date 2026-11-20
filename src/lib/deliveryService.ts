@@ -5,6 +5,13 @@ import {
   DeliveryCompanyKyc,
   DeliveryCompanyLocation,
   DeliveryDirectoryCard,
+  DeliveryAgentVisit,
+  DeliveryFieldAgent,
+  DeliveryFieldVisitAdmin,
+  DeliveryPendingVerification,
+  DeliveryVisitOutcome,
+  DeliveryVisitSummary,
+  VisitChecks,
   DeliveryDirectoryResult,
   DeliveryProfileInput,
   DeliveryProfileType,
@@ -241,6 +248,133 @@ export const deliveryService = {
   async revokeStaffInvite(staffId: string): Promise<void> {
     const { error } = await db.rpc("delivery_staff_revoke_invite", { _staff_id: staffId });
     if (error) throw new Error(error.message);
+  },
+
+  // ---------------------------------------------------------------------------------------------------------------
+  // Vérification physique (cahier §5)
+  // ---------------------------------------------------------------------------------------------------------------
+
+  async getFieldAgents(): Promise<DeliveryFieldAgent[]> {
+    const { data, error } = await db.rpc("delivery_admin_field_agents");
+    if (error) throw new Error(error.message);
+    return (data || []) as DeliveryFieldAgent[];
+  },
+
+  async setFieldAgent(input: { email: string; fullName: string; phone?: string; active?: boolean }): Promise<void> {
+    const { error } = await db.rpc("delivery_admin_set_field_agent", {
+      _email: input.email,
+      _full_name: input.fullName,
+      _phone: input.phone ?? null,
+      _active: input.active ?? true,
+    });
+    if (error) throw new Error(error.message);
+  },
+
+  async getPendingVerifications(): Promise<DeliveryPendingVerification[]> {
+    const { data, error } = await db.rpc("delivery_admin_pending_verifications");
+    if (error) throw new Error(error.message);
+    return (data || []) as DeliveryPendingVerification[];
+  },
+
+  async getFieldVisits(status?: string): Promise<DeliveryFieldVisitAdmin[]> {
+    const { data, error } = await db.rpc("delivery_admin_field_visits", { _status: status ?? null });
+    if (error) throw new Error(error.message);
+    return (data || []) as DeliveryFieldVisitAdmin[];
+  },
+
+  async scheduleVisit(input: { companyId: string; agentId: string; scheduledFor: string; instructions?: string }): Promise<void> {
+    const { error } = await db.rpc("delivery_admin_schedule_visit", {
+      _company_id: input.companyId,
+      _agent_id: input.agentId,
+      _scheduled_for: input.scheduledFor,
+      _instructions: input.instructions ?? null,
+    });
+    if (error) throw new Error(error.message);
+  },
+
+  async cancelVisit(visitId: string, reason: string): Promise<void> {
+    const { error } = await db.rpc("delivery_admin_cancel_visit", { _visit_id: visitId, _reason: reason });
+    if (error) throw new Error(error.message);
+  },
+
+  async getRequireVisit(): Promise<boolean> {
+    const { data, error } = await db.rpc("delivery_admin_get_settings");
+    if (error) throw new Error(error.message);
+    return (data as Record<string, unknown> | null)?.require_field_visit === true;
+  },
+
+  async setRequireVisit(required: boolean): Promise<void> {
+    const { error } = await db.rpc("delivery_admin_set_require_visit", { _required: required });
+    if (error) throw new Error(error.message);
+  },
+
+  /** Vrai si le compte connecté est un agent terrain actif (affiche l'entrée « Missions terrain »). */
+  async isFieldAgent(): Promise<boolean> {
+    const { data, error } = await db.rpc("delivery_is_field_agent");
+    return !error && data === true;
+  },
+
+  async getAgentVisits(): Promise<DeliveryAgentVisit[]> {
+    const { data, error } = await db.rpc("delivery_agent_my_visits");
+    if (error) throw new Error(error.message);
+    return (data || []) as DeliveryAgentVisit[];
+  },
+
+  async startVisit(visitId: string): Promise<void> {
+    const { error } = await db.rpc("delivery_agent_start_visit", { _visit_id: visitId });
+    if (error) throw new Error(error.message);
+  },
+
+  async submitVisit(input: {
+    visitId: string;
+    outcome: DeliveryVisitOutcome;
+    checks: VisitChecks;
+    observations: string;
+    photos: string[];
+    visitedOn?: string;
+  }): Promise<void> {
+    const { error } = await db.rpc("delivery_agent_submit_visit", {
+      _visit_id: input.visitId,
+      _outcome: input.outcome,
+      _checks: input.checks,
+      _observations: input.observations,
+      _photos: input.photos,
+      _visited_on: input.visitedOn ?? null,
+    });
+    if (error) throw new Error(error.message);
+  },
+
+  /** Dépose une photo de visite dans le dossier de l'agent (bucket privé) et renvoie son chemin. */
+  async uploadVisitPhoto(file: File): Promise<string> {
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) throw new Error("Connexion requise.");
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) throw new Error("La photo doit être au format JPG, PNG ou WEBP.");
+    if (file.size > 10 * 1024 * 1024) throw new Error("Une photo ne doit pas dépasser 10 Mo.");
+    const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+    const path = `${userData.user.id}/visit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error } = await supabase.storage.from("delivery-visits").upload(path, file, { contentType: file.type, upsert: false });
+    if (error) throw new Error(error.message);
+    return path;
+  },
+
+  /** Liens signés de 10 minutes pour afficher des photos de visite (agent auteur ou administrateur). */
+  async getVisitPhotoUrls(paths: string[]): Promise<Record<string, string>> {
+    if (paths.length === 0) return {};
+    const { data, error } = await supabase.storage.from("delivery-visits").createSignedUrls(paths, 600);
+    if (error) throw new Error(error.message);
+    const out: Record<string, string> = {};
+    for (const row of data ?? []) if (row.path && row.signedUrl) out[row.path] = row.signedUrl;
+    return out;
+  },
+
+  /** Statut de vérification et visite en cours, sans rapport ni photos (propriétaire du dossier ou administrateur). */
+  async getVisitSummary(companyId: string): Promise<DeliveryVisitSummary | null> {
+    const { data, error } = await db.rpc("delivery_company_visit_summary", { _company_id: companyId });
+    if (error) {
+      console.error("Error fetching visit summary:", error);
+      return null;
+    }
+    return data as DeliveryVisitSummary;
   },
 
   /** Répertoire (cahier §2) : structures et livreurs indépendants vérifiés. Seuls les champs publics sortent de la base. */

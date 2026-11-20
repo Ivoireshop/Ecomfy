@@ -97,6 +97,8 @@ const DeliveryStatusPage = lazyWithRetry(() => import("./pages/DeliveryStatusPag
 const DeliveryAdminPage = lazyWithRetry(() => import("./pages/DeliveryAdminPage"));
 const DeliveryPartnerDashboard = lazyWithRetry(() => import("./pages/DeliveryPartnerDashboard"));
 const DeliveryDirectoryPage = lazyWithRetry(() => import("./pages/DeliveryDirectoryPage"));
+const DeliveryFieldVisitsPage = lazyWithRetry(() => import("./pages/DeliveryFieldVisitsPage"));
+const DeliveryAgentPage = lazyWithRetry(() => import("./pages/DeliveryAgentPage"));
 const DeliveryResubmissionPage = lazyWithRetry(() => import("./pages/DeliveryResubmissionPage"));
 const DeliveryJoinPage = lazyWithRetry(() => import("./pages/DeliveryJoinPage"));
 const DeliveryOperationsPage = lazyWithRetry(() => import("./pages/DeliveryOperationsPage"));
@@ -462,6 +464,8 @@ const AppContent = () => {
           <Route path="/delivery/join" element={<ProtectedRoute><DeliveryJoinPage /></ProtectedRoute>} />
           <Route path="/delivery-admin" element={<ProtectedRoute><DeliveryAdminPage /></ProtectedRoute>} />
           <Route path="/delivery-admin/operations" element={<ProtectedRoute><DeliveryOperationsPage /></ProtectedRoute>} />
+          <Route path="/delivery-admin/visits" element={<ProtectedRoute><DeliveryFieldVisitsPage /></ProtectedRoute>} />
+          <Route path="/delivery-agent" element={<ProtectedRoute><DeliveryAgentPage /></ProtectedRoute>} />
           <Route path="/delivery/directory" element={<ProtectedRoute><DeliveryDirectoryPage /></ProtectedRoute>} />
           <Route path="/delivery/partner-dashboard" element={<ProtectedRoute><DeliveryPartnerDashboard /></ProtectedRoute>} />
 

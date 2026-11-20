@@ -22,6 +22,7 @@ import { DeliveryNotificationBell } from "@/components/delivery/DeliveryNotifica
 import { DeliveryDriversPanel } from "@/components/delivery/DeliveryDriversPanel";
 import { DeliveryAuditTimeline } from "@/components/delivery/DeliveryAuditTimeline";
 import { DeliveryApplicationProgress } from "@/components/delivery/DeliveryApplicationProgress";
+import { DeliveryVisitCard } from "@/components/delivery/DeliveryVisitCard";
 
 export default function DeliveryStatusPage() {
   const navigate = useNavigate();
@@ -249,6 +250,7 @@ export default function DeliveryStatusPage() {
         </Card>
 
         <DeliveryApplicationProgress company={company} />
+        <DeliveryVisitCard companyId={company.id} />
         <DeliveryDriversPanel company={company} onChanged={fetchStatus} />
         <DeliveryAuditTimeline companyId={company.id} />
       </div>

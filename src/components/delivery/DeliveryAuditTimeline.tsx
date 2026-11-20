@@ -19,6 +19,11 @@ const ACTION_LABELS: Record<string, string> = {
   driver_documents_updated: "Pièces ou permis d'un livreur modifiés",
   driver_activated: "Livreur activé",
   driver_deactivated: "Livreur désactivé",
+  profile_updated: "Profil modifié",
+  visit_scheduled: "Visite de vérification programmée",
+  visit_cancelled: "Visite de vérification annulée",
+  visit_started: "Visite de vérification commencée",
+  visit_completed: "Rapport de visite déposé",
 };
 
 const STATUS_LABELS: Record<string, string> = {

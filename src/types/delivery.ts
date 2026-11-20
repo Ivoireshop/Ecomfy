@@ -456,3 +456,121 @@ export interface DeliveryProfileInput {
   covered_cities: string[];
   logo_url: string | null;
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// Vérification physique (cahier §5)
+// ---------------------------------------------------------------------------------------------------------------
+
+/** Statut de vérification présenté à l'utilisateur (§5.3), déduit du dossier et de la visite. */
+export type DeliveryFieldStatus =
+  | 'not_verified' | 'requested' | 'info_requested' | 'visit_scheduled' | 'in_progress' | 'verified' | 'rejected' | 'suspended';
+
+export const FIELD_STATUS_LABELS: Record<DeliveryFieldStatus, string> = {
+  not_verified: 'Non vérifiée',
+  requested: 'Vérification demandée',
+  info_requested: 'Informations complémentaires demandées',
+  visit_scheduled: 'Visite programmée',
+  in_progress: 'Vérification en cours',
+  verified: 'Vérifiée',
+  rejected: 'Vérification refusée',
+  suspended: 'Vérification suspendue',
+};
+
+export type DeliveryVisitStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+export type DeliveryVisitOutcome = 'passed' | 'failed' | 'info_needed';
+
+export const VISIT_STATUS_LABELS: Record<DeliveryVisitStatus, string> = {
+  scheduled: 'Programmée', in_progress: 'En cours', completed: 'Terminée', cancelled: 'Annulée',
+};
+export const VISIT_OUTCOME_LABELS: Record<DeliveryVisitOutcome, string> = {
+  passed: 'Concluante', failed: 'Non concluante', info_needed: 'Informations à compléter',
+};
+
+/** Contrôles que l'agent coche sur place (§5.1). Ceux marqués « required » sont obligatoires pour une visite concluante. */
+export const VISIT_CHECKS = [
+  { key: 'premises_exist', label: 'Les locaux existent réellement', required: true },
+  { key: 'address_matches', label: "L'adresse communiquée est exacte", required: true },
+  { key: 'company_exists', label: "L'entreprise existe effectivement", required: true },
+  { key: 'delivery_activity', label: "Une activité de livraison est présente", required: true },
+  { key: 'equipment_adequate', label: 'Les équipements et moyens sont suffisants', required: false },
+  { key: 'info_consistent', label: "Les informations d'inscription sont cohérentes", required: true },
+] as const;
+export type VisitCheckKey = (typeof VISIT_CHECKS)[number]['key'];
+export type VisitChecks = Partial<Record<VisitCheckKey, boolean | null>>;
+
+export interface DeliveryFieldAgent {
+  user_id: string;
+  full_name: string;
+  phone: string | null;
+  email: string | null;
+  is_active: boolean;
+  open_visits: number;
+  completed_visits: number;
+}
+
+export interface DeliveryFieldVisitAdmin {
+  id: string;
+  company_id: string;
+  company_name: string;
+  company_city: string;
+  company_address: string;
+  profile_type: DeliveryProfileType;
+  verification_status: DeliveryVerificationStatus;
+  field_status: DeliveryFieldStatus;
+  agent_id: string;
+  agent_name: string;
+  scheduled_for: string;
+  status: DeliveryVisitStatus;
+  instructions: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  visited_on: string | null;
+  outcome: DeliveryVisitOutcome | null;
+  checks: VisitChecks;
+  observations: string | null;
+  photos: string[];
+  cancelled_reason: string | null;
+  created_at: string;
+}
+
+export interface DeliveryPendingVerification {
+  id: string;
+  company_name: string;
+  city: string;
+  address: string;
+  profile_type: DeliveryProfileType;
+  verification_status: DeliveryVerificationStatus;
+  field_status: DeliveryFieldStatus;
+  requested_at: string | null;
+  last_visit_outcome: DeliveryVisitOutcome | null;
+}
+
+export interface DeliveryAgentVisit {
+  id: string;
+  status: DeliveryVisitStatus;
+  scheduled_for: string;
+  instructions: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  visited_on: string | null;
+  outcome: DeliveryVisitOutcome | null;
+  checks: VisitChecks;
+  observations: string | null;
+  photos: string[];
+  company: {
+    id: string;
+    name: string;
+    profile_type: DeliveryProfileType;
+    city: string;
+    address: string;
+    manager_name: string;
+    manager_phone: string;
+    covered_cities: string[];
+    description: string | null;
+  };
+}
+
+export interface DeliveryVisitSummary {
+  field_status: DeliveryFieldStatus;
+  visit: { status: DeliveryVisitStatus; scheduled_for: string; visited_on: string | null } | null;
+}

@@ -1,9 +1,10 @@
 import { 
-  Home, Image, Video, Store, BarChart2, Settings, LogOut, Code2, Bug, Book, Tag, Users, CreditCard, FolderHeart, Truck, GraduationCap, Globe, Search, Boxes, ShieldCheck, Activity
+  Home, Image, Video, Store, BarChart2, Settings, LogOut, Code2, Bug, Book, Tag, Users, CreditCard, FolderHeart, Truck, GraduationCap, Globe, Search, Boxes, ShieldCheck, Activity, ClipboardCheck
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { deliveryService } from "@/lib/deliveryService";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { useCommunityUnread } from "@/hooks/useCommunityUnread";
 import { useTranslation } from "react-i18next";
@@ -161,9 +162,11 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [isFounder, setIsFounder] = useState(false);
+  const [isFieldAgent, setIsFieldAgent] = useState(false);
   const { user, isReady } = useAuthReady();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { toast } = useToast();
   const communityUnread = useCommunityUnread();
 
@@ -193,6 +196,7 @@ export function AppSidebar() {
     { title: "Ecomfy Pay 💳", url: "/ecomfy-pay", icon: CreditCard },
     { title: "Ecomfy Livraison 🚚", url: "/delivery/register", icon: Truck },
     { title: "Répertoire livreurs", url: "/delivery/directory", icon: Search },
+    ...(isFieldAgent ? [{ title: "Missions terrain", url: "/delivery-agent", icon: ClipboardCheck }] : []),
     { title: "ConnectUs 🌐", url: "/connectus", icon: Globe },
   ];
 
@@ -231,10 +235,27 @@ export function AppSidebar() {
     };
   }, [isReady, user?.id]);
 
+  useEffect(() => {
+    let cancelled = false;
+    // Relu à chaque changement de page : une désignation (ou une désactivation) faite
+    // par l'administration apparaît dans le menu sans rechargement ni reconnexion.
+    if (isReady && user?.id) {
+      void deliveryService.isFieldAgent().then((ok) => {
+        if (!cancelled) setIsFieldAgent(ok);
+      });
+    } else {
+      setIsFieldAgent(false);
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [isReady, user?.id, pathname]);
+
   const founderItems = [
     { title: t("sidebar.items.dashboard"), url: "/founder-dashboard", icon: BarChart2 },
     { title: "Fondation Livraison 🛡️", url: "/delivery-admin", icon: Truck },
     { title: "Opérations Livraison", url: "/delivery-admin/operations", icon: Activity },
+    { title: "Visites terrain", url: "/delivery-admin/visits", icon: ClipboardCheck },
     { title: "Revue KYC", url: "/founder/kyc-review", icon: ShieldCheck },
     { title: "Abonnements & commissions", url: "/founder/subscription-plans", icon: CreditCard },
     { title: t("sidebar.items.troubleshooting"), url: "/founder-troubleshooting", icon: Bug },
