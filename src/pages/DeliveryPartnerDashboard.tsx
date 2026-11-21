@@ -30,6 +30,7 @@ import { DeliveryTeamPanel } from "@/components/delivery/DeliveryTeamPanel";
 import { DeliveryDriverStatsPanel } from "@/components/delivery/DeliveryDriverStatsPanel";
 import DeliveryCashTracker from "@/components/delivery/DeliveryCashTracker";
 import { DeliveryNotificationBell } from "@/components/delivery/DeliveryNotificationBell";
+import { DeliveryStructureOverview } from "@/components/delivery/DeliveryStructureOverview";
 
 const DISPATCH_STATUS_LABELS: Record<string, string> = {
   transmitted: "Nouvelle", accepted: "Acceptée", refused: "Refusée", preparing: "En préparation",
@@ -141,11 +142,6 @@ export default function DeliveryPartnerDashboard() {
     );
   }
 
-  const newDispatches = dispatches.filter((d) => d.status === 'transmitted');
-  const pendingDispatches = dispatches.filter((d) => ['accepted', 'preparing', 'assigned', 'pending_assignment'].includes(d.status));
-  const activeDispatches = dispatches.filter((d) => d.status === 'picked_up' || d.status === 'in_transit');
-  const completedDispatches = dispatches.filter((d) => d.status === 'delivered' || d.status === 'completed' || d.status === 'cod_collected');
-
   const periodStart = periodFilter === "today" ? new Date(new Date().setHours(0, 0, 0, 0)).getTime()
     : periodFilter === "7d" ? Date.now() - 7 * 86400000
     : periodFilter === "30d" ? Date.now() - 30 * 86400000 : 0;
@@ -236,33 +232,12 @@ export default function DeliveryPartnerDashboard() {
           </div>
         </div>
 
-        {/* Overview Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-          <Card className="bg-slate-900 border-slate-800 p-4 space-y-1">
-            <span className="text-xs text-slate-400">Nouvelles commandes</span>
-            <div className="text-2xl font-bold text-rose-400">{newDispatches.length}</div>
-          </Card>
-
-          <Card className="bg-slate-900 border-slate-800 p-4 space-y-1">
-            <span className="text-xs text-slate-400">À Récupérer</span>
-            <div className="text-2xl font-bold text-amber-400">{pendingDispatches.length}</div>
-          </Card>
-
-          <Card className="bg-slate-900 border-slate-800 p-4 space-y-1">
-            <span className="text-xs text-slate-400">En cours de Livraison</span>
-            <div className="text-2xl font-bold text-blue-400">{activeDispatches.length}</div>
-          </Card>
-
-          <Card className="bg-slate-900 border-slate-800 p-4 space-y-1">
-            <span className="text-xs text-slate-400">Livraisons Réussies</span>
-            <div className="text-2xl font-bold text-emerald-400">{completedDispatches.length}</div>
-          </Card>
-
-          <Card className="bg-slate-900 border-slate-800 p-4 space-y-1">
-            <span className="text-xs text-slate-400">Note Vendeurs</span>
-            <div className="text-2xl font-bold text-white">⭐ {company.rating_score || 5.0}</div>
-          </Card>
-        </div>
+        {/* Vue d'ensemble (§3.1) : compteurs par état, livreurs actifs, activité quotidienne */}
+        <DeliveryStructureOverview
+          dispatches={dispatches}
+          activeDrivers={can("assign") ? activeDrivers.length : company.drivers_count}
+        />
+        <div className="text-xs text-slate-400">Note des vendeurs : ⭐ {company.rating_score || 5.0}</div>
 
         {company.role === "owner" && (
           <div className="space-y-3">
