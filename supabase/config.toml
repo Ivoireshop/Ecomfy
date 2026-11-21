@@ -79,6 +79,8 @@ project_id = "ecomfy"
     verify_jwt = true
   [functions.send-weekly-finance-summary]
     verify_jwt = false
+  [functions.send-delivery-notification-emails]
+    verify_jwt = false
   [functions.showcase-chat]
     verify_jwt = false
   [functions.sync-ad-spend]

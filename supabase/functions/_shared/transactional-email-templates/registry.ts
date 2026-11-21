@@ -18,6 +18,7 @@ import { template as commissionPayment } from './commission-payment.tsx'
 import { template as orderPaymentSuccess } from './order-payment-success.tsx'
 import { template as founderTeamInvite } from './founder-team-invite.tsx'
 import { template as digitalOrderReady } from './digital-order-ready.tsx'
+import { template as deliveryNotification } from './delivery-notification.tsx'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'finance-weekly-summary': financeWeeklySummary,
@@ -29,4 +30,5 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'order-payment-success': orderPaymentSuccess,
   'founder-team-invite': founderTeamInvite,
   'digital-order-ready': digitalOrderReady,
+  'delivery-notification': deliveryNotification,
 }

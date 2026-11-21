@@ -728,6 +728,19 @@ export const deliveryService = {
     if (error) throw new Error(error.message);
   },
 
+  /** Canal e-mail des notifications (§12) : préférence de l'utilisateur connecté, activée par défaut. */
+  async getEmailPref(): Promise<boolean> {
+    const { data, error } = await (supabase as any).rpc("delivery_get_email_pref");
+    if (error) throw new Error(error.message);
+    return data !== false;
+  },
+
+  async setEmailPref(enabled: boolean): Promise<boolean> {
+    const { data, error } = await (supabase as any).rpc("delivery_set_email_pref", { _enabled: enabled });
+    if (error) throw new Error(error.message);
+    return data !== false;
+  },
+
   /**
    * Le marchand transmet une commande à une structure. Adresse, destinataire et montant à encaisser sont lus
    * sur la commande par le serveur ; la structure doit ensuite l'accepter ou la refuser.

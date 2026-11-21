@@ -1,6 +1,10 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, CheckCheck } from "lucide-react";
+import { toast } from "sonner";
+import { Bell, CheckCheck, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { deliveryService } from "@/lib/deliveryService";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useDeliveryNotifications } from "@/hooks/useDeliveryNotifications";
 
@@ -18,6 +22,25 @@ const formatWhen = (iso: string) =>
 export function DeliveryNotificationBell({ onNew }: { onNew?: () => void } = {}) {
   const navigate = useNavigate();
   const { items, unread, loading, markAllRead } = useDeliveryNotifications(onNew);
+  // Canal e-mail (§12) : null tant que la préférence n'est pas lue.
+  const [emailPref, setEmailPref] = useState<boolean | null>(null);
+  const [emailBusy, setEmailBusy] = useState(false);
+  useEffect(() => {
+    let active = true;
+    deliveryService.getEmailPref().then((v) => { if (active) setEmailPref(v); }).catch(() => { /* case désactivée */ });
+    return () => { active = false; };
+  }, []);
+  const toggleEmail = async (next: boolean) => {
+    setEmailBusy(true);
+    try {
+      setEmailPref(await deliveryService.setEmailPref(next));
+      toast.success(next ? "Notifications par e-mail activées" : "Notifications par e-mail désactivées");
+    } catch {
+      toast.error("Impossible de modifier la préférence e-mail");
+    } finally {
+      setEmailBusy(false);
+    }
+  };
 
   return (
     <Popover onOpenChange={(open) => { if (open && unread > 0) void markAllRead(); }}>
@@ -68,6 +91,15 @@ export function DeliveryNotificationBell({ onNew }: { onNew?: () => void } = {})
             ))
           )}
         </div>
+        <label className="flex items-center justify-between gap-3 px-3 py-2.5 border-t border-slate-800 text-[11px] text-slate-300">
+          <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-slate-400" /> Recevoir aussi par e-mail</span>
+          <Switch
+            checked={emailPref ?? true}
+            disabled={emailPref === null || emailBusy}
+            onCheckedChange={toggleEmail}
+            aria-label="Recevoir aussi les notifications par e-mail"
+          />
+        </label>
       </PopoverContent>
     </Popover>
   );
