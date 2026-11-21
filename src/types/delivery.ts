@@ -645,6 +645,70 @@ export interface DeliveryFeeSettings {
   premium_plans: DeliveryPremiumPlan[];
 }
 
+// ─── Gestion financière de l'administration (cahier §11.3) ───
+export interface DeliveryFinanceAmount {
+  kind?: DeliveryFeeKind;
+  currency: string;
+  amount: number;
+  count: number;
+}
+
+export interface DeliveryFinanceCompanyRow {
+  company_id: string;
+  company_name: string;
+  currency: string;
+  membership: number;
+  deposit_held: number;
+  deposit_refunded: number;
+  premium: number;
+  pending: number;
+  last_payment_at: string | null;
+}
+
+export interface DeliveryFinanceSummary {
+  period: { from: string | null; to: string };
+  collected: DeliveryFinanceAmount[];
+  renewals: DeliveryFinanceAmount[];
+  refunded: DeliveryFinanceAmount[];
+  deposits_held: DeliveryFinanceAmount[];
+  pending: DeliveryFinanceAmount[];
+  premium_active: number;
+  premium_expiring_30d: number;
+  membership_expiring_30d: number;
+  by_company: DeliveryFinanceCompanyRow[];
+}
+
+export interface DeliveryCompanyFinancePayment {
+  id: string;
+  kind: DeliveryFeeKind;
+  plan_label: string | null;
+  amount: number;
+  currency: string;
+  method: string;
+  reference: string | null;
+  status: DeliveryFeePaymentStatus;
+  source: "declared" | "admin";
+  period_start: string | null;
+  period_end: string | null;
+  decision_note: string | null;
+  created_at: string;
+  decided_at: string | null;
+  refunded_at: string | null;
+  refund_note: string | null;
+}
+
+export interface DeliveryCompanyFinance {
+  company_id: string;
+  company_name: string;
+  city: string;
+  profile_type: DeliveryProfileType;
+  verification_status: string;
+  fees: DeliveryFeeStatus | null;
+  premium: DeliveryPremiumState | null;
+  totals: DeliveryFinanceAmount[];
+  payments: DeliveryCompanyFinancePayment[];
+}
+
 export interface DeliveryFeeOverview {
   pending: Array<{
     id: string;

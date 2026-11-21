@@ -101,6 +101,7 @@ const DeliveryFieldVisitsPage = lazyWithRetry(() => import("./pages/DeliveryFiel
 const DeliveryFeesPage = lazyWithRetry(() => import("./pages/DeliveryFeesPage"));
 const DeliveryPremiumPage = lazyWithRetry(() => import("./pages/DeliveryPremiumPage"));
 const DeliveryAdminFeesPage = lazyWithRetry(() => import("./pages/DeliveryAdminFeesPage"));
+const DeliveryAdminFinancePage = lazyWithRetry(() => import("./pages/DeliveryAdminFinancePage"));
 const DeliveryAgentPage = lazyWithRetry(() => import("./pages/DeliveryAgentPage"));
 const DeliveryResubmissionPage = lazyWithRetry(() => import("./pages/DeliveryResubmissionPage"));
 const DeliveryJoinPage = lazyWithRetry(() => import("./pages/DeliveryJoinPage"));
@@ -469,6 +470,7 @@ const AppContent = () => {
           <Route path="/delivery-admin/operations" element={<ProtectedRoute><DeliveryOperationsPage /></ProtectedRoute>} />
           <Route path="/delivery-admin/visits" element={<ProtectedRoute><DeliveryFieldVisitsPage /></ProtectedRoute>} />
           <Route path="/delivery-admin/fees" element={<ProtectedRoute><DeliveryAdminFeesPage /></ProtectedRoute>} />
+          <Route path="/delivery-admin/finance" element={<ProtectedRoute><DeliveryAdminFinancePage /></ProtectedRoute>} />
           <Route path="/delivery/fees" element={<ProtectedRoute><DeliveryFeesPage /></ProtectedRoute>} />
           <Route path="/delivery/premium" element={<ProtectedRoute><DeliveryPremiumPage /></ProtectedRoute>} />
           <Route path="/delivery-agent" element={<ProtectedRoute><DeliveryAgentPage /></ProtectedRoute>} />

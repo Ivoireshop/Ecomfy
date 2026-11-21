@@ -16,6 +16,8 @@ import {
   DeliveryFeeKind,
   DeliveryFeeOverview,
   DeliveryFeeSettings,
+  DeliveryCompanyFinance,
+  DeliveryFinanceSummary,
   DeliveryPremiumPlan,
   DeliveryPremiumStatus,
   DeliveryFeeStatus,
@@ -393,6 +395,22 @@ export const deliveryService = {
       _reason: reason || null,
     });
     if (error) throw new Error(error.message);
+  },
+
+  // ─── Gestion financière de l'administration (§11.3) ───
+  async getFinanceSummary(from?: Date | null, to?: Date | null): Promise<DeliveryFinanceSummary> {
+    const { data, error } = await db.rpc("delivery_admin_finance_summary", {
+      _from: from ? from.toISOString() : null,
+      _to: to ? to.toISOString() : null,
+    });
+    if (error) throw new Error(error.message);
+    return data as DeliveryFinanceSummary;
+  },
+
+  async getCompanyFinance(companyId: string): Promise<DeliveryCompanyFinance> {
+    const { data, error } = await db.rpc("delivery_admin_company_finance", { _company_id: companyId });
+    if (error) throw new Error(error.message);
+    return data as DeliveryCompanyFinance;
   },
 
   // ─── Abonnement Premium (§4.2) ───

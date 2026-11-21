@@ -6,6 +6,7 @@ import {
   BarChart3,
   ClipboardCheck,
   Wallet,
+  Banknote,
   CheckCircle2,
   ExternalLink,
   Eye,
@@ -283,6 +284,9 @@ export default function DeliveryAdminPage() {
             </Button>
             <Button asChild variant="outline" size="sm" className="bg-slate-900 hover:text-white border-slate-800 text-slate-300 hover:bg-slate-900">
               <Link to="/delivery-admin/fees"><Wallet className="w-4 h-4 mr-2" /> Cotisations</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="bg-slate-900 hover:text-white border-slate-800 text-slate-300 hover:bg-slate-900">
+              <Link to="/delivery-admin/finance"><Banknote className="w-4 h-4 mr-2" /> Finances</Link>
             </Button>
             <Button onClick={() => void fetchApplications()} variant="outline" size="sm" className="bg-slate-900 hover:text-white border-slate-800 text-slate-300 hover:bg-slate-900">
               <RefreshCw className="w-4 h-4 mr-2" /> Actualiser
