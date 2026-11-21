@@ -8,14 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { deliveryService } from "@/lib/deliveryService";
-import { FEE_KIND_LABELS, FEE_STATE_LABELS, type DeliveryFeeKind, type DeliveryFeeOverview } from "@/types/delivery";
+import { FEE_KIND_LABELS, FEE_STATE_LABELS, type DeliveryFeeKind, type DeliveryFeeOverview, type DeliveryPremiumPlan } from "@/types/delivery";
 
 const fmtDay = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }) : "—");
 const money = (n: number, cur: string) => `${new Intl.NumberFormat("fr-FR").format(n)} ${cur}`;
 const field = "bg-slate-950 border-slate-800 text-white placeholder:text-slate-500";
 const secondaryBtn = "bg-slate-800 text-slate-100 hover:bg-slate-700 border border-slate-700 text-xs";
 
-/** Contrôle des cotisations et cautions (cahier des charges §4.1 et §11.3) : barème, paiements à contrôler, accès des structures. */
+/** Contrôle des cotisations, cautions et abonnements Premium (cahier des charges §4.1, §4.2 et §11.3) : barème, paiements à contrôler, accès des structures. */
 export default function DeliveryAdminFeesPage() {
   const { toast } = useToast();
   const [overview, setOverview] = useState<DeliveryFeeOverview | null>(null);
@@ -33,8 +33,10 @@ export default function DeliveryAdminFeesPage() {
   });
   const [rejectFor, setRejectFor] = useState<string | null>(null);
   const [rejectNote, setRejectNote] = useState("");
-  const [actionFor, setActionFor] = useState<{ companyId: string; type: "record" | "refund" | "suspend" | "waive" } | null>(null);
+  const [actionFor, setActionFor] = useState<{ companyId: string; type: "record" | "refund" | "suspend" | "waive" | "premium" | "endpremium" } | null>(null);
   const [rec, setRec] = useState({ kind: "membership" as DeliveryFeeKind, amount: "", method: "", reference: "", note: "" });
+  const [premRec, setPremRec] = useState({ planCode: "", method: "", reference: "" });
+  const [plans, setPlans] = useState<Array<{ code: string; label: string; months: string; amount: string; currency: string }>>([]);
   const [reason, setReason] = useState("");
 
   const load = useCallback(async () => {
@@ -43,6 +45,7 @@ export default function DeliveryAdminFeesPage() {
     try {
       const [o, s] = await Promise.all([deliveryService.getFeeOverview(), deliveryService.getFeeSettings()]);
       setOverview(o);
+      setPlans((s.premium_plans ?? []).map((p) => ({ code: p.code, label: p.label, months: String(p.months), amount: String(p.amount), currency: p.currency })));
       setSettings({
         membershipAmount: String(s.membership_fee?.amount ?? 0),
         membershipPeriodMonths: String(s.membership_fee?.period_months ?? 12),
@@ -94,9 +97,22 @@ export default function DeliveryAdminFeesPage() {
     );
   };
 
+  const savePlans = (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsed: DeliveryPremiumPlan[] = plans.map((p) => ({
+      code: p.code.trim().toLowerCase(),
+      label: p.label.trim(),
+      months: Number(p.months),
+      amount: Number(p.amount),
+      currency: p.currency.trim().toUpperCase() || "XOF",
+    }));
+    void run("plans", () => deliveryService.setPremiumPlans(parsed), "Formules Premium enregistrées");
+  };
+
   const closeAction = () => {
     setActionFor(null);
     setReason("");
+    setPremRec({ planCode: "", method: "", reference: "" });
     setRec({ kind: "membership", amount: "", method: "", reference: "", note: "" });
   };
 
@@ -163,6 +179,53 @@ export default function DeliveryAdminFeesPage() {
           </form>
         </Card>
 
+        {/* Formules Premium */}
+        <Card className="bg-slate-900 border-slate-800 p-4">
+          <form onSubmit={savePlans} className="space-y-3">
+            <h2 className="text-lg font-bold text-white">Formules Premium</h2>
+            <p className="text-[11px] text-slate-400">
+              Abonnement de visibilité (badge, mise en avant, meilleur classement dans le répertoire). Il ne remplace jamais la vérification officielle.
+              Une liste vide désactive la souscription ; les abonnements déjà payés restent valables.
+            </p>
+            {plans.length === 0 && <p className="text-xs text-slate-500">Aucune formule : la souscription est désactivée.</p>}
+            {plans.map((pl, i) => (
+              <div key={i} className="grid grid-cols-2 sm:grid-cols-6 gap-2 items-end">
+                <div className="space-y-1">
+                  <Label htmlFor={`pl-code-${i}`} className="text-xs text-slate-300">Code</Label>
+                  <Input id={`pl-code-${i}`} required minLength={2} maxLength={30} value={pl.code} onChange={(e) => setPlans(plans.map((x, j) => (j === i ? { ...x, code: e.target.value } : x)))} className={field} />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label htmlFor={`pl-label-${i}`} className="text-xs text-slate-300">Libellé</Label>
+                  <Input id={`pl-label-${i}`} required minLength={2} maxLength={60} value={pl.label} onChange={(e) => setPlans(plans.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} className={field} />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor={`pl-months-${i}`} className="text-xs text-slate-300">Durée (mois)</Label>
+                  <Input id={`pl-months-${i}`} type="number" min={1} max={120} step={1} required value={pl.months} onChange={(e) => setPlans(plans.map((x, j) => (j === i ? { ...x, months: e.target.value } : x)))} className={field} />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor={`pl-amount-${i}`} className="text-xs text-slate-300">Montant</Label>
+                  <Input id={`pl-amount-${i}`} type="number" min={0.01} step="any" required value={pl.amount} onChange={(e) => setPlans(plans.map((x, j) => (j === i ? { ...x, amount: e.target.value } : x)))} className={field} />
+                </div>
+                <div className="flex gap-2 items-end">
+                  <div className="space-y-1 grow">
+                    <Label htmlFor={`pl-cur-${i}`} className="text-xs text-slate-300">Devise</Label>
+                    <Input id={`pl-cur-${i}`} required maxLength={3} value={pl.currency} onChange={(e) => setPlans(plans.map((x, j) => (j === i ? { ...x, currency: e.target.value.toUpperCase() } : x)))} className={field} />
+                  </div>
+                  <Button type="button" size="sm" aria-label={`Retirer la formule ${pl.label || i + 1}`} onClick={() => setPlans(plans.filter((_, j) => j !== i))} className={secondaryBtn}>Retirer</Button>
+                </div>
+              </div>
+            ))}
+            <div className="flex flex-wrap gap-2">
+              {plans.length < 6 && (
+                <Button type="button" size="sm" onClick={() => setPlans([...plans, { code: "", label: "", months: "1", amount: "3250", currency: "XOF" }])} className={secondaryBtn}>Ajouter une formule</Button>
+              )}
+              <Button type="submit" disabled={busy === "plans"} className="bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-400">
+                {busy === "plans" ? <Loader2 className="w-4 h-4 animate-spin" /> : "Enregistrer les formules"}
+              </Button>
+            </div>
+          </form>
+        </Card>
+
         {/* Paiements à contrôler */}
         <Card className="bg-slate-900 border-slate-800 p-4 space-y-3">
           <h2 className="text-lg font-bold text-white">Paiements à contrôler ({overview?.pending.length ?? 0})</h2>
@@ -175,7 +238,7 @@ export default function DeliveryAdminFeesPage() {
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <span className="text-sm font-semibold text-white">{p.company_name}</span>{" "}
-                      <Badge className="bg-slate-800 text-slate-200 border border-slate-700 text-[10px]">{FEE_KIND_LABELS[p.kind]}</Badge>
+                      <Badge className="bg-slate-800 text-slate-200 border border-slate-700 text-[10px]">{FEE_KIND_LABELS[p.kind]}{p.kind === "premium" && p.plan_label ? ` · ${p.plan_label}` : ""}</Badge>
                       <div className="text-[11px] text-slate-400">
                         {money(p.amount, p.currency)} · {p.method}{p.reference ? ` · réf. ${p.reference}` : ""} · déclaré le {fmtDay(p.created_at)}
                         {p.note ? ` · « ${p.note} »` : ""}
@@ -229,10 +292,15 @@ export default function DeliveryAdminFeesPage() {
                         {c.city} · cotisation : {c.fees.membership.amount <= 0 ? "non exigée" : c.fees.membership.ok ? (c.fees.membership.no_expiry ? "réglée" : `jusqu'au ${fmtDay(c.fees.membership.paid_until)}`) : "à régler"}
                         {" · "}caution : {c.fees.deposit.held ? "versée" : c.fees.deposit.amount > 0 ? "à verser" : "non exigée"}
                         {c.fees.suspended_reason ? ` · suspendue : ${c.fees.suspended_reason}` : ""}
+                        {" · "}Premium : {c.premium.active ? `${c.premium.plan_label ?? "actif"} jusqu'au ${fmtDay(c.premium.paid_until)}` : c.premium.pending ? "paiement en contrôle" : c.premium.expired ? `expiré le ${fmtDay(c.premium.paid_until)}` : "non souscrit"}
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Button size="sm" onClick={() => { setActionFor({ companyId: c.company_id, type: "record" }); setReason(""); }} className={secondaryBtn}>Enregistrer un paiement</Button>
+                      {overview && overview.premium_plans.length > 0 && (
+                        <Button size="sm" onClick={() => { setActionFor({ companyId: c.company_id, type: "premium" }); setPremRec({ planCode: overview.premium_plans[0].code, method: "", reference: "" }); }} className={secondaryBtn}>Enregistrer un Premium</Button>
+                      )}
+                      {c.premium.active && <Button size="sm" onClick={() => { setActionFor({ companyId: c.company_id, type: "endpremium" }); setReason(""); }} className={secondaryBtn}>Arrêter le Premium</Button>}
                       {c.fees.deposit.held && <Button size="sm" onClick={() => { setActionFor({ companyId: c.company_id, type: "refund" }); setReason(""); }} className={secondaryBtn}>Restituer la caution</Button>}
                       {c.fees.suspended ? (
                         <Button size="sm" disabled={busy === `su-${c.company_id}`} onClick={() => void run(`su-${c.company_id}`, () => deliveryService.setActivation(c.company_id, false, c.fees.waived, c.fees.waived ? "Dispense maintenue" : undefined), "Accès rétabli")} className={secondaryBtn}>Rétablir l'accès</Button>
@@ -258,17 +326,40 @@ export default function DeliveryAdminFeesPage() {
                           () =>
                             t === "record"
                               ? deliveryService.recordFeePayment({ companyId: c.company_id, kind: rec.kind, amount: Number(rec.amount), method: rec.method, reference: rec.reference, note: rec.note })
-                              : t === "refund"
+                              : t === "premium"
+                                ? deliveryService.recordPremium({ companyId: c.company_id, planCode: premRec.planCode, method: premRec.method, reference: premRec.reference })
+                                : t === "endpremium"
+                                  ? deliveryService.endPremium(c.company_id, reason)
+                                  : t === "refund"
                                 ? deliveryService.refundDeposit(c.company_id, reason)
                                 : t === "suspend"
                                   ? deliveryService.setActivation(c.company_id, true, c.fees.waived, reason)
                                   : deliveryService.setActivation(c.company_id, c.fees.suspended, true, reason),
-                          t === "record" ? "Paiement enregistré" : t === "refund" ? "Caution restituée" : t === "suspend" ? "Accès suspendu" : "Structure dispensée",
+                          t === "record" ? "Paiement enregistré" : t === "premium" ? "Premium enregistré" : t === "endpremium" ? "Premium arrêté" : t === "refund" ? "Caution restituée" : t === "suspend" ? "Accès suspendu" : "Structure dispensée",
                         );
                         if (ok) closeAction();
                       }}
                     >
-                      {actionFor.type === "record" ? (
+                      {actionFor.type === "premium" ? (
+                        <>
+                          <div className="space-y-1">
+                            <Label htmlFor="pm-plan" className="text-xs text-slate-300">Formule</Label>
+                            <select id="pm-plan" value={premRec.planCode} onChange={(e) => setPremRec({ ...premRec, planCode: e.target.value })} className={`${field} h-10 w-full rounded-md border px-2 text-sm`}>
+                              {overview?.premium_plans.map((pl) => (
+                                <option key={pl.code} value={pl.code}>{pl.label} ({money(pl.amount, pl.currency)})</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="pm-method" className="text-xs text-slate-300">Mode de paiement</Label>
+                            <Input id="pm-method" required minLength={2} value={premRec.method} onChange={(e) => setPremRec({ ...premRec, method: e.target.value })} className={field} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="pm-ref" className="text-xs text-slate-300">Référence</Label>
+                            <Input id="pm-ref" value={premRec.reference} onChange={(e) => setPremRec({ ...premRec, reference: e.target.value })} className={field} />
+                          </div>
+                        </>
+                      ) : actionFor.type === "record" ? (
                         <>
                           <div className="space-y-1">
                             <Label htmlFor="rc-kind" className="text-xs text-slate-300">Nature</Label>
@@ -293,7 +384,7 @@ export default function DeliveryAdminFeesPage() {
                       ) : (
                         <div className="space-y-1 sm:col-span-3">
                           <Label htmlFor="ac-reason" className="text-xs text-slate-300">
-                            {actionFor.type === "refund" ? "Modalités de la restitution" : actionFor.type === "suspend" ? "Motif de la suspension (vu par la structure)" : "Motif de la dispense"}
+                            {actionFor.type === "refund" ? "Modalités de la restitution" : actionFor.type === "endpremium" ? "Motif de l'arrêt (vu par la structure)" : actionFor.type === "suspend" ? "Motif de la suspension (vu par la structure)" : "Motif de la dispense"}
                           </Label>
                           <Input id="ac-reason" required minLength={5} value={reason} onChange={(e) => setReason(e.target.value)} className={field} />
                         </div>

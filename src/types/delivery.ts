@@ -435,6 +435,8 @@ export interface DeliveryDirectoryCard {
   drivers_count: number;
   verified: boolean;
   verified_at: string | null;
+  /** Abonnement Premium en cours (cahier §4.2) : badge et mise en avant, distincts de la vérification. */
+  premium?: boolean;
 }
 
 export interface DeliveryDirectoryResult {
@@ -576,11 +578,11 @@ export interface DeliveryVisitSummary {
 }
 
 // ─── Cotisation, caution et activation opérationnelle (cahier §4.1) ───
-export type DeliveryFeeKind = "membership" | "deposit";
+export type DeliveryFeeKind = "membership" | "deposit" | "premium";
 export type DeliveryFeePaymentStatus = "pending" | "confirmed" | "rejected" | "refunded";
 export type DeliveryFeeState = "not_applicable" | "suspended" | "waived" | "active" | "payment_review" | "expired" | "payment_due";
 
-export const FEE_KIND_LABELS: Record<DeliveryFeeKind, string> = { membership: "Cotisation", deposit: "Caution" };
+export const FEE_KIND_LABELS: Record<DeliveryFeeKind, string> = { membership: "Cotisation", deposit: "Caution", premium: "Premium" };
 export const FEE_PAYMENT_STATUS_LABELS: Record<DeliveryFeePaymentStatus, string> = {
   pending: "En contrôle",
   confirmed: "Confirmé",
@@ -640,6 +642,7 @@ export interface DeliveryFeeSettings {
   membership_fee: { amount?: number; currency?: string; period_months?: number };
   deposit_fee: { amount?: number; currency?: string };
   deposit_refund_policy: string;
+  premium_plans: DeliveryPremiumPlan[];
 }
 
 export interface DeliveryFeeOverview {
@@ -653,7 +656,60 @@ export interface DeliveryFeeOverview {
     method: string;
     reference: string | null;
     note: string | null;
+    plan_label?: string | null;
     created_at: string;
   }>;
-  companies: Array<{ company_id: string; company_name: string; city: string; verification_status: string; fees: DeliveryFeeStatus }>;
+  companies: Array<{
+    company_id: string;
+    company_name: string;
+    city: string;
+    verification_status: string;
+    fees: DeliveryFeeStatus;
+    premium: DeliveryPremiumState;
+  }>;
+  premium_plans: DeliveryPremiumPlan[];
+}
+
+// ─── Abonnement Premium (cahier §4.2) ───
+export interface DeliveryPremiumPlan {
+  code: string;
+  label: string;
+  months: number;
+  amount: number;
+  currency: string;
+}
+
+export interface DeliveryPremiumState {
+  company_id: string;
+  applicable: boolean;
+  active: boolean;
+  expired: boolean;
+  paid_until: string | null;
+  plan_code: string | null;
+  plan_label: string | null;
+  next_period_start: string | null;
+  pending: boolean;
+}
+
+export interface DeliveryPremiumPayment {
+  id: string;
+  plan_code: string | null;
+  plan_label: string | null;
+  amount: number;
+  currency: string;
+  method: string;
+  reference: string | null;
+  status: DeliveryFeePaymentStatus;
+  source: "declared" | "admin";
+  period_start: string | null;
+  period_end: string | null;
+  decision_note: string | null;
+  created_at: string;
+  decided_at: string | null;
+}
+
+export interface DeliveryPremiumStatus extends DeliveryPremiumState {
+  plans: DeliveryPremiumPlan[];
+  suspended: boolean;
+  payments: DeliveryPremiumPayment[];
 }

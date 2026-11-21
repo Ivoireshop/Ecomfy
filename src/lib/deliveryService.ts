@@ -16,6 +16,8 @@ import {
   DeliveryFeeKind,
   DeliveryFeeOverview,
   DeliveryFeeSettings,
+  DeliveryPremiumPlan,
+  DeliveryPremiumStatus,
   DeliveryFeeStatus,
   DeliveryProfileInput,
   DeliveryProfileType,
@@ -390,6 +392,45 @@ export const deliveryService = {
       _waived: waived,
       _reason: reason || null,
     });
+    if (error) throw new Error(error.message);
+  },
+
+  // ─── Abonnement Premium (§4.2) ───
+  async getCompanyPremium(companyId: string): Promise<DeliveryPremiumStatus> {
+    const { data, error } = await db.rpc("delivery_company_premium", { _company_id: companyId });
+    if (error) throw new Error(error.message);
+    return data as DeliveryPremiumStatus;
+  },
+
+  async declarePremium(input: { companyId: string; planCode: string; method: string; reference?: string; note?: string }): Promise<void> {
+    const { error } = await db.rpc("delivery_company_declare_premium", {
+      _company_id: input.companyId,
+      _plan_code: input.planCode,
+      _method: input.method,
+      _reference: input.reference || null,
+      _note: input.note || null,
+    });
+    if (error) throw new Error(error.message);
+  },
+
+  async setPremiumPlans(plans: DeliveryPremiumPlan[]): Promise<void> {
+    const { error } = await db.rpc("delivery_admin_set_premium_plans", { _plans: plans });
+    if (error) throw new Error(error.message);
+  },
+
+  async recordPremium(input: { companyId: string; planCode: string; method: string; reference?: string; note?: string }): Promise<void> {
+    const { error } = await db.rpc("delivery_admin_record_premium", {
+      _company_id: input.companyId,
+      _plan_code: input.planCode,
+      _method: input.method,
+      _reference: input.reference || null,
+      _note: input.note || null,
+    });
+    if (error) throw new Error(error.message);
+  },
+
+  async endPremium(companyId: string, reason: string): Promise<void> {
+    const { error } = await db.rpc("delivery_admin_end_premium", { _company_id: companyId, _reason: reason });
     if (error) throw new Error(error.message);
   },
 

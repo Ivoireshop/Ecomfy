@@ -42,6 +42,16 @@ export function VerifiedBadge({ card }: { card: Pick<DeliveryDirectoryCard, "ver
   );
 }
 
+/** Badge de l'abonnement Premium : visibilité seulement, il n'indique jamais une vérification. */
+export function PremiumBadge({ card }: { card: Pick<DeliveryDirectoryCard, "premium"> }) {
+  if (!card.premium) return null;
+  return (
+    <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 text-[10px] py-0">
+      <Star className="w-3 h-3 mr-0.5 fill-amber-300" /> Premium
+    </Badge>
+  );
+}
+
 export function RatingLine({ card }: { card: DeliveryDirectoryCard }) {
   return (
     <span className="flex items-center gap-1 text-amber-400">
@@ -60,6 +70,7 @@ export function DeliveryCardSummary({ card, coversCity }: { card: DeliveryDirect
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-bold text-white text-sm">{card.company_name}</span>
           <VerifiedBadge card={card} />
+          <PremiumBadge card={card} />
           {card.profile_type === "driver" && (
             <Badge className="bg-slate-700/60 text-slate-200 border-slate-600 text-[10px] py-0">Indépendant</Badge>
           )}
@@ -104,6 +115,7 @@ export function DeliveryCompanyProfileDialog({ card, onClose, onChoose, chooseLa
                   <DialogDescription className="text-xs text-slate-400 flex flex-wrap items-center gap-2 mt-1">
                     <span>{typeLabel(card)}</span>
                     <VerifiedBadge card={card} />
+          <PremiumBadge card={card} />
                   </DialogDescription>
                 </div>
               </div>

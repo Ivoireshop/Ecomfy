@@ -15,6 +15,7 @@ import {
   Camera,
   Search,
   Wallet,
+  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -212,6 +213,16 @@ export default function DeliveryPartnerDashboard() {
                 className="bg-slate-900 hover:text-white border-slate-800 text-slate-300 hover:bg-slate-900"
               >
                 <Wallet className="w-4 h-4 mr-2" /> Cotisation et caution
+              </Button>
+            )}
+            {company.role === "owner" && (
+              <Button
+                onClick={() => navigate("/delivery/premium")}
+                variant="outline"
+                size="sm"
+                className="bg-slate-900 hover:text-white border-slate-800 text-slate-300 hover:bg-slate-900"
+              >
+                <Star className="w-4 h-4 mr-2" /> Premium
               </Button>
             )}
             <Button
