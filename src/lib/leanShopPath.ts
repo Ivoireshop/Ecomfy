@@ -14,6 +14,8 @@ export type LeanShopKind = "product" | "shop" | "order";
 
 /** Domaines d'Ecomfy ou d'hébergement : tout autre nom d'hôte est la boutique d'un marchand (domaine personnalisé). */
 const MAIN_DOMAINS = ["ecomfy.cloud", "localhost", "127.0.0.1"];
+/** Les sous-domaines d'Ecomfy (ex. test.ecomfy.cloud, environnement de test) servent l'application, pas une boutique. */
+const MAIN_DOMAIN_SUFFIXES = [".ecomfy.cloud"];
 const HOSTING_SUFFIXES = [".vercel.app", ".netlify.app", ".onrender.com", ".pages.dev"];
 
 export function isCustomShopHostname(hostname: string, isDev = false): boolean {
@@ -22,6 +24,7 @@ export function isCustomShopHostname(hostname: string, isDev = false): boolean {
   const host = (hostname || "").toLowerCase().replace(/^www\./, "");
   if (!host) return false;
   if (MAIN_DOMAINS.includes(host)) return false;
+  if (MAIN_DOMAIN_SUFFIXES.some((s) => host.endsWith(s))) return false;
   if (HOSTING_SUFFIXES.some((s) => host.endsWith(s))) return false;
   return true;
 }

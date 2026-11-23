@@ -28,6 +28,8 @@ describe("getLeanShopKind", () => {
     expect(getLeanShopKind("/", "maboutique.com")).toBe("shop");
     expect(getLeanShopKind("/", "www.maboutique.com")).toBe("shop");
     expect(getLeanShopKind("/", "ecomfy.cloud")).toBeNull();
+    expect(getLeanShopKind("/", "test.ecomfy.cloud")).toBeNull(); // environnement de test
+    expect(getLeanShopKind("/", "maboutique-ecomfy.cloud")).toBe("shop"); // pas un sous-domaine
     expect(getLeanShopKind("/", "ecomfy-git-x.vercel.app")).toBeNull();
     expect(getLeanShopKind("/", "maboutique.com", true)).toBeNull(); // développement
   });
@@ -35,7 +37,7 @@ describe("getLeanShopKind", () => {
 
 describe("isCustomShopHostname", () => {
   it("exclut les domaines d'Ecomfy et d'hébergement", () => {
-    for (const h of ["ecomfy.cloud", "www.ecomfy.cloud", "localhost", "127.0.0.1", "x.vercel.app", "x.netlify.app", "x.pages.dev", "x.onrender.com", ""]) {
+    for (const h of ["ecomfy.cloud", "www.ecomfy.cloud", "test.ecomfy.cloud", "localhost", "127.0.0.1", "x.vercel.app", "x.netlify.app", "x.pages.dev", "x.onrender.com", ""]) {
       expect(isCustomShopHostname(h)).toBe(false);
     }
     expect(isCustomShopHostname("maboutique.ci")).toBe(true);

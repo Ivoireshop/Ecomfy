@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, lazy, Suspense, type CSSProperties } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { isCustomShopHostname } from "@/lib/leanShopPath";
 import { SmartVariantSelector } from "@/components/shop/SmartVariantSelector";
 import { cleanSelectedVariants, missingVariantGroups, usableVariantGroups } from "@/lib/productVariants";
 import { htmlToPlainText } from "@/lib/sanitizeProductHtml";
@@ -313,8 +314,8 @@ const ShopView = () => {
     // from the current hostname (e.g. https://maboutique.com → shop with
     // custom_domain = 'maboutique.com').
     const host = typeof window !== "undefined" ? window.location.hostname.toLowerCase().replace(/^www\./, "") : "";
-    const KNOWN_HOSTS = ["ecomfy.cloud", "www.ecomfy.cloud", "visuelpro.cloud", "www.visuelpro.cloud", "localhost", "visualpro-african-ai-creations.lovable.app"];
-    const isCustomHost = host && !KNOWN_HOSTS.includes(host) && !host.endsWith(".lovable.app") && !host.endsWith(".lovable.dev") && !host.endsWith(".lovableproject.com");
+    // Même règle que le routage (App/ShopApp) : les domaines et sous-domaines d'Ecomfy ne sont pas des boutiques.
+    const isCustomHost = isCustomShopHostname(host, import.meta.env.DEV);
     if (!slug && !id && !isCustomHost) return;
     setFetchError(null);
     // Stale-while-revalidate: hydrate instantly from cache when available,
