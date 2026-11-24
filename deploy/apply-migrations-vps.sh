@@ -5,14 +5,21 @@
 # Usage (sur le VPS, depuis la racine du dépôt) :
 #   bash deploy/apply-migrations-vps.sh            # liste ce qui reste à appliquer, n'applique rien
 #   bash deploy/apply-migrations-vps.sh --apply    # applique, s'arrête à la première erreur
+#   bash deploy/apply-migrations-vps.sh --mark-applied <liste.txt>
+#                                                  # inscrit ces fichiers dans l'historique SANS les exécuter
 # Variables facultatives :
 #   DB_CONTAINER   conteneur de la base (défaut supabase-db)
-#   SKIP_VERSIONS  versions à ne jamais appliquer (défaut : les deux volontairement écartées de la prod)
+#   SKIP_VERSIONS  versions à ne jamais appliquer (défaut : celles qui ne sont pas en prod volontairement)
 #     20260906000000 : corporate_invitations ouverte à anon (USING true)
 #     20260908170000 : buckets shop-assets/avatars avec dépôt libre
+#     20260909100000 20260911120000 20260912000000 20261022150000 20261023140000 20261023150000 :
+#       facturation par seuil, absente de la prod ; 20260909100000 remettrait aussi une ancienne version
+#       de get_shop_orders_secure (recul du masquage des commandes des boutiques restreintes)
 #
-# Usage après scripts/mirror-prod-to-vps.ps1 : la base contient la prod et son historique ;
-# seules les migrations du dépôt absentes de cet historique sont proposées.
+# Usage après scripts/mirror-prod-to-vps.ps1 : la base contient la prod et son historique, mais cet historique
+# est incomplet (migrations passées en prod sans y être inscrites). Avant --apply :
+#   bash deploy/apply-migrations-vps.sh --mark-applied deploy/vps-migrations-deja-en-prod.txt
+# puis seules les migrations vraiment absentes de la prod sont proposées.
 #
 # Chaque fichier passe dans une transaction (psql -1) : un échec n'en laisse rien.
 # L'historique est inscrit dans supabase_migrations.schema_migrations (format du CLI Supabase) :
@@ -21,7 +28,11 @@
 set -u
 DB="${DB_CONTAINER:-supabase-db}"
 APPLY=0; [ "${1:-}" = "--apply" ] && APPLY=1
-SKIP_VERSIONS="${SKIP_VERSIONS-20260906000000 20260908170000}"
+MARK_LIST=""
+if [ "${1:-}" = "--mark-applied" ]; then
+  MARK_LIST="${2:-}"; [ -f "$MARK_LIST" ] || { echo "Liste introuvable : '$MARK_LIST'"; exit 2; }
+fi
+SKIP_VERSIONS="${SKIP_VERSIONS-20260906000000 20260908170000 20260909100000 20260911120000 20260912000000 20261022150000 20261023140000 20261023150000}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; command -v cygpath >/dev/null && ROOT="$(cygpath -m "$ROOT")"
 MIG_DIR="$ROOT/supabase/migrations"
 IN_DB=/tmp/ecomfy-migrations
@@ -54,6 +65,24 @@ psql_db -qc "create schema if not exists supabase_migrations;
   -- schema_migrations ne peut en inscrire qu'un.
   create table if not exists supabase_migrations.vps_applied_files (file text primary key, applied_at timestamptz default now());" >/dev/null \
   || { echo "Création de la table d'historique impossible"; exit 2; }
+
+if [ -n "$MARK_LIST" ]; then
+  # Inscription sans exécution : pour les migrations dont les objets sont déjà en base.
+  names=$(grep -vE '^\s*(#|$)' "$MARK_LIST" | tr -d '\r')
+  for f in $names; do
+    [ -f "$MIG_DIR/$f" ] || { echo "Fichier absent du dépôt : $f (rien n'a été inscrit)"; exit 2; }
+  done
+  n=0
+  for f in $names; do
+    v="${f%%_*}"; name="${f#*_}"; name="${name%.sql}"
+    psql_db -qc "insert into supabase_migrations.schema_migrations(version, name) values ('$v', '$name') on conflict (version) do nothing;
+      insert into supabase_migrations.vps_applied_files(file) values ('$f') on conflict do nothing;" >/dev/null \
+      || { echo "Inscription impossible pour $f, arrêt après $n"; exit 1; }
+    n=$((n+1))
+  done
+  echo "Inscrites sans exécution : $n migration(s). Relancer sans option pour voir ce qui reste à appliquer."
+  exit 0
+fi
 
 applied=$(psql_db -tAc "select version from supabase_migrations.schema_migrations")
 applied_pairs=$(psql_db -tAc "select version || '|' || coalesce(name, '') from supabase_migrations.schema_migrations")
