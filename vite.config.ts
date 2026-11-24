@@ -7,12 +7,20 @@ import { VitePWA } from "vite-plugin-pwa";
 // Variables indispensables au build : sans elles, src/integrations/supabase/client.ts
 // retombe silencieusement sur "dummy.supabase.co" et le site déployé ne fonctionne plus.
 const REQUIRED_ENV = ["VITE_SUPABASE_URL", "VITE_SUPABASE_PUBLISHABLE_KEY"] as const;
+// Environnement de test auto-hébergé (`npm run build:vps`, voir docs/TEST-VPS-SELFHOSTED.md).
+const VPS_SUPABASE_URL = "https://supabase.ecomfy.cloud";
 
 function assertBuildEnv(mode: string) {
   // loadEnv fusionne les fichiers .env et process.env (variables Vercel comprises).
   const env = loadEnv(mode, process.cwd(), "VITE_");
   const problems = REQUIRED_ENV.filter((k) => !env[k]?.trim()).map((k) => `${k} est manquante`);
-  if (env.VITE_SUPABASE_URL && !/^https:\/\/[a-z0-9]+\.supabase\.co\/?$/.test(env.VITE_SUPABASE_URL.trim())) {
+  const url = env.VITE_SUPABASE_URL?.trim();
+  if (url && mode === "vps") {
+    // En mode vps, seule l'instance du VPS est acceptée : un bundle de test ne peut pas viser la prod.
+    if (url.replace(/\/+$/, "") !== VPS_SUPABASE_URL) {
+      problems.push(`En mode vps, VITE_SUPABASE_URL doit valoir ${VPS_SUPABASE_URL} : ${url}`);
+    }
+  } else if (url && !/^https:\/\/[a-z0-9]+\.supabase\.co\/?$/.test(url)) {
     problems.push(`VITE_SUPABASE_URL invalide : ${env.VITE_SUPABASE_URL}`);
   }
   if (problems.length) {

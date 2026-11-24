@@ -1,0 +1,48 @@
+# .htaccess du front de TEST — https://test.ecomfy.cloud (Apache 2.4)
+# À copier à la racine du DocumentRoot sous le nom `.htaccess` (voir docs/TEST-VPS-SELFHOSTED.md §5).
+# Modules requis : rewrite, headers (a2enmod rewrite headers). Le vhost doit autoriser
+#   <Directory /chemin/du/DocumentRoot> AllowOverride FileInfo Headers Indexes </Directory>  (ou AllowOverride All)
+# Reprend les en-têtes de vercel.json (prod) ; seules différences :
+#   - CSP : https://supabase.ecomfy.cloud et wss://supabase.ecomfy.cloud ajoutés à connect-src, le premier à form-action ;
+#   - X-Robots-Tag noindex : le site de test ne doit pas être indexé.
+# Ne modifie PAS vercel.json : la prod reste inchangée.
+
+Options -Indexes
+DirectoryIndex index.html
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(self), geolocation=(self), payment=(self), usb=(), magnetometer=(), gyroscope=(), accelerometer=()"
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+  Header always set Cross-Origin-Opener-Policy "same-origin-allow-popups"
+  Header always set X-DNS-Prefetch-Control "on"
+  Header always set X-Robots-Tag "noindex, nofollow"
+  Header always set Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self' https://geniuspay.ci https://pay.genius.ci https://*.supabase.co https://supabase.ecomfy.cloud; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://connect.facebook.net https://analytics.tiktok.com https://sc-static.net https://*.snapchat.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self' https://supabase.ecomfy.cloud wss://supabase.ecomfy.cloud https://*.supabase.co wss://*.supabase.co https://*.googleapis.com https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.doubleclick.net https://connect.facebook.net https://www.facebook.com https://graph.facebook.com https://analytics.tiktok.com https://business-api.tiktok.com https://sc-static.net https://*.snapchat.com https://res.cloudinary.com https://storage.googleapis.com https://unpkg.com https://raw.githubusercontent.com; frame-src 'self' https:; worker-src 'self' blob:; manifest-src 'self'"
+
+  # Fichiers à empreinte de Vite : cache long.
+  <If "%{REQUEST_URI} =~ m#^/assets/#">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </If>
+
+  # index.html (y compris servi par le fallback SPA) et service worker : jamais en cache.
+  <FilesMatch "(\.html|^sw\.js)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+</IfModule>
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  # Fichier ou dossier réel : servi tel quel.
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+  # Une ressource statique absente doit répondre 404, pas index.html (sinon erreurs MIME trompeuses).
+  RewriteRule ^assets/ - [R=404,L]
+  # Tout le reste : routes de l'application React (fallback SPA).
+  RewriteRule ^ /index.html [L]
+</IfModule>
