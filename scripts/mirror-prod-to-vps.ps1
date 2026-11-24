@@ -141,9 +141,26 @@ do $$ declare r record; begin
     execute format('delete from %I.%I', r.schemaname, r.tablename);
   end loop;
 end $$;
--- Contrôles (affichés) : aucun secret Vault ni tâche cron venus de la prod.
+-- Jetons et adresses des marchands : depuis le VPS, rien ne doit atteindre leurs comptes publicitaires,
+-- leurs pixels, leurs appareils ni leurs serveurs (sans déclencheur : aucun appel par effet de bord).
+set session_replication_role = replica;
+update public.shop_secrets set facebook_access_token = null, tiktok_access_token = null, snapchat_access_token = null,
+                               google_ads_conversion_id = null, google_ads_conversion_label = null;
+update public.ad_accounts set access_token = null, is_active = false;
+update public.meta_ads_connections set access_token = 'neutralise-vps-test';
+update public.shop_seo_connections set google_access_token = null, google_refresh_token = null;
+update public.shops set facebook_pixels = '{}', tiktok_pixels = '{}', snapchat_pixels = '{}';
+delete from public.device_tokens;
+update public.ecomfy_api_webhook_endpoints set is_active = false;
+set session_replication_role = origin;
+-- Contrôles (affichés) : aucun secret Vault ni tâche cron venus de la prod, aucun jeton marchand.
 select 'vault.secrets', count(*) from vault.secrets
 union all select 'cron.job', count(*) from cron.job
+union all select 'jetons/pixels marchands restants', (select count(*) from public.shop_secrets
+    where coalesce(facebook_access_token, tiktok_access_token, snapchat_access_token) is not null)
+  + (select count(*) from public.shops where cardinality(facebook_pixels) + cardinality(tiktok_pixels) + cardinality(snapchat_pixels) > 0)
+  + (select count(*) from public.ecomfy_api_webhook_endpoints where is_active)
+  + (select count(*) from public.device_tokens)
 union all select 'auth.users', count(*) from auth.users
 union all select 'historique migrations', count(*) from supabase_migrations.schema_migrations;
 '@ | Set-Content "$out\sanitize.sql" -Encoding utf8
