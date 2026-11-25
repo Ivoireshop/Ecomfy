@@ -5,7 +5,7 @@ export default function TechShop({ data }: ShopThemeProps) {
   const { shop, products, primaryColor, currency, productHref } = data;
   return (
     <div className="min-h-screen bg-[#0b1020] text-slate-100">
-      <header className="border-b border-white/10 bg-[#0b1020]/95 backdrop-blur sticky top-0 z-30">
+      <header className="border-b border-white/10 bg-[#0b1020]/95 backdrop-blur env-sticky sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {shop.logo_url && <img src={shop.logo_url} alt="" className="max-h-9 w-auto max-w-[200px] object-contain flex-shrink-0" />}

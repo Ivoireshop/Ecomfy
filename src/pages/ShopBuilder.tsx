@@ -143,7 +143,7 @@ const ShopBuilder = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Progress Bar */}
-      <div className="border-b bg-card sticky top-0 z-10">
+      <div className="border-b bg-card env-sticky sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-3">
             <Button variant="ghost" size="sm" onClick={() => step === 0 ? navigate("/shop-manager") : setStep(step - 1)} className="gap-1">

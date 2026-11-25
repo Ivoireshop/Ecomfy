@@ -266,7 +266,7 @@ export function AppSidebar() {
   ];
 
   return (
-    <Sidebar collapsible="none" className="hidden md:flex sticky top-0 h-screen shrink-0 self-start bg-white border-r border-slate-200">
+    <Sidebar collapsible="none" className="hidden md:flex env-sticky env-screen sticky top-0 h-screen shrink-0 self-start bg-white border-r border-slate-200">
       <SidebarContent className="flex flex-col h-full bg-white">
         <TooltipProvider>
           {/* Header */}

@@ -118,7 +118,7 @@ export default function EcomfyPay() {
       </Helmet>
 
       {/* Header Bar & Badge BETA */}
-      <header className="bg-white border-b border-slate-200/80 sticky top-0 z-30 px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
+      <header className="bg-white border-b border-slate-200/80 env-sticky sticky top-0 z-30 px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <SidebarTrigger />
           <div className="p-2 bg-[#0E7C66] text-white rounded-xl shadow-sm shrink-0">

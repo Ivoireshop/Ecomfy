@@ -6,7 +6,7 @@ export default function ClassicShop({ data }: ShopThemeProps) {
   const featured = products.filter((p) => p.is_featured);
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      <header className="border-b sticky top-0 bg-white z-30">
+      <header className="border-b env-sticky sticky top-0 bg-white z-30">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {shop.logo_url && <img src={shop.logo_url} alt="" className="max-h-9 w-auto max-w-[200px] object-contain flex-shrink-0" />}

@@ -24,7 +24,7 @@ export default function DriverApp() {
   ];
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50">
+    <div className="env-screen flex flex-col h-screen bg-slate-50">
       {/* Header */}
       <header className="bg-primary text-primary-foreground p-4 shadow-md z-10 flex items-center justify-between">
         <h1 className="font-bold text-lg">Ecomfy Driver</h1>

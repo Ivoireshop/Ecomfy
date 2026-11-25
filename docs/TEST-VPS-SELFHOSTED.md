@@ -68,6 +68,8 @@ cp deploy/apache-test.htaccess dist-vps/.htaccess
 
 `npm run build:vps` lit `.env.vps.local` (non versionné) : `VITE_SUPABASE_URL=https://supabase.ecomfy.cloud`, `VITE_SUPABASE_PUBLISHABLE_KEY` = `ANON_KEY` du VPS. En mode `vps`, [vite.config.ts](../vite.config.ts) refuse toute autre URL : un bundle de test ne peut pas viser la prod. Les autres modes gardent la règle `*.supabase.co`.
 
+Ce même mode affiche le bandeau **MODE TEST** sur toutes les pages et préfixe le titre de l'onglet par `[TEST]`, sans réglage à ajouter ([testEnvBanner.ts](../src/lib/testEnvBanner.ts)). Pour l'afficher ailleurs (dev, poste local), poser `VITE_APP_ENV=test`. Ne jamais le poser en production.
+
 Après un déploiement, le service worker peut servir l'ancienne version : recharger deux fois ou vider le stockage du site.
 
 ### 3.2 Apache

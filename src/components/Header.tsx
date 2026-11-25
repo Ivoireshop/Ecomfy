@@ -57,7 +57,7 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 shadow-xs">
+    <header className="env-sticky sticky top-0 z-50 w-full border-b bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 shadow-xs">
       <div className="container mx-auto px-4 max-w-7xl">
         <div className="flex h-20 md:h-24 items-center justify-between gap-4">
           <div

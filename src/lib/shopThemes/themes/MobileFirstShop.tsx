@@ -5,7 +5,7 @@ export default function MobileFirstShop({ data }: ShopThemeProps) {
   const { shop, products, primaryColor, currency, productHref } = data;
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
-      <header className="sticky top-0 z-30 bg-white border-b">
+      <header className="env-sticky sticky top-0 z-30 bg-white border-b">
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             {shop.logo_url && <img src={shop.logo_url} alt="" className="max-h-8 w-auto max-w-[180px] object-contain flex-shrink-0" />}

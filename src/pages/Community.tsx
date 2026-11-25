@@ -536,7 +536,7 @@ const Community = () => {
         <meta name="description" content="Discutez en temps réel avec la communauté Ecomfy : posez vos questions, partagez vos idées, échangez avec d'autres entrepreneurs." />
       </Helmet>
 
-      <div className="flex flex-col h-[calc(100dvh-4rem)] md:h-dvh bg-background">
+      <div className="flex flex-col h-[calc(100dvh-4rem-var(--env-banner-h,0px))] md:h-[calc(100dvh-var(--env-banner-h,0px))] bg-background">
         {/* Channel header */}
         <div className="border-b bg-card/50 backdrop-blur px-4 md:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
