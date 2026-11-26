@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,9 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cleanSelectedVariants } from "@/lib/productVariants";
+import { ListPagination } from "@/components/ListPagination";
+import { usePagedList } from "@/hooks/usePagedList";
+import { readPage } from "@/lib/pagination";
 
 interface AbandonedCart {
   id: string;
@@ -27,37 +30,32 @@ interface AbandonedCart {
 const ACTIVE_WINDOW_MS = 30 * 60 * 1000;
 
 export function AbandonedCartsList({ shopId, shopName }: { shopId: string; shopName?: string | null }) {
-  const [carts, setCarts] = useState<AbandonedCart[]>([]);
-  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const load = async (silent = false) => {
-    // Rechargements realtime : on garde la liste affichée au lieu de la remplacer par le spinner.
-    if (!silent) setLoading(true);
-    const { data, error } = await supabase
-      .from("abandoned_carts" as any)
-      .select("*")
-      .eq("shop_id", shopId)
-      .eq("converted", false)
-      .order("updated_at", { ascending: false })
-      .limit(500);
-    if (error) {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
-    } else {
-      setCarts((data as any) || []);
-    }
-    setLoading(false);
-  };
+  const list = usePagedList<AbandonedCart>({
+    filterKey: shopId,
+    pageSize: 20,
+    fetchPage: ({ page, pageSize }) =>
+      readPage<AbandonedCart>(page, pageSize, (from, to) =>
+        supabase
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .from("abandoned_carts" as any)
+          .select("*", { count: "exact" })
+          .eq("shop_id", shopId)
+          .eq("converted", false)
+          .order("updated_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(from, to)),
+  });
+  const { rows: carts, total, loading, reload } = list;
 
   useEffect(() => {
-    load();
     const channel = supabase
       .channel(`abandoned-${shopId}_${Math.random().toString(36).substring(2, 8)}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "abandoned_carts", filter: `shop_id=eq.${shopId}` }, () => load(true))
+      .on("postgres_changes", { event: "*", schema: "public", table: "abandoned_carts", filter: `shop_id=eq.${shopId}` }, () => reload())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shopId]);
+  }, [shopId, reload]);
 
   const remove = async (id: string) => {
     const { data, error } = await supabase.from("abandoned_carts" as any).delete().eq("id", id).select("id");
@@ -65,7 +63,7 @@ export function AbandonedCartsList({ shopId, shopName }: { shopId: string; shopN
     else if (!data || data.length === 0) {
       // RLS : seuls les propriétaires de la boutique peuvent supprimer (0 ligne, sans erreur, pour un collaborateur).
       toast({ title: "Suppression impossible", description: "Seul le propriétaire de la boutique peut supprimer un panier.", variant: "destructive" });
-    } else setCarts(prev => prev.filter(c => c.id !== id));
+    } else reload();
   };
 
   const relance = (cart: AbandonedCart) => {
@@ -94,10 +92,15 @@ export function AbandonedCartsList({ shopId, shopName }: { shopId: string; shopN
             Visiteurs ayant rempli leurs coordonnées sans valider leur commande.
           </p>
         </div>
-        <Badge variant="outline">{carts.length} panier{carts.length > 1 ? "s" : ""}</Badge>
+        <Badge variant="outline">{total.toLocaleString("fr-FR")} panier{total > 1 ? "s" : ""}</Badge>
       </div>
 
-      {carts.length === 0 ? (
+      {list.error ? (
+        <Card role="alert" className="p-8 text-center space-y-3">
+          <p className="text-sm text-destructive">Impossible de charger les paniers : {list.error.message}</p>
+          <Button size="sm" variant="outline" onClick={reload}>Réessayer</Button>
+        </Card>
+      ) : carts.length === 0 ? (
         <Card className="p-12 text-center text-muted-foreground">
           <ShoppingBag className="h-12 w-12 mx-auto mb-3 opacity-30" />
           <p>Aucun panier abandonné pour l'instant.</p>
@@ -172,6 +175,8 @@ export function AbandonedCartsList({ shopId, shopName }: { shopId: string; shopN
           ))}
         </div>
       )}
+
+      <ListPagination page={list.page} pageSize={list.pageSize} total={total} onPageChange={list.setPage} />
     </div>
   );
 }

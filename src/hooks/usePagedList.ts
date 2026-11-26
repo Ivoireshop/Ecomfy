@@ -8,12 +8,14 @@ interface Options<T> {
   filterKey?: string;
   search?: string;
   pageSize?: number;
+  /** Tout changement relit la page affichée, sans revenir à la première. */
+  refreshKey?: string | number;
   /** Tant que false, rien n'est lu. */
   enabled?: boolean;
 }
 
 /** Liste paginée par le serveur, avec numéros de page et total. */
-export function usePagedList<T>({ fetchPage, filterKey = "", search = "", pageSize = PAGE_SIZE, enabled = true }: Options<T>) {
+export function usePagedList<T>({ fetchPage, filterKey = "", search = "", pageSize = PAGE_SIZE, refreshKey = "", enabled = true }: Options<T>) {
   const debouncedSearch = useDebounced(search.trim(), 300);
   const resetKey = JSON.stringify([filterKey, debouncedSearch, pageSize]);
 
@@ -65,7 +67,7 @@ export function usePagedList<T>({ fetchPage, filterKey = "", search = "", pageSi
       },
     );
     return () => { cancelled = true; };
-  }, [enabled, resetKey, page, pageSize, debouncedSearch, version]);
+  }, [enabled, resetKey, page, pageSize, debouncedSearch, version, refreshKey]);
 
   const reload = useCallback(() => setVersion((v) => v + 1), []);
 

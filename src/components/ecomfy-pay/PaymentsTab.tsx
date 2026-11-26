@@ -5,28 +5,29 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Search, CreditCard, ArrowDownRight, RefreshCw, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { PaymentMethodLogo } from "./PaymentMethodLogo";
+import { ListPagination } from "@/components/ListPagination";
+import { usePagedList } from "@/hooks/usePagedList";
+import { ecomfyPayApi } from "@/lib/ecomfyPay";
 
 interface PaymentsTabProps {
-  payments: EcomfyPayment[];
+  refreshKey: number;
   onRefresh: () => void;
   formatPrice: (amount: number) => string;
 }
 
 export const PaymentsTab: React.FC<PaymentsTabProps> = ({
-  payments,
+  refreshKey,
   onRefresh,
   formatPrice,
 }) => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
-  const filtered = payments.filter((p) => {
-    const matchesSearch =
-      p.internal_reference.toLowerCase().includes(search.toLowerCase()) ||
-      (p.customer_name && p.customer_name.toLowerCase().includes(search.toLowerCase())) ||
-      (p.customer_phone && p.customer_phone.includes(search));
-    const matchesStatus = statusFilter === "ALL" || p.status === statusFilter;
-    return matchesSearch && matchesStatus;
+  const list = usePagedList<EcomfyPayment>({
+    search,
+    filterKey: statusFilter,
+    refreshKey,
+    fetchPage: (args) => ecomfyPayApi.getPaymentsPage({ ...args, status: statusFilter }),
   });
 
   return (
@@ -70,7 +71,14 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
       </div>
 
       <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
-        {filtered.length === 0 ? (
+        {list.loading ? (
+          <p className="text-center py-12 text-xs text-slate-500">Chargement des paiements…</p>
+        ) : list.error ? (
+          <div role="alert" className="text-center py-12 px-4 space-y-3">
+            <p className="text-sm font-semibold text-rose-700">Impossible de charger les paiements.</p>
+            <Button size="sm" variant="outline" onClick={list.reload}>Réessayer</Button>
+          </div>
+        ) : list.rows.length === 0 ? (
           <div className="text-center py-12 px-4">
             <CreditCard className="w-10 h-10 text-slate-300 mx-auto mb-3" />
             <p className="font-semibold text-slate-700 text-sm">Aucun paiement trouvé</p>
@@ -93,7 +101,7 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {filtered.map((p) => (
+                {list.rows.map((p) => (
                   <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3 px-4 font-mono font-bold text-slate-900">
                       {p.internal_reference}
@@ -145,6 +153,8 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
           </div>
         )}
       </div>
+
+      <ListPagination page={list.page} pageSize={list.pageSize} total={list.total} onPageChange={list.setPage} disabled={list.loading} />
     </div>
   );
 };

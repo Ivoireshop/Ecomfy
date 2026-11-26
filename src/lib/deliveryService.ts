@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { readPage, searchFilter, type PageResult } from "@/lib/pagination";
 import {
   DeliveryAuditEntry,
   DeliveryCompany,
@@ -608,25 +609,39 @@ export const deliveryService = {
     });
   },
 
-  /** Back-office : dossiers par statut (réservé aux administrateurs par la RLS). */
-  async getAdminApplications(statusFilter?: DeliveryVerificationStatus | "all"): Promise<DeliveryCompany[]> {
-    let query = db.from("delivery_companies").select(COMPANY_SELECT).order("created_at", { ascending: false });
-    if (statusFilter && statusFilter !== "all") query = query.eq("verification_status", statusFilter);
-
-    const { data, error } = await query;
-    if (error) throw new Error(error.message);
-    return ((data || []) as Record<string, unknown>[]).map(withKyc);
+  /** Back-office : une page de dossiers (réservé aux administrateurs par la RLS). */
+  async getAdminApplications(params: {
+    status: DeliveryVerificationStatus | "all";
+    search: string;
+    page: number;
+    pageSize: number;
+  }): Promise<PageResult<DeliveryCompany>> {
+    const filter = searchFilter(["company_name", "city", "manager_name"], params.search);
+    const result = await readPage<Record<string, unknown>>(params.page, params.pageSize, (from, to) => {
+      let query = db
+        .from("delivery_companies")
+        .select(COMPANY_SELECT, { count: "exact" })
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to);
+      if (params.status !== "all") query = query.eq("verification_status", params.status);
+      if (filter) query = query.or(filter);
+      return query;
+    });
+    return { total: result.total, rows: result.rows.map(withKyc) };
   },
 
-  /** Nombre de dossiers par statut (pastilles du back-office). */
-  async getAdminStatusCounts(): Promise<Record<string, number>> {
-    const { data, error } = await db.from("delivery_companies").select("verification_status");
-    if (error) throw new Error(error.message);
-    const counts: Record<string, number> = {};
-    for (const row of (data || []) as Array<{ verification_status: string }>) {
-      counts[row.verification_status] = (counts[row.verification_status] ?? 0) + 1;
-    }
-    return counts;
+  /** Nombre de dossiers par statut (pastilles du back-office), compté en base ; `all` couvre tous les statuts. */
+  async getAdminStatusCounts(statuses: DeliveryVerificationStatus[]): Promise<Record<string, number>> {
+    const count = async (status?: DeliveryVerificationStatus) => {
+      let query = db.from("delivery_companies").select("id", { count: "exact", head: true });
+      if (status) query = query.eq("verification_status", status);
+      const { count: total, error } = await query;
+      if (error) throw new Error(error.message);
+      return total ?? 0;
+    };
+    const [all, ...each] = await Promise.all([count(), ...statuses.map((status) => count(status))]);
+    return Object.fromEntries([["all", all], ...statuses.map((status, i) => [status, each[i]])]);
   },
 
   /** Journal d'audit d'un dossier. Le candidat ne reçoit que les lignes « owner » (la RLS filtre). */

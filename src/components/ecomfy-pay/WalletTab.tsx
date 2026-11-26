@@ -3,24 +3,30 @@ import { Wallet, WalletLedgerEntry, WithdrawalRequest } from "@/types/ecomfyPay"
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Wallet as WalletIcon, ArrowUpRight, ArrowDownLeft, Clock, History, AlertCircle } from "lucide-react";
+import { LoadMoreButton } from "@/components/LoadMoreButton";
+import { useLoadMore } from "@/hooks/useLoadMore";
+import { ecomfyPayApi } from "@/lib/ecomfyPay";
 
 interface WalletTabProps {
   wallet: Wallet | null;
-  ledger: WalletLedgerEntry[];
-  withdrawals: WithdrawalRequest[];
+  refreshKey: number;
   onOpenWithdrawal: () => void;
   formatPrice: (amount: number) => string;
 }
 
 export const WalletTab: React.FC<WalletTabProps> = ({
   wallet,
-  ledger,
-  withdrawals,
+  refreshKey,
   onOpenWithdrawal,
   formatPrice,
 }) => {
   const availableBalance = wallet?.available_balance || 0;
   const pendingBalance = wallet?.pending_balance || 0;
+
+  const withdrawalList = useLoadMore<WithdrawalRequest>({ fetchBatch: ecomfyPayApi.getWithdrawals, batchSize: 10, refreshKey });
+  const ledgerList = useLoadMore<WalletLedgerEntry>({ fetchBatch: ecomfyPayApi.getLedger, batchSize: 25, refreshKey });
+  const withdrawals = withdrawalList.rows;
+  const ledger = ledgerList.rows;
 
   return (
     <div className="space-y-6">
@@ -58,7 +64,14 @@ export const WalletTab: React.FC<WalletTabProps> = ({
           <ArrowDownLeft className="w-5 h-5 text-[#0E7C66]" /> Demandes de Retrait
         </h4>
 
-        {withdrawals.length === 0 ? (
+        {withdrawalList.loading ? (
+          <p className="text-xs text-slate-500 py-4 text-center">Chargement…</p>
+        ) : withdrawalList.error && withdrawals.length === 0 ? (
+          <div role="alert" className="text-center py-4 space-y-2">
+            <p className="text-xs font-semibold text-rose-700">Impossible de charger vos demandes de retrait.</p>
+            <Button size="sm" variant="outline" onClick={withdrawalList.reload}>Réessayer</Button>
+          </div>
+        ) : withdrawals.length === 0 ? (
           <p className="text-xs text-slate-500 py-4 text-center">
             Aucune demande de retrait effectuée.
           </p>
@@ -113,6 +126,7 @@ export const WalletTab: React.FC<WalletTabProps> = ({
             </table>
           </div>
         )}
+        <LoadMoreButton hasMore={withdrawalList.hasMore} loading={withdrawalList.loadingMore} failed={!!withdrawalList.error} onClick={withdrawalList.loadMore} />
       </div>
 
       {/* Livre Journal Immuable (Ledger Mouvements) */}
@@ -121,7 +135,14 @@ export const WalletTab: React.FC<WalletTabProps> = ({
           <History className="w-5 h-5 text-slate-600" /> Registre Financier Immuable (Ledger)
         </h4>
 
-        {ledger.length === 0 ? (
+        {ledgerList.loading ? (
+          <p className="text-xs text-slate-500 py-4 text-center">Chargement…</p>
+        ) : ledgerList.error && ledger.length === 0 ? (
+          <div role="alert" className="text-center py-4 space-y-2">
+            <p className="text-xs font-semibold text-rose-700">Impossible de charger le registre.</p>
+            <Button size="sm" variant="outline" onClick={ledgerList.reload}>Réessayer</Button>
+          </div>
+        ) : ledger.length === 0 ? (
           <p className="text-xs text-slate-500 py-4 text-center">
             Aucun mouvement enregistré dans le registre comptable.
           </p>
@@ -166,6 +187,7 @@ export const WalletTab: React.FC<WalletTabProps> = ({
             })}
           </div>
         )}
+        <LoadMoreButton hasMore={ledgerList.hasMore} loading={ledgerList.loadingMore} failed={!!ledgerList.error} onClick={ledgerList.loadMore} />
       </div>
     </div>
   );

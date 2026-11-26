@@ -8,6 +8,7 @@ import {
   WalletLedgerEntry,
   WithdrawalRequest,
 } from "@/types/ecomfyPay";
+import { olderThan, readPage, searchFilter, type PageResult } from "@/lib/pagination";
 
 export const ecomfyPayApi = {
   // 1. KYC MARCHAND SÉCURISÉ
@@ -92,26 +93,27 @@ export const ecomfyPayApi = {
     return { success: true };
   },
 
-  async getLedger(): Promise<WalletLedgerEntry[]> {
+  /** Mouvements du journal, du plus récent au plus ancien, après `after`. */
+  async getLedger(after: WalletLedgerEntry | null, limit: number): Promise<WalletLedgerEntry[]> {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return [];
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("wallet_ledger")
       .select("*")
       .eq("merchant_id", session.user.id)
       .order("entry_seq", { ascending: false })
-      .limit(100);
+      .limit(limit);
+    if (after) query = query.lt("entry_seq", after.entry_seq);
 
-    if (error) {
-      console.warn("Error fetching ledger:", error);
-      return [];
-    }
+    const { data, error } = await query;
+    if (error) throw error;
     return (data || []) as WalletLedgerEntry[];
   },
 
   // 3. TRANSACTIONS / PAIEMENTS REÇUS
-  async getPayments(): Promise<EcomfyPayment[]> {
+  /** Les derniers paiements, pour la vue d'ensemble. */
+  async getRecentPayments(limit = 5): Promise<EcomfyPayment[]> {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return [];
 
@@ -120,7 +122,7 @@ export const ecomfyPayApi = {
       .select("*, shops(business_name)")
       .eq("merchant_id", session.user.id)
       .order("created_at", { ascending: false })
-      .limit(100);
+      .limit(limit);
 
     if (error) {
       console.warn("Error fetching payments:", error);
@@ -129,22 +131,48 @@ export const ecomfyPayApi = {
     return (data || []) as EcomfyPayment[];
   },
 
+  async getPaymentsPage(params: {
+    page: number;
+    pageSize: number;
+    search: string;
+    status: string;
+  }): Promise<PageResult<EcomfyPayment>> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return { rows: [], total: 0 };
+
+    const filter = searchFilter(["internal_reference", "customer_name", "customer_phone"], params.search);
+    return readPage<EcomfyPayment>(params.page, params.pageSize, (from, to) => {
+      // Les types générés ne suivent pas cette table : requête non typée.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let query = (supabase as any)
+        .from("ecomfy_payments")
+        .select("*, shops(business_name)", { count: "exact" })
+        .eq("merchant_id", session.user.id)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to);
+      if (params.status !== "ALL") query = query.eq("status", params.status);
+      if (filter) query = query.or(filter);
+      return query;
+    });
+  },
+
   // 4. DEMANDES DE RETRAIT
-  async getWithdrawals(): Promise<WithdrawalRequest[]> {
+  async getWithdrawals(after: WithdrawalRequest | null, limit: number): Promise<WithdrawalRequest[]> {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return [];
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("withdrawal_requests")
       .select("*")
       .eq("merchant_id", session.user.id)
       .order("created_at", { ascending: false })
-      .limit(50);
+      .order("id", { ascending: false })
+      .limit(limit);
+    if (after) query = query.or(olderThan(after));
 
-    if (error) {
-      console.warn("Error fetching withdrawals:", error);
-      return [];
-    }
+    const { data, error } = await query;
+    if (error) throw error;
     return (data || []) as WithdrawalRequest[];
   },
 

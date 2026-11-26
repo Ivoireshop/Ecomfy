@@ -44,9 +44,9 @@ export default function EcomfyPay() {
   const [kyc, setKyc] = useState<MerchantKyc | null>(null);
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [payments, setPayments] = useState<EcomfyPayment[]>([]);
-  const [ledger, setLedger] = useState<WalletLedgerEntry[]>([]);
-  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [paymentLinks, setPaymentLinks] = useState<PaymentLink[]>([]);
+  // Augmente à chaque rechargement : les listes paginées des onglets se relisent avec le reste.
+  const [dataVersion, setDataVersion] = useState(0);
   const [shops, setShops] = useState<{ id: string; name: string }[]>([]);
   const [selectedShopId, setSelectedShopId] = useState<string | undefined>();
   const [withdrawalModalOpen, setWithdrawalModalOpen] = useState(false);
@@ -80,22 +80,19 @@ export default function EcomfyPay() {
         if (!selectedShopId) setSelectedShopId(formatted[0].id);
       }
 
-      const [kycRes, walletRes, paymentsRes, ledgerRes, withdrawalsRes, linksRes] =
+      const [kycRes, walletRes, paymentsRes, linksRes] =
         await Promise.all([
           ecomfyPayApi.getKycStatus(),
           ecomfyPayApi.getWallet(),
-          ecomfyPayApi.getPayments(),
-          ecomfyPayApi.getLedger(),
-          ecomfyPayApi.getWithdrawals(),
+          ecomfyPayApi.getRecentPayments(),
           ecomfyPayApi.getPaymentLinks(selectedShopId),
         ]);
 
       setKyc(kycRes);
       setWallet(walletRes);
       setPayments(paymentsRes);
-      setLedger(ledgerRes);
-      setWithdrawals(withdrawalsRes);
       setPaymentLinks(linksRes);
+      setDataVersion((v) => v + 1);
     } catch (err) {
       console.error("[EcomfyPay] Failed to load data", err);
     } finally {
@@ -233,7 +230,7 @@ export default function EcomfyPay() {
 
           <TabsContent value="payments">
             <PaymentsTab
-              payments={payments}
+              refreshKey={dataVersion}
               onRefresh={loadData}
               formatPrice={formatPrice}
             />
@@ -252,8 +249,7 @@ export default function EcomfyPay() {
           <TabsContent value="wallet">
             <WalletTab
               wallet={wallet}
-              ledger={ledger}
-              withdrawals={withdrawals}
+              refreshKey={dataVersion}
               onOpenWithdrawal={() => setWithdrawalModalOpen(true)}
               formatPrice={formatPrice}
             />

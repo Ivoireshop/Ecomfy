@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pageCount, pageNumbers, pageRange, readPage, searchFilter } from "./pagination";
+import { olderThan, pageCount, pageNumbers, pageRange, readPage, searchFilter } from "./pagination";
 
 describe("pagination", () => {
   it("calcule les bornes de chaque page", () => {
@@ -44,5 +44,10 @@ describe("pagination", () => {
   it("propage les autres erreurs", async () => {
     await expect(readPage(1, 10, async () => ({ data: null, error: { message: "refus" }, count: null })))
       .rejects.toEqual({ message: "refus" });
+  });
+
+  it("reprend après la dernière ligne, même à date égale", () => {
+    expect(olderThan({ created_at: "2026-01-02T03:04:05.000006+00:00", id: "b1" })).toBe(
+      'created_at.lt."2026-01-02T03:04:05.000006+00:00",and(created_at.eq."2026-01-02T03:04:05.000006+00:00",id.lt.b1)');
   });
 });

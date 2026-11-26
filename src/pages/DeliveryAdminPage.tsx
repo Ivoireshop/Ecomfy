@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { ListPagination } from "@/components/ListPagination";
+import { usePagedList } from "@/hooks/usePagedList";
 import { Link } from "react-router-dom";
 import {
   AlertTriangle,
@@ -62,6 +64,8 @@ const STATUS_STYLE: Record<string, string> = {
   action_required: "bg-purple-500/20 text-purple-300 border-purple-500/40",
 };
 
+const COUNTED_STATUSES: DeliveryVerificationStatus[] = ["pending_verification", "action_required", "approved", "rejected", "suspended"];
+
 const DRIVER_STATUS_LABEL: Record<string, string> = {
   pending: "En attente",
   approved: "Approuvé",
@@ -82,8 +86,6 @@ type DriverDecision = "approved" | "rejected" | "suspended";
 
 export default function DeliveryAdminPage() {
   const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
-  const [applications, setApplications] = useState<DeliveryCompany[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [activeTab, setActiveTab] = useState<TabKey>("pending_verification");
   const [searchTerm, setSearchTerm] = useState("");
@@ -107,27 +109,36 @@ export default function DeliveryAdminPage() {
   const [driverReason, setDriverReason] = useState("");
   const [driverNote, setDriverNote] = useState("");
 
-  const fetchApplications = useCallback(async () => {
-    setLoading(true);
+  const list = usePagedList<DeliveryCompany>({
+    search: searchTerm,
+    filterKey: activeTab,
+    pageSize: 12,
+    fetchPage: (args) => deliveryService.getAdminApplications({ ...args, status: activeTab }),
+  });
+  const { rows: applications, loading, reload: reloadList } = list;
+
+  // Le dossier ouvert suit la dernière lecture de la liste.
+  useEffect(() => {
+    setSelected((current) => (current ? applications.find((a) => a.id === current.id) ?? current : current));
+  }, [applications]);
+
+  const fetchCounts = useCallback(async () => {
     try {
-      const [list, statusCounts] = await Promise.all([
-        deliveryService.getAdminApplications(activeTab),
-        deliveryService.getAdminStatusCounts(),
-      ]);
-      setApplications(list);
-      setCounts(statusCounts);
-      setSelected((current) => (current ? list.find((a) => a.id === current.id) ?? current : current));
+      setCounts(await deliveryService.getAdminStatusCounts(COUNTED_STATUSES));
     } catch (err) {
       console.error(err);
-      toast({ variant: "destructive", title: "Erreur de chargement", description: "Impossible de récupérer les candidatures." });
-    } finally {
-      setLoading(false);
+      toast({ variant: "destructive", title: "Erreur de chargement", description: "Impossible de compter les candidatures." });
     }
-  }, [activeTab, toast]);
+  }, [toast]);
 
   useEffect(() => {
-    void fetchApplications();
-  }, [fetchApplications]);
+    void fetchCounts();
+  }, [fetchCounts]);
+
+  const fetchApplications = useCallback(async () => {
+    reloadList();
+    await fetchCounts();
+  }, [reloadList, fetchCounts]);
 
   const handleInspect = async (app: DeliveryCompany) => {
     setSelected(app);
@@ -241,14 +252,6 @@ export default function DeliveryAdminPage() {
     }
   };
 
-  const filteredApps = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase();
-    if (!q) return applications;
-    return applications.filter((app) =>
-      [app.company_name, app.city, app.manager_name].some((v) => (v ?? "").toLowerCase().includes(q)),
-    );
-  }, [applications, searchTerm]);
-
   const selectedGaps = selected ? companyDossierGaps(selected) : [];
   const idExpired = !!selected?.kyc?.id_expiry && selected.kyc.id_expiry < new Date().toISOString().slice(0, 10);
   const tabs: Array<{ key: TabKey; label: string; style: string }> = [
@@ -259,7 +262,6 @@ export default function DeliveryAdminPage() {
     { key: "suspended", label: "Suspendues", style: "data-[state=active]:bg-red-600 data-[state=active]:text-white" },
     { key: "all", label: "Toutes", style: "" },
   ];
-  const totalCount = Object.values(counts).reduce((a, b) => a + b, 0);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 lg:p-8 font-sans">
@@ -299,7 +301,7 @@ export default function DeliveryAdminPage() {
             <TabsList className="bg-slate-900 border border-slate-800 p-1 flex-wrap h-auto">
               {tabs.map((t) => (
                 <TabsTrigger key={t.key} value={t.key} className={`text-xs font-semibold ${t.style}`}>
-                  {t.label} ({t.key === "all" ? totalCount : counts[t.key] ?? 0})
+                  {t.label} ({counts[t.key] ?? "…"})
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -319,13 +321,18 @@ export default function DeliveryAdminPage() {
 
         {loading ? (
           <div className="py-20 text-center text-slate-500 text-sm">Chargement des candidatures…</div>
-        ) : filteredApps.length === 0 ? (
+        ) : list.error ? (
+          <div role="alert" className="py-20 text-center text-rose-300 text-sm bg-slate-900/50 rounded-2xl border border-slate-800 space-y-3">
+            <p>Impossible de récupérer les candidatures.</p>
+            <Button size="sm" variant="outline" onClick={list.reload} className="bg-slate-900 border-slate-700 text-slate-200">Réessayer</Button>
+          </div>
+        ) : applications.length === 0 ? (
           <div className="py-20 text-center text-slate-500 text-sm bg-slate-900/50 rounded-2xl border border-slate-800">
             Aucune candidature pour ce filtre.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredApps.map((app) => {
+            {applications.map((app) => {
               const drivers = app.drivers ?? [];
               const approved = drivers.filter((d) => d.verification_status === "approved").length;
               return (
@@ -367,6 +374,8 @@ export default function DeliveryAdminPage() {
             })}
           </div>
         )}
+
+        <ListPagination page={list.page} pageSize={list.pageSize} total={list.total} onPageChange={list.setPage} disabled={loading} tone="dark" />
 
         {/* Examen d'un dossier */}
         <Dialog open={open} onOpenChange={setOpen}>

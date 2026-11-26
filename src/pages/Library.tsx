@@ -16,6 +16,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ImageTextEditor } from "@/components/ImageTextEditor";
 import { signGeneratedImageUrl } from "@/lib/generatedImageUrl";
+import { LoadMoreButton } from "@/components/LoadMoreButton";
+import { useLoadMore } from "@/hooks/useLoadMore";
+import { olderThan } from "@/lib/pagination";
 
 interface ImageFormat {
   id: string;
@@ -77,119 +80,119 @@ const toFileName = (title: string, fallback: string) => {
   return clean || fallback;
 };
 
+const BATCH_SIZE = 24;
+
+const signVideo = async (video: GeneratedVideo): Promise<GeneratedVideo> => ({
+  ...video,
+  video_url: await signGeneratedImageUrl(video.video_url),
+});
+
+// Re-sign URLs from the now-private `generated-images` bucket so the
+// owner can still view historical rows that were saved as public URLs.
+const signImage = async (img: GeneratedImage): Promise<GeneratedImage> => ({
+  ...img,
+  image_url: await signGeneratedImageUrl(img.image_url),
+  formats: await Promise.all(
+    (img.formats || []).map(async (f) => ({ ...f, image_url: await signGeneratedImageUrl(f.image_url) })),
+  ),
+});
+
+const currentUserId = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Session expirée");
+  return user.id;
+};
+
+/** Une tranche d'une table de médias de l'utilisateur, du plus récent au plus ancien. */
+async function readMedia<T>(table: "generated_images" | "generated_videos", after: { created_at: string; id: string } | null, limit: number) {
+  let query = supabase
+    .from(table)
+    .select("*")
+    .eq("user_id", await currentUserId())
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(limit);
+  if (after) query = query.or(olderThan(after));
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []) as unknown as T[];
+}
+
+async function fetchImages(after: GeneratedImage | null, limit: number): Promise<GeneratedImage[]> {
+  // Load images WITHOUT the heavy join to avoid timeout
+  const images = await readMedia<GeneratedImage>("generated_images", after, limit);
+  if (images.length === 0) return images;
+
+  // Load formats separately for the loaded images
+  const { data: formatsData, error } = await supabase
+    .from("image_formats")
+    .select("*")
+    .in("image_id", images.map((img) => img.id));
+  if (error) console.error("Error loading image formats:", error);
+  const formatsMap: Record<string, ImageFormat[]> = {};
+  for (const fmt of formatsData || []) {
+    (formatsMap[fmt.image_id] ||= []).push(fmt);
+  }
+  return Promise.all(images.map((img) => signImage({ ...img, formats: formatsMap[img.id] || [] })));
+}
+
+const fetchVideos = async (after: GeneratedVideo | null, limit: number) =>
+  Promise.all((await readMedia<GeneratedVideo>("generated_videos", after, limit)).map(signVideo));
+
 const Library = () => {
-  const [images, setImages] = useState<GeneratedImage[]>([]);
-  const [videos, setVideos] = useState<GeneratedVideo[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteType, setDeleteType] = useState<"image" | "video">("image");
   const [editingImage, setEditingImage] = useState<GeneratedImage | null>(null);
   const { toast } = useToast();
 
-  const loadVideos = useCallback(async (userId: string) => {
-    const { data: videosData, error: videosError } = await supabase
-      .from("generated_videos")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(100);
 
-    if (videosError) throw videosError;
-    const signedVideos = await Promise.all(
-      (videosData || []).map(async (v) => ({
-        ...v,
-        video_url: await signGeneratedImageUrl(v.video_url),
-      })),
-    );
-    setVideos(signedVideos);
+  const imageList = useLoadMore<GeneratedImage>({ fetchBatch: fetchImages, batchSize: BATCH_SIZE });
+  const videoList = useLoadMore<GeneratedVideo>({ fetchBatch: fetchVideos, batchSize: BATCH_SIZE });
+  const { rows: images, setRows: setImages } = imageList;
+  const { rows: videos, setRows: setVideos } = videoList;
+  const isLoading = imageList.loading || videoList.loading;
+
+  // Nombre total de médias conservés, affiché sur les onglets.
+  const [totals, setTotals] = useState<{ images: number | null; videos: number | null }>({ images: null, videos: null });
+  const loadTotals = useCallback(async () => {
+    try {
+      const userId = await currentUserId();
+      const count = async (table: "generated_images" | "generated_videos") => {
+        const result = await supabase.from(table).select("id", { count: "exact", head: true }).eq("user_id", userId);
+        return result.error ? null : result.count;
+      };
+      const [imageCount, videoCount] = await Promise.all([count("generated_images"), count("generated_videos")]);
+      setTotals({ images: imageCount, videos: videoCount });
+    } catch (error) {
+      console.error("Error counting library items:", error);
+    }
   }, []);
+  useEffect(() => { void loadTotals(); }, [loadTotals]);
 
+  const loadError = imageList.error ?? videoList.error;
   useEffect(() => {
-    loadLibrary();
-  }, []);
+    if (!loadError) return;
+    console.error("Error loading library:", loadError);
+    toast({ title: "Erreur", description: "Impossible de charger votre bibliothèque", variant: "destructive" });
+  }, [loadError, toast]);
 
   // Les vidéos du Studio IA se génèrent en arrière-plan : tant qu'une est en cours,
-  // on rafraîchit seulement la liste des vidéos pour afficher son résultat sans recharger la page.
-  const hasProcessingVideo = videos.some((v) => getVideoStatus(v) === "processing");
+  // on relit seulement les vidéos concernées pour afficher leur résultat sans recharger la page.
+  const processingIds = videos.filter((v) => getVideoStatus(v) === "processing").map((v) => v.id).join(",");
   useEffect(() => {
-    if (!hasProcessingVideo) return;
+    if (!processingIds) return;
     const timer = setInterval(async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) await loadVideos(user.id);
+        const { data, error } = await supabase.from("generated_videos").select("*").in("id", processingIds.split(","));
+        if (error) throw error;
+        const fresh = await Promise.all(((data || []) as unknown as GeneratedVideo[]).map(signVideo));
+        setVideos((previous) => previous.map((v) => fresh.find((x) => x.id === v.id) ?? v));
       } catch (error) {
         console.error("Error refreshing videos:", error);
       }
     }, VIDEO_POLL_MS);
     return () => clearInterval(timer);
-  }, [hasProcessingVideo, loadVideos]);
-
-  const loadLibrary = async ({ silent = false } = {}) => {
-    try {
-      if (!silent) setIsLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Load images WITHOUT the heavy join to avoid timeout
-      const { data: imagesData, error: imagesError } = await supabase
-        .from("generated_images")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(100);
-
-      if (imagesError) throw imagesError;
-
-      // Load formats separately for the loaded images
-      const imageIds = (imagesData || []).map(img => img.id);
-      let formatsMap: Record<string, ImageFormat[]> = {};
-      
-      if (imageIds.length > 0) {
-        const { data: formatsData } = await supabase
-          .from("image_formats")
-          .select("*")
-          .in("image_id", imageIds);
-        
-        if (formatsData) {
-          for (const fmt of formatsData) {
-            if (!formatsMap[fmt.image_id]) formatsMap[fmt.image_id] = [];
-            formatsMap[fmt.image_id].push(fmt);
-          }
-        }
-      }
-
-      const imagesWithFormats = (imagesData || []).map(img => ({
-        ...img,
-        formats: formatsMap[img.id] || [],
-      }));
-      // Re-sign URLs from the now-private `generated-images` bucket so the
-      // owner can still view historical rows that were saved as public URLs.
-      const signedImages = await Promise.all(
-        imagesWithFormats.map(async (img) => ({
-          ...img,
-          image_url: await signGeneratedImageUrl(img.image_url),
-          formats: await Promise.all(
-            (img.formats || []).map(async (f) => ({
-              ...f,
-              image_url: await signGeneratedImageUrl(f.image_url),
-            })),
-          ),
-        })),
-      );
-      setImages(signedImages);
-
-      await loadVideos(user.id);
-    } catch (error) {
-      console.error("Error loading library:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger votre bibliothèque",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [processingIds, setVideos]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -211,6 +214,7 @@ const Library = () => {
       } else {
         setVideos(prev => prev.filter(vid => vid.id !== deleteId));
       }
+      void loadTotals();
 
       toast({
         title: "Supprimé",
@@ -287,8 +291,9 @@ const Library = () => {
       if (updateError) throw updateError;
       if (!updated || updated.length === 0) throw new Error("Aucune ligne mise à jour");
 
-      // Reload library
-      await loadLibrary({ silent: true });
+      // Seule l'image modifiée est mise à jour : les tranches déjà chargées restent affichées.
+      const signed = await signGeneratedImageUrl(urlData.publicUrl);
+      setImages((previous) => previous.map((img) => (img.id === editingImage.id ? { ...img, image_url: signed } : img)));
       setEditingImage(null);
 
       toast({
@@ -319,12 +324,17 @@ const Library = () => {
 
         <Tabs defaultValue="images" className="w-full">
           <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="images">Images ({images.length})</TabsTrigger>
-            <TabsTrigger value="videos">Vidéos ({videos.length})</TabsTrigger>
+            <TabsTrigger value="images">Images{totals.images === null ? "" : ` (${totals.images})`}</TabsTrigger>
+            <TabsTrigger value="videos">Vidéos{totals.videos === null ? "" : ` (${totals.videos})`}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="images" className="mt-4 md:mt-8">
-            {images.length === 0 ? (
+            {imageList.error && images.length === 0 ? (
+              <div role="alert" className="text-center py-12 space-y-3">
+                <p className="text-destructive">Impossible de charger vos images.</p>
+                <Button size="sm" variant="outline" onClick={imageList.reload}>Réessayer</Button>
+              </div>
+            ) : images.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <p>Aucune image générée pour le moment</p>
               </div>
@@ -430,10 +440,16 @@ const Library = () => {
                 ))}
               </div>
             )}
+            <LoadMoreButton hasMore={imageList.hasMore} loading={imageList.loadingMore} failed={!!imageList.error} onClick={imageList.loadMore} />
           </TabsContent>
 
           <TabsContent value="videos" className="mt-8">
-            {videos.length === 0 ? (
+            {videoList.error && videos.length === 0 ? (
+              <div role="alert" className="text-center py-12 space-y-3">
+                <p className="text-destructive">Impossible de charger vos vidéos.</p>
+                <Button size="sm" variant="outline" onClick={videoList.reload}>Réessayer</Button>
+              </div>
+            ) : videos.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <p>Aucune vidéo générée pour le moment</p>
               </div>
@@ -517,6 +533,7 @@ const Library = () => {
                 })}
               </div>
             )}
+            <LoadMoreButton hasMore={videoList.hasMore} loading={videoList.loadingMore} failed={!!videoList.error} onClick={videoList.loadMore} />
           </TabsContent>
         </Tabs>
       </div>

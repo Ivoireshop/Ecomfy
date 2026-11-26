@@ -71,3 +71,11 @@ export async function readPage<T>(
   }
   throw response.error;
 }
+
+/**
+ * Filtre `.or()` « strictement après cette ligne » pour une liste triée par `created_at` puis `id` décroissants.
+ */
+export function olderThan(row: { created_at: string; id: string }): string {
+  const at = `"${row.created_at}"`;
+  return `created_at.lt.${at},and(created_at.eq.${at},id.lt.${row.id})`;
+}
