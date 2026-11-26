@@ -40,6 +40,9 @@ import { FounderManager } from "@/components/founder/FounderManager";
 import { FounderAffiliateAdmin } from "@/components/founder/FounderAffiliateAdmin";
 import { FounderWithdrawalsPanel } from "@/components/founder/FounderWithdrawalsPanel";
 import { Session } from "@supabase/supabase-js";
+import { ListPagination } from "@/components/ListPagination";
+import { useDebounced, usePagedList } from "@/hooks/usePagedList";
+import { fetchFounderShops, fetchFounderUsers, findShopByIdOrSlug, type ShopItem } from "@/lib/founderLists";
 import { FinancialMetricsService, FinancialMetrics, TimeRangeFilter, TransactionDetail } from "@/services/financialMetricsService";
 import { RevenueAuditModal } from "@/components/founder/RevenueAuditModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -90,33 +93,7 @@ interface FeedbackItem {
   photo_url: string | null;
 }
 
-interface UserProfile {
-  id: string;
-  email: string;
-  full_name: string | null;
-  phone: string | null;
-  country: string | null;
-  created_at: string;
-  free_generations_remaining: number;
-}
 
-interface ShopItem {
-  id: string;
-  business_name: string;
-  slug: string | null;
-  city: string | null;
-  country: string | null;
-  whatsapp_number: string | null;
-  is_published: boolean | null;
-  is_activated: boolean | null;
-  /** Commission restant due ; sert à proposer le montant d'un règlement manuel. */
-  commission_balance_due: number | null;
-  total_orders: number | null;
-  total_sales: number | null;
-  created_at: string;
-  user_id: string;
-  owner_email?: string;
-}
 
 interface CourseItem {
   id: string;
@@ -180,14 +157,16 @@ const FounderDashboard = () => {
   const [auditModalTab, setAuditModalTab] = useState<"revenue" | "mrr" | "shops" | "clients">("revenue");
   const [auditModalFilter, setAuditModalFilter] = useState("");
   const [allFeedback, setAllFeedback] = useState<FeedbackItem[]>([]);
-  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
-  const [allShops, setAllShops] = useState<ShopItem[]>([]);
   const [allCourses, setAllCourses] = useState<CourseItem[]>([]);
   const [allShowcases, setAllShowcases] = useState<ShowcaseItem[]>([]);
 
   // Search & Filter state
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [shopSearchQuery, setShopSearchQuery] = useState("");
+
+  // Listes paginées par le serveur ; lues une fois le rôle vérifié (fin de `isLoading`).
+  const users = usePagedList({ fetchPage: fetchFounderUsers, search: userSearchQuery, enabled: !isLoading && !!session });
+  const shops = usePagedList({ fetchPage: fetchFounderShops, search: shopSearchQuery, enabled: !isLoading && !!session });
 
   // Manual Shop Activation Modal State
   const [isManualPaymentModalOpen, setIsManualPaymentModalOpen] = useState(false);
@@ -202,11 +181,19 @@ const FounderDashboard = () => {
   const [isSubmittingManualPay, setIsSubmittingManualPay] = useState(false);
 
   // Boutique désignée par l'ID ou le slug saisi (correspondance exacte seulement, pas de devinette sur le nom).
-  const manualShop = (() => {
-    const q = manualShopInput.trim().toLowerCase();
-    if (!q) return null;
-    return allShops.find(s => s.id.toLowerCase() === q || (s.slug || "").toLowerCase() === q) ?? null;
-  })();
+  const [manualShop, setManualShop] = useState<ShopItem | null>(null);
+  const manualQuery = useDebounced(manualShopInput.trim().toLowerCase(), 300);
+  useEffect(() => {
+    let cancelled = false;
+    setManualShop((current) =>
+      current && (current.id.toLowerCase() === manualQuery || (current.slug || "").toLowerCase() === manualQuery) ? current : null);
+    if (!isManualPaymentModalOpen || !manualQuery) return;
+    findShopByIdOrSlug(manualQuery).then(
+      (found) => { if (!cancelled) setManualShop(found); },
+      (error) => console.error("Error finding shop:", error),
+    );
+    return () => { cancelled = true; };
+  }, [isManualPaymentModalOpen, manualQuery]);
   const manualBalanceDue = manualShop && Number(manualShop.commission_balance_due) > 0
     ? Math.round(Number(manualShop.commission_balance_due))
     : null;
@@ -225,6 +212,7 @@ const FounderDashboard = () => {
 
   const openManualPayment = (shop?: ShopItem) => {
     setManualShopInput(shop?.id ?? "");
+    setManualShop(shop ?? null);
     // Une boutique non activée a d'abord besoin de ses frais d'activation ; sinon c'est un règlement de commission.
     setManualPaymentType(shop && !shop.is_activated ? "shop_activation" : "commission_payment");
     setManualAmountTouched(false);
@@ -410,6 +398,8 @@ const FounderDashboard = () => {
     setIsRefreshing(true);
     // Rechargement explicite : on relit la base au lieu de réutiliser la lecture mise en cache.
     FinancialMetricsService.invalidate();
+    users.reload();
+    shops.reload();
     try {
       await Promise.all([
         loadAiGenerationsCount(),
@@ -418,8 +408,6 @@ const FounderDashboard = () => {
         loadRecentPayments(),
         loadChartData(),
         loadAllFeedback(),
-        loadAllUsers(),
-        loadAllShops(),
         loadAllCourses(),
         loadAllShowcases(),
       ]);
@@ -438,38 +426,12 @@ const FounderDashboard = () => {
 
   reloadRef.current = loadDashboardData;
 
-  const loadAllUsers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, email, full_name, phone, country, created_at, free_generations_remaining")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setAllUsers(data || []);
-    } catch (error) {
-      console.error("Error loading all users:", error);
-    }
-  };
-
   const attachOwnerEmails = async <T extends { user_id: string | null }>(items: T[]): Promise<(T & { owner_email?: string })[]> => {
     const ids = Array.from(new Set(items.map(i => i.user_id).filter(Boolean))) as string[];
     if (ids.length === 0) return items;
     const { data: profs } = await supabase.from("profiles").select("id, email").in("id", ids);
     const map = new Map((profs || []).map(p => [p.id, p.email]));
     return items.map(i => ({ ...i, owner_email: i.user_id ? map.get(i.user_id) || undefined : undefined }));
-  };
-
-  const loadAllShops = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("shops")
-        .select("id, business_name, slug, city, country, whatsapp_number, is_published, is_activated, commission_balance_due, total_orders, total_sales, created_at, user_id")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      const enriched = await attachOwnerEmails((data || []) as any);
-      setAllShops(enriched as ShopItem[]);
-    } catch (e) { console.error("Error loading shops:", e); }
   };
 
   const loadAllCourses = async () => {
@@ -653,28 +615,6 @@ const FounderDashboard = () => {
     }
   }, [periodFilter]);
 
-  const filteredUsers = allUsers.filter(u => {
-    if (!userSearchQuery.trim()) return true;
-    const q = userSearchQuery.toLowerCase();
-    return (
-      (u.full_name || "").toLowerCase().includes(q) ||
-      (u.email || "").toLowerCase().includes(q) ||
-      (u.phone || "").toLowerCase().includes(q) ||
-      (u.country || "").toLowerCase().includes(q)
-    );
-  });
-
-  const filteredShops = allShops.filter(s => {
-    if (!shopSearchQuery.trim()) return true;
-    const q = shopSearchQuery.toLowerCase();
-    return (
-      (s.business_name || "").toLowerCase().includes(q) ||
-      (s.slug || "").toLowerCase().includes(q) ||
-      (s.owner_email || "").toLowerCase().includes(q) ||
-      (s.city || "").toLowerCase().includes(q)
-    );
-  });
-
   // Une donnée absente (erreur de lecture) s'affiche « — », jamais « 0 ».
   const fm = financialMetrics;
   const show = (value: number | null | undefined) =>
@@ -696,7 +636,7 @@ const FounderDashboard = () => {
       <div className="max-w-7xl mx-auto space-y-8">
 
         {/* Top Header Bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-3xl bg-slate-900/80 border border-slate-800 backdrop-blur-xl shadow-2xl relative overflow-hidden">
+        <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-4 p-6 rounded-3xl bg-slate-900/80 border border-slate-800 backdrop-blur-xl shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-96 h-96 bg-[#0E7C66]/10 rounded-full blur-3xl pointer-events-none" />
           
           <div className="space-y-1 z-10">
@@ -743,7 +683,7 @@ const FounderDashboard = () => {
               className="rounded-full bg-gradient-to-r from-[#0E7C66] to-emerald-500 hover:from-emerald-600 hover:to-teal-600 text-white text-xs font-bold gap-2 shadow-lg cursor-pointer shrink-0"
             >
               <Zap className="h-3.5 w-3.5 text-amber-300" />
-              <span>⚡ Activer par ID Boutique</span>
+              <span>Activer par ID Boutique</span>
             </Button>
 
             <Button
@@ -807,7 +747,7 @@ const FounderDashboard = () => {
               </div>
               <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
                 <span>{show(fm?.completedPaymentsCount)} paiements validés sur la période</span>
-                <span className="text-emerald-400 font-semibold group-hover:underline">Voir l'audit ➔</span>
+                <span className="text-emerald-400 font-semibold group-hover:underline whitespace-nowrap pl-2">Voir l'audit ➔</span>
               </div>
             </div>
           </Card>
@@ -835,7 +775,7 @@ const FounderDashboard = () => {
                 ) : (
                   <span>Abonnements en cours, au tarif actuel des plans</span>
                 )}
-                <span className="text-blue-400 font-semibold group-hover:underline">Voir l'audit MRR ➔</span>
+                <span className="text-blue-400 font-semibold group-hover:underline whitespace-nowrap pl-2">Voir l'audit MRR ➔</span>
               </div>
             </div>
           </Card>
@@ -857,7 +797,7 @@ const FounderDashboard = () => {
               </div>
               <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
                 <span>Total depuis le lancement</span>
-                <span className="text-amber-400 font-semibold group-hover:underline">Voir boutiques ➔</span>
+                <span className="text-amber-400 font-semibold group-hover:underline whitespace-nowrap pl-2">Voir boutiques ➔</span>
               </div>
             </div>
           </Card>
@@ -879,7 +819,7 @@ const FounderDashboard = () => {
               </div>
               <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
                 <span>Au moins 1 paiement sur la période</span>
-                <span className="text-purple-400 font-semibold group-hover:underline">Voir clients ➔</span>
+                <span className="text-purple-400 font-semibold group-hover:underline whitespace-nowrap pl-2">Voir clients ➔</span>
               </div>
             </div>
           </Card>
@@ -901,7 +841,7 @@ const FounderDashboard = () => {
               </div>
               <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
                 <span>Propriétaires abonnés en cours de validité</span>
-                <span className="text-teal-400 font-semibold group-hover:underline">Voir abonnés ➔</span>
+                <span className="text-teal-400 font-semibold group-hover:underline whitespace-nowrap pl-2">Voir abonnés ➔</span>
               </div>
             </div>
           </Card>
@@ -941,7 +881,7 @@ const FounderDashboard = () => {
             </div>
 
             <Tabs value={timeRange} onValueChange={(v) => setTimeRange(v as "7d" | "30d" | "90d")}>
-              <TabsList className="bg-slate-950 border border-slate-800 p-1 rounded-full">
+              <TabsList className="text-slate-300 bg-slate-950 border border-slate-800 p-1 rounded-full">
                 <TabsTrigger value="7d" className="rounded-full text-xs font-bold data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">7 jours</TabsTrigger>
                 <TabsTrigger value="30d" className="rounded-full text-xs font-bold data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">30 jours</TabsTrigger>
                 <TabsTrigger value="90d" className="rounded-full text-xs font-bold data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">90 jours</TabsTrigger>
@@ -951,9 +891,9 @@ const FounderDashboard = () => {
 
           <Tabs defaultValue="revenue" className="w-full">
             <TabsList className="bg-slate-950 border border-slate-800 rounded-2xl p-1 grid grid-cols-3 max-w-md">
-              <TabsTrigger value="revenue" className="rounded-xl text-xs font-bold data-[state=active]:bg-slate-800 text-slate-300">Revenus (FCFA)</TabsTrigger>
-              <TabsTrigger value="signups" className="rounded-xl text-xs font-bold data-[state=active]:bg-slate-800 text-slate-300">Inscriptions</TabsTrigger>
-              <TabsTrigger value="methods" className="rounded-xl text-xs font-bold data-[state=active]:bg-slate-800 text-slate-300">Paiements</TabsTrigger>
+              <TabsTrigger value="revenue" className="rounded-xl text-xs font-bold data-[state=active]:bg-slate-800 data-[state=active]:text-white text-slate-300">Revenus (FCFA)</TabsTrigger>
+              <TabsTrigger value="signups" className="rounded-xl text-xs font-bold data-[state=active]:bg-slate-800 data-[state=active]:text-white text-slate-300">Inscriptions</TabsTrigger>
+              <TabsTrigger value="methods" className="rounded-xl text-xs font-bold data-[state=active]:bg-slate-800 data-[state=active]:text-white text-slate-300">Paiements</TabsTrigger>
             </TabsList>
 
             <TabsContent value="revenue" className="mt-6">
@@ -1034,10 +974,10 @@ const FounderDashboard = () => {
 
         {/* Main Operational Tabs: Users, Governance, Shops, Payments, Promos, Feedback */}
         <Tabs defaultValue="users" className="w-full">
-          <TabsList className="bg-slate-900 border border-slate-800 rounded-2xl p-1.5 flex flex-wrap gap-1">
+          <TabsList className="text-slate-300 bg-slate-900 border border-slate-800 rounded-2xl p-1.5 flex flex-wrap gap-1 h-auto w-full">
             <TabsTrigger value="users" className="rounded-xl text-xs font-bold gap-1.5 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
               <Users className="h-4 w-4" />
-              <span>Utilisateurs ({allUsers.length})</span>
+              <span>Utilisateurs{userSearchQuery.trim() || users.loading || users.error ? "" : ` (${users.total.toLocaleString("fr-FR")})`}</span>
             </TabsTrigger>
             <TabsTrigger value="affiliates" className="rounded-xl text-xs font-bold gap-1.5 data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
               <Sparkles className="h-4 w-4 text-emerald-300" />
@@ -1049,7 +989,7 @@ const FounderDashboard = () => {
             </TabsTrigger>
             <TabsTrigger value="shops" className="rounded-xl text-xs font-bold gap-1.5 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
               <Store className="h-4 w-4" />
-              <span>Boutiques & Vitrines ({allShops.length})</span>
+              <span>Boutiques & Vitrines{shopSearchQuery.trim() || shops.loading || shops.error ? "" : ` (${shops.total.toLocaleString("fr-FR")})`}</span>
             </TabsTrigger>
             <TabsTrigger value="payments" className="rounded-xl text-xs font-bold gap-1.5 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
               <CreditCard className="h-4 w-4" />
@@ -1101,7 +1041,7 @@ const FounderDashboard = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <div>
                   <h3 className="text-lg font-space font-bold text-white">Membres et Utilisateurs Inscrits</h3>
-                  <p className="text-xs text-slate-400">Recherchez et gérerez les comptes réels enregistrés en base de données.</p>
+                  <p className="text-xs text-slate-400">Recherchez et gérez les comptes réels enregistrés en base de données.</p>
                 </div>
                 <div className="relative w-full sm:w-72">
                   <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
@@ -1115,12 +1055,19 @@ const FounderDashboard = () => {
               </div>
 
               <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-                {filteredUsers.length === 0 ? (
+                {users.loading ? (
+                  <div className="flex items-center justify-center h-[500px]"><Loader2 className="h-6 w-6 animate-spin text-[#0E7C66]" aria-label="Chargement" /></div>
+                ) : users.error ? (
+                  <div role="alert" className="text-center py-12 text-rose-400 text-xs font-semibold space-y-3">
+                    <p>Impossible de charger les utilisateurs.</p>
+                    <Button size="sm" variant="outline" onClick={users.reload} className="border-slate-700 bg-transparent text-slate-200">Réessayer</Button>
+                  </div>
+                ) : users.rows.length === 0 ? (
                   <div className="text-center py-12 text-slate-500 text-xs font-semibold">
                     Aucun utilisateur correspondant trouvé.
                   </div>
                 ) : (
-                  filteredUsers.map((user) => (
+                  users.rows.map((user) => (
                     <div key={user.id} className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="h-10 w-10 rounded-2xl bg-[#0E7C66]/20 text-emerald-400 font-bold flex items-center justify-center shrink-0 border border-[#0E7C66]/30">
@@ -1149,6 +1096,7 @@ const FounderDashboard = () => {
                   ))
                 )}
               </div>
+              <ListPagination page={users.page} pageSize={users.pageSize} total={users.total} onPageChange={users.setPage} disabled={users.loading} tone="dark" />
             </Card>
           </TabsContent>
 
@@ -1172,12 +1120,19 @@ const FounderDashboard = () => {
               </div>
 
               <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-                {filteredShops.length === 0 ? (
+                {shops.loading ? (
+                  <div className="flex items-center justify-center h-[500px]"><Loader2 className="h-6 w-6 animate-spin text-[#0E7C66]" aria-label="Chargement" /></div>
+                ) : shops.error ? (
+                  <div role="alert" className="text-center py-12 text-rose-400 text-xs font-semibold space-y-3">
+                    <p>Impossible de charger les boutiques.</p>
+                    <Button size="sm" variant="outline" onClick={shops.reload} className="border-slate-700 bg-transparent text-slate-200">Réessayer</Button>
+                  </div>
+                ) : shops.rows.length === 0 ? (
                   <div className="text-center py-12 text-slate-500 text-xs font-semibold">
                     Aucune boutique trouvée.
                   </div>
                 ) : (
-                  filteredShops.map((shop) => (
+                  shops.rows.map((shop) => (
                     <div key={shop.id} className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all">
                       <div className="space-y-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -1206,23 +1161,24 @@ const FounderDashboard = () => {
                       </div>
 
                       <div className="text-left sm:text-right shrink-0 space-y-1">
-                        <p className="text-xs font-bold text-white">{(shop.total_orders || 0)} commandes</p>
+                        <p className="text-xs font-bold text-white">{(shop.total_orders || 0)} commande{(shop.total_orders || 0) > 1 ? "s" : ""}</p>
                         <p className="text-[11px] text-emerald-400 font-semibold">{(shop.total_sales || 0).toLocaleString()} FCFA reçus</p>
                         <p className="text-[10px] text-slate-500">Créée le {new Date(shop.created_at).toLocaleDateString("fr-FR")}</p>
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => openManualPayment(shop)}
-                          className="mt-1 h-7 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 text-[11px] font-bold gap-1 rounded-xl"
+                          className="mt-1 h-7 bg-transparent border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 text-[11px] font-bold gap-1 rounded-xl"
                         >
                           <Zap className="h-3 w-3 text-amber-300" />
-                          <span>⚡ Valider Paiement</span>
+                          <span>Valider Paiement</span>
                         </Button>
                       </div>
                     </div>
                   ))
                 )}
               </div>
+              <ListPagination page={shops.page} pageSize={shops.pageSize} total={shops.total} onPageChange={shops.setPage} disabled={shops.loading} tone="dark" />
             </Card>
           </TabsContent>
 
