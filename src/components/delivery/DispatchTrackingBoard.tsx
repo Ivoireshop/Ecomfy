@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, RefreshCw, Truck } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { RefreshCw, Truck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
 import { deliveryService } from "@/lib/deliveryService";
 import { DeliveryDispatch, DeliveryDispatchHistoryEntry } from "@/types/delivery";
 
@@ -58,27 +57,13 @@ function HistoryTimeline({ dispatchId }: { dispatchId: string }) {
 }
 
 /** Suivi, côté commerçant, des commandes transmises aux structures de livraison (cahier des charges §7.1, §7.3, §10). */
-export default function DispatchTrackingBoard({ shopId }: { shopId: string }) {
-  const [dispatches, setDispatches] = useState<DeliveryDispatch[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(true);
+export default function DispatchTrackingBoard({ dispatches, loading, onRefresh }: {
+  dispatches: DeliveryDispatch[];
+  loading: boolean;
+  onRefresh: () => void;
+}) {
   const [group, setGroup] = useState<string>("all");
   const [expanded, setExpanded] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setDispatches(await deliveryService.getShopDispatches(shopId));
-    setLoading(false);
-  }, [shopId]);
-
-  useEffect(() => {
-    load();
-    // Visibilité en temps réel (§10) : chaque changement de statut rafraîchit la liste.
-    const channel = supabase
-      .channel(`shop-dispatches-${shopId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "delivery_dispatches", filter: `shop_id=eq.${shopId}` }, () => { load(); })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [shopId, load]);
 
   const counts = useMemo(() => {
     const out: Record<string, number> = {};
@@ -92,60 +77,64 @@ export default function DispatchTrackingBoard({ shopId }: { shopId: string }) {
     return g ? dispatches.filter((d) => g.statuses.includes(d.status)) : dispatches;
   }, [dispatches, group]);
 
-  // Rien à suivre : on ne montre pas un bloc vide au marchand qui n'utilise pas ce circuit.
-  if (loading || dispatches.length === 0) return null;
+  if (loading) return <Card className="p-12 text-center text-sm text-muted-foreground">Chargement des livraisons…</Card>;
+
+  if (dispatches.length === 0) {
+    return (
+      <Card className="p-12 text-center">
+        <Truck className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+        <h3 className="font-semibold mb-1">Aucune livraison transmise</h3>
+        <p className="text-sm text-muted-foreground">Depuis l'onglet Commandes, utilisez « Transmettre à une structure ».</p>
+      </Card>
+    );
+  }
 
   return (
     <Card className="p-4 space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <button type="button" className="flex items-center gap-2 text-left" onClick={() => setOpen((o) => !o)}>
+        <div className="flex items-center gap-2">
           <Truck className="h-4 w-4 text-primary" />
           <h3 className="font-semibold text-sm">Suivi des livraisons transmises ({dispatches.length})</h3>
-          {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </button>
-        <Button size="sm" variant="ghost" className="h-8" onClick={load} aria-label="Actualiser">
+        </div>
+        <Button size="sm" variant="ghost" className="h-8" onClick={onRefresh} aria-label="Actualiser">
           <RefreshCw className="h-4 w-4" />
         </Button>
       </div>
 
-      {open && (
-        <>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant={group === "all" ? "default" : "outline"} className="h-8 text-xs" onClick={() => setGroup("all")}>
-              Toutes ({dispatches.length})
-            </Button>
-            {GROUPS.filter((g) => counts[g.id] > 0).map((g) => (
-              <Button key={g.id} size="sm" variant={group === g.id ? "default" : "outline"} className="h-8 text-xs" onClick={() => setGroup(g.id)}>
-                {g.label} ({counts[g.id]})
-              </Button>
-            ))}
-          </div>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant={group === "all" ? "default" : "outline"} className="h-8 text-xs" onClick={() => setGroup("all")}>
+          Toutes ({dispatches.length})
+        </Button>
+        {GROUPS.filter((g) => counts[g.id] > 0).map((g) => (
+          <Button key={g.id} size="sm" variant={group === g.id ? "default" : "outline"} className="h-8 text-xs" onClick={() => setGroup(g.id)}>
+            {g.label} ({counts[g.id]})
+          </Button>
+        ))}
+      </div>
 
-          <div className="space-y-2">
-            {visible.map((d) => (
-              <div key={d.id} className="rounded-lg border p-3 text-sm space-y-2">
-                <button type="button" className="w-full flex flex-wrap items-center justify-between gap-2 text-left" onClick={() => setExpanded(expanded === d.id ? null : d.id)}>
-                  <div className="min-w-0">
-                    <p className="font-semibold truncate">{d.recipient_name} <span className="text-muted-foreground font-normal">· {d.city}</span></p>
-                    <p className="text-xs text-muted-foreground">
-                      {d.company?.company_name ?? "Structure"}
-                      {d.driver?.full_name ? ` · Livreur : ${d.driver.full_name}` : ""} · Transmise le {formatDate(d.transmitted_at ?? d.created_at)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold">{Number(d.cod_amount).toLocaleString("fr-FR")} {d.currency}</span>
-                    <Badge variant="secondary" className="text-[11px]">{DISPATCH_STATUS_LABELS[d.status] ?? d.status}</Badge>
-                  </div>
-                </button>
-                {(d.refusal_reason || d.failure_reason) && (
-                  <p className="text-xs text-destructive">{d.refusal_reason || d.failure_reason}</p>
-                )}
-                {expanded === d.id && <HistoryTimeline dispatchId={d.id} />}
+      <div className="space-y-2">
+        {visible.map((d) => (
+          <div key={d.id} className="rounded-lg border p-3 text-sm space-y-2">
+            <button type="button" className="w-full flex flex-wrap items-center justify-between gap-2 text-left" onClick={() => setExpanded(expanded === d.id ? null : d.id)}>
+              <div className="min-w-0">
+                <p className="font-semibold truncate">{d.recipient_name} <span className="text-muted-foreground font-normal">· {d.city}</span></p>
+                <p className="text-xs text-muted-foreground">
+                  {d.company?.company_name ?? "Structure"}
+                  {d.driver?.full_name ? ` · Livreur : ${d.driver.full_name}` : ""} · Transmise le {formatDate(d.transmitted_at ?? d.created_at)}
+                </p>
               </div>
-            ))}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold">{Number(d.cod_amount).toLocaleString("fr-FR")} {d.currency}</span>
+                <Badge variant="secondary" className="text-[11px]">{DISPATCH_STATUS_LABELS[d.status] ?? d.status}</Badge>
+              </div>
+            </button>
+            {(d.refusal_reason || d.failure_reason) && (
+              <p className="text-xs text-destructive">{d.refusal_reason || d.failure_reason}</p>
+            )}
+            {expanded === d.id && <HistoryTimeline dispatchId={d.id} />}
           </div>
-        </>
-      )}
+        ))}
+      </div>
     </Card>
   );
 }
