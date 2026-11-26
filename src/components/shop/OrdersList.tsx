@@ -90,7 +90,7 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
   const [orderToPush, setOrderToPush] = useState<string | null>(null);
   const [orderToDispatch, setOrderToDispatch] = useState<Order | null>(null);
   const [tab, setTab] = useState("orders");
-  const { dispatches, loading: dispatchesLoading, reload: reloadDispatches } = useShopDispatches(shopId);
+  const { dispatches, loading: dispatchesLoading, error: dispatchesError, revision: dispatchesRevision, reload: reloadDispatches } = useShopDispatches(shopId);
   const activeDispatches = useMemo(() => activeDispatchByOrder(dispatches), [dispatches]);
   
   // Delivery Schedule state & modals
@@ -428,7 +428,8 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
       </TabsList>
 
       <TabsContent value="deliveries" className="mt-0">
-        <DispatchTrackingBoard dispatches={dispatches} loading={dispatchesLoading} onRefresh={reloadDispatches} />
+        <DispatchTrackingBoard shopId={shopId} dispatches={dispatches} loading={dispatchesLoading} error={dispatchesError}
+          revision={dispatchesRevision} onRefresh={reloadDispatches} />
       </TabsContent>
 
       <TabsContent value="orders" className="mt-0 space-y-4">

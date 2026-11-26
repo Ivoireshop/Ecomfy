@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { readPage, searchFilter, type PageResult } from "@/lib/pagination";
+import { readPage, searchFilter, type PageResult, readAll } from "@/lib/pagination";
 import {
   DeliveryAuditEntry,
   DeliveryCompany,
@@ -28,6 +28,7 @@ import {
   DeliveryDispatchHistoryEntry,
   DeliveryDriverStats,
   DeliveryAdminOperations,
+  ShopDispatchSummary,
   DeliveryWorkspace,
   DeliveryStaffMember,
   DeliveryStaffRole,
@@ -922,18 +923,34 @@ export const deliveryService = {
   /**
    * Fetch Shop Dispatches with Cash Transfer details
    */
-  async getShopDispatches(shopId: string): Promise<DeliveryDispatch[]> {
-    const { data, error } = await supabase
-      .from("delivery_dispatches" as any)
-      .select("*, company:delivery_companies(*), driver:delivery_drivers(*), cash_transfer:delivery_cash_transfers(*)")
-      .eq("shop_id", shopId)
-      .order("created_at", { ascending: false });
+  /** Toutes les courses d'une boutique, réduites à ce qu'il faut pour marquer les commandes et compter par statut. */
+  async getShopDispatchSummaries(shopId: string): Promise<ShopDispatchSummary[]> {
+    return readAll<ShopDispatchSummary>((from, to) =>
+      supabase
+        .from("delivery_dispatches" as never)
+        .select("id, order_id, status, company:delivery_companies(company_name)")
+        .eq("shop_id", shopId)
+        .order("created_at", { ascending: false }).order("id", { ascending: false })
+        .range(from, to));
+  },
 
-    if (error) {
-      console.error("Error fetching shop dispatches:", error);
-      return [];
-    }
-    return ((data || []) as unknown) as DeliveryDispatch[];
+  /** Une page du suivi d'une boutique ; `statuses` vide : tous les statuts. */
+  async getShopDispatchesPage({ shopId, statuses, page, pageSize }: {
+    shopId: string;
+    statuses: string[];
+    page: number;
+    pageSize: number;
+  }): Promise<PageResult<DeliveryDispatch>> {
+    return readPage<DeliveryDispatch>(page, pageSize, (from, to) => {
+      let query = supabase
+        .from("delivery_dispatches" as never)
+        .select("*, company:delivery_companies(company_name), driver:delivery_drivers(full_name)", { count: "exact" })
+        .eq("shop_id", shopId);
+      if (statuses.length > 0) query = query.in("status", statuses);
+      return query
+        .order("created_at", { ascending: false }).order("id", { ascending: false })
+        .range(from, to);
+    });
   },
 
   /** Performances individuelles des livreurs de la structure (§9). */

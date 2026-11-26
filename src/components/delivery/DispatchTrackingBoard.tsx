@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
+import { ListPagination } from "@/components/ListPagination";
+import { usePagedList } from "@/hooks/usePagedList";
 import { RefreshCw, Truck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { deliveryService } from "@/lib/deliveryService";
-import { DeliveryDispatch, DeliveryDispatchHistoryEntry } from "@/types/delivery";
+import { DeliveryDispatch, DeliveryDispatchHistoryEntry, ShopDispatchSummary } from "@/types/delivery";
+
+const DISPATCHES_PAGE_SIZE = 20;
 
 export const DISPATCH_STATUS_LABELS: Record<string, string> = {
   transmitted: "Transmise", accepted: "Acceptée", refused: "Refusée", preparing: "En préparation",
@@ -57,9 +61,13 @@ function HistoryTimeline({ dispatchId }: { dispatchId: string }) {
 }
 
 /** Suivi, côté commerçant, des commandes transmises aux structures de livraison (cahier des charges §7.1, §7.3, §10). */
-export default function DispatchTrackingBoard({ dispatches, loading, onRefresh }: {
-  dispatches: DeliveryDispatch[];
+export default function DispatchTrackingBoard({ shopId, dispatches, loading, error, revision, onRefresh }: {
+  shopId: string;
+  /** Toutes les courses de la boutique, en résumé : elles donnent les totaux par groupe. */
+  dispatches: ShopDispatchSummary[];
   loading: boolean;
+  error: boolean;
+  revision: number;
   onRefresh: () => void;
 }) {
   const [group, setGroup] = useState<string>("all");
@@ -71,11 +79,23 @@ export default function DispatchTrackingBoard({ dispatches, loading, onRefresh }
     return out;
   }, [dispatches]);
 
-  const visible = useMemo(() => {
-    if (group === "all") return dispatches;
-    const g = GROUPS.find((x) => x.id === group);
-    return g ? dispatches.filter((d) => g.statuses.includes(d.status)) : dispatches;
-  }, [dispatches, group]);
+  const list = usePagedList<DeliveryDispatch>({
+    enabled: !loading,
+    filterKey: `${shopId}|${group}`,
+    refreshKey: revision,
+    pageSize: DISPATCHES_PAGE_SIZE,
+    fetchPage: ({ page, pageSize }) =>
+      deliveryService.getShopDispatchesPage({ shopId, statuses: GROUPS.find((g) => g.id === group)?.statuses ?? [], page, pageSize }),
+  });
+
+  if (error && loading) {
+    return (
+      <Card className="p-12 text-center space-y-3">
+        <p className="text-sm text-destructive">Impossible de charger les livraisons.</p>
+        <Button size="sm" variant="outline" onClick={onRefresh}>Réessayer</Button>
+      </Card>
+    );
+  }
 
   if (loading) return <Card className="p-12 text-center text-sm text-muted-foreground">Chargement des livraisons…</Card>;
 
@@ -105,7 +125,8 @@ export default function DispatchTrackingBoard({ dispatches, loading, onRefresh }
         <Button size="sm" variant={group === "all" ? "default" : "outline"} className="h-8 text-xs" onClick={() => setGroup("all")}>
           Toutes ({dispatches.length})
         </Button>
-        {GROUPS.filter((g) => counts[g.id] > 0).map((g) => (
+        {/* Le groupe choisi reste affiché même s'il vient de se vider. */}
+        {GROUPS.filter((g) => counts[g.id] > 0 || g.id === group).map((g) => (
           <Button key={g.id} size="sm" variant={group === g.id ? "default" : "outline"} className="h-8 text-xs" onClick={() => setGroup(g.id)}>
             {g.label} ({counts[g.id]})
           </Button>
@@ -113,7 +134,16 @@ export default function DispatchTrackingBoard({ dispatches, loading, onRefresh }
       </div>
 
       <div className="space-y-2">
-        {visible.map((d) => (
+        {list.loading ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">Chargement des livraisons…</p>
+        ) : list.error ? (
+          <div className="py-6 text-center space-y-3">
+            <p className="text-sm text-destructive">Impossible de charger les livraisons.</p>
+            <Button size="sm" variant="outline" onClick={list.reload}>Réessayer</Button>
+          </div>
+        ) : list.rows.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">Aucune livraison dans cette catégorie.</p>
+        ) : list.rows.map((d) => (
           <div key={d.id} className="rounded-lg border p-3 text-sm space-y-2">
             <button type="button" className="w-full flex flex-wrap items-center justify-between gap-2 text-left" onClick={() => setExpanded(expanded === d.id ? null : d.id)}>
               <div className="min-w-0">
@@ -135,6 +165,8 @@ export default function DispatchTrackingBoard({ dispatches, loading, onRefresh }
           </div>
         ))}
       </div>
+
+      <ListPagination page={list.page} pageSize={list.pageSize} total={list.total} onPageChange={list.setPage} disabled={list.loading} />
     </Card>
   );
 }

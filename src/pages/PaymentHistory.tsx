@@ -8,6 +8,18 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, CreditCard, Smartphone, Receipt, Download } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
+import { ListPagination } from "@/components/ListPagination";
+import { usePagedList } from "@/hooks/usePagedList";
+import { readAll, readPage } from "@/lib/pagination";
+
+const PAYMENTS_PAGE_SIZE = 20;
+
+const STATUS_LABELS: Record<string, string> = {
+  completed: "Complété",
+  pending: "En attente",
+  failed: "Échoué",
+  cancelled: "Annulé",
+};
 
 interface Payment {
   id: string;
@@ -24,8 +36,7 @@ const PaymentHistory = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [session, setSession] = useState<Session | null>(null);
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -47,44 +58,30 @@ const PaymentHistory = () => {
     return () => authSubscription.unsubscribe();
   }, [navigate]);
 
-  useEffect(() => {
-    if (session?.user) {
-      loadPayments();
-    }
-  }, [session]);
-
-  const loadPayments = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("payments")
-        .select("*")
-        .eq("user_id", session?.user?.id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setPayments(data || []);
-    } catch (error) {
-      console.error("Erreur lors du chargement des paiements:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger l'historique des paiements",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const userId = session?.user?.id;
+  const { rows: payments, total, page, pageSize, setPage, loading, error, reload } = usePagedList<Payment>({
+    enabled: !!userId,
+    filterKey: userId ?? "",
+    pageSize: PAYMENTS_PAGE_SIZE,
+    fetchPage: ({ page, pageSize }) =>
+      readPage<Payment>(page, pageSize, (from, to) =>
+        supabase.from("payments").select("*", { count: "exact" })
+          .eq("user_id", userId as string)
+          .order("created_at", { ascending: false }).order("id", { ascending: false })
+          .range(from, to)),
+  });
 
   const getStatusBadge = (status: string) => {
+    const label = STATUS_LABELS[status] ?? status;
     switch (status) {
       case "completed":
-        return <Badge className="bg-green-500">Complété</Badge>;
+        return <Badge className="bg-green-500">{label}</Badge>;
       case "pending":
-        return <Badge className="bg-yellow-500">En attente</Badge>;
+        return <Badge className="bg-yellow-500">{label}</Badge>;
       case "failed":
-        return <Badge variant="destructive">Échoué</Badge>;
+        return <Badge variant="destructive">{label}</Badge>;
       default:
-        return <Badge variant="secondary">{status}</Badge>;
+        return <Badge variant="secondary">{label}</Badge>;
     }
   };
 
@@ -119,8 +116,25 @@ const PaymentHistory = () => {
     });
   };
 
-  const exportToCSV = () => {
-    if (payments.length === 0) {
+  // L'export porte sur tout l'historique, pas seulement sur la page affichée.
+  const exportToCSV = async () => {
+    if (!userId || exporting) return;
+    setExporting(true);
+    let all: Payment[];
+    try {
+      all = await readAll<Payment>((from, to) =>
+        supabase.from("payments").select("*")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false }).order("id", { ascending: false })
+          .range(from, to));
+    } catch (e) {
+      console.error("Erreur lors de l'export des paiements:", e);
+      toast({ title: "Export impossible", description: "L'historique n'a pas pu être lu en entier. Réessayez.", variant: "destructive" });
+      return;
+    } finally {
+      setExporting(false);
+    }
+    if (all.length === 0) {
       toast({
         title: "Aucune donnée",
         description: "Il n'y a aucun paiement à exporter",
@@ -133,20 +147,20 @@ const PaymentHistory = () => {
     const headers = ["Date", "Méthode de paiement", "Fournisseur", "Montant", "Devise", "Statut", "ID Transaction"];
     
     // Données
-    const csvData = payments.map(payment => [
+    const csvData = all.map(payment => [
       new Date(payment.created_at).toLocaleString("fr-FR"),
       payment.payment_method === "card" || payment.payment_method === "bank_card" ? "Carte bancaire" : "Mobile Money",
       payment.provider ? payment.provider.charAt(0).toUpperCase() + payment.provider.slice(1) : "N/A",
       payment.amount.toString(),
       payment.currency,
-      payment.status === "completed" ? "Complété" : payment.status === "pending" ? "En attente" : "Échoué",
+      STATUS_LABELS[payment.status] ?? payment.status,
       payment.transaction_id || "N/A"
     ]);
 
     // Création du contenu CSV
     const csvContent = [
       headers.join(","),
-      ...csvData.map(row => row.map(cell => `"${cell}"`).join(","))
+      ...csvData.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(","))
     ].join("\n");
 
     // Création et téléchargement du fichier
@@ -166,7 +180,7 @@ const PaymentHistory = () => {
     });
   };
 
-  if (isLoading) {
+  if (!session) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -197,16 +211,23 @@ const PaymentHistory = () => {
                   Consultez l'historique complet de vos transactions
                 </CardDescription>
               </div>
-              {payments.length > 0 && (
-                <Button onClick={exportToCSV} variant="outline" className="gap-2">
-                  <Download className="h-4 w-4" />
+              {total > 0 && (
+                <Button onClick={exportToCSV} disabled={exporting} variant="outline" className="gap-2">
+                  {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                   Exporter en CSV
                 </Button>
               )}
             </div>
           </CardHeader>
           <CardContent>
-            {payments.length === 0 ? (
+            {loading ? (
+              <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+            ) : error ? (
+              <div className="text-center py-8 space-y-3">
+                <p className="text-sm text-destructive">Impossible de charger l'historique des paiements.</p>
+                <Button size="sm" variant="outline" onClick={reload}>Réessayer</Button>
+              </div>
+            ) : payments.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Receipt className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>Aucun paiement enregistré</p>
@@ -254,12 +275,13 @@ const PaymentHistory = () => {
                 </Table>
               </div>
             )}
+            <ListPagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} disabled={loading} />
           </CardContent>
         </Card>
 
-        {payments.length > 0 && (
+        {total > 0 && (
           <div className="mt-4 text-center text-sm text-muted-foreground">
-            Total: {payments.length} transaction{payments.length > 1 ? "s" : ""}
+            Total: {total.toLocaleString("fr-FR")} transaction{total > 1 ? "s" : ""}
           </div>
         )}
       </div>

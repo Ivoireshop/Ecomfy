@@ -278,6 +278,14 @@ export interface DeliveryDispatch {
   cash_transfer?: DeliveryCashTransfer;
 }
 
+/** Course réduite à ce que la liste des commandes a besoin de connaître. */
+export interface ShopDispatchSummary {
+  id: string;
+  order_id?: string | null;
+  status: DeliveryDispatchStatus;
+  company?: { company_name: string } | null;
+}
+
 export interface DeliveryCashTransfer {
   id: string;
   dispatch_id: string;

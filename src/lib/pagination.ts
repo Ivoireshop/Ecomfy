@@ -72,6 +72,26 @@ export async function readPage<T>(
   throw response.error;
 }
 
+/** PostgREST plafonne chaque réponse à ce nombre de lignes. */
+const API_MAX_ROWS = 1000;
+
+/**
+ * Lit toutes les lignes d'une requête par tranches (totaux, exports). La requête doit être triée de façon
+ * stable (terminer par `id`). Lève une erreur si une tranche échoue : jamais de résultat partiel.
+ */
+export async function readAll<T>(
+  query: (from: number, to: number) => PromiseLike<Omit<RangeResponse, "count">>,
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += API_MAX_ROWS) {
+    const response = await query(from, from + API_MAX_ROWS - 1);
+    if (response.error) throw response.error;
+    const batch = (response.data ?? []) as T[];
+    rows.push(...batch);
+    if (batch.length < API_MAX_ROWS) return rows;
+  }
+}
+
 /**
  * Filtre `.or()` « strictement après cette ligne » pour une liste triée par `created_at` puis `id` décroissants.
  */

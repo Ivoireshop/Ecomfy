@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { olderThan, pageCount, pageNumbers, pageRange, readPage, searchFilter } from "./pagination";
+import { olderThan, pageCount, pageNumbers, pageRange, readAll, readPage, searchFilter } from "./pagination";
 
 describe("pagination", () => {
   it("calcule les bornes de chaque page", () => {
@@ -44,6 +44,26 @@ describe("pagination", () => {
   it("propage les autres erreurs", async () => {
     await expect(readPage(1, 10, async () => ({ data: null, error: { message: "refus" }, count: null })))
       .rejects.toEqual({ message: "refus" });
+  });
+
+  it("lit toutes les lignes par tranches de 1 000", async () => {
+    const asked: number[] = [];
+    const rows = await readAll<number>(async (from, to) => {
+      asked.push(from);
+      const length = Math.max(0, Math.min(to + 1, 2300) - from);
+      return { data: Array.from({ length }, (_, i) => from + i), error: null };
+    });
+    expect(rows).toHaveLength(2300);
+    expect(rows[2299]).toBe(2299);
+    expect(asked).toEqual([0, 1000, 2000]);
+  });
+
+  it("ne rend jamais un résultat partiel", async () => {
+    await expect(readAll(async (from) =>
+      from === 0
+        ? { data: Array.from({ length: 1000 }, () => 0), error: null }
+        : { data: null, error: { message: "coupure" } },
+    )).rejects.toEqual({ message: "coupure" });
   });
 
   it("reprend après la dernière ligne, même à date égale", () => {

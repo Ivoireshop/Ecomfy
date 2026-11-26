@@ -11,6 +11,15 @@ import { BillingThresholdSection } from "./BillingThresholdSection";
 import { useToast } from "@/hooks/use-toast";
 import { isShopRowRestricted } from "@/lib/billingSystem";
 import { computeShopSubscription } from "@/lib/shopSubscription";
+import { ListPagination } from "@/components/ListPagination";
+import { usePagedList } from "@/hooks/usePagedList";
+import { readAll, readPage } from "@/lib/pagination";
+import type { Tables } from "@/integrations/supabase/types";
+
+const BILLING_PAGE_SIZE = 20;
+
+type CommissionPayment = Tables<"commission_payments">;
+type PaidAmount = Pick<CommissionPayment, "amount" | "notes">;
 
 interface BillingHistoryProps {
   shopId: string;
@@ -26,35 +35,50 @@ const esc = (v: unknown) =>
   String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
 
 export function BillingHistory({ shopId, shop, orderCount }: BillingHistoryProps) {
-  const [payments, setPayments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [payOpen, setPayOpen] = useState(false);
   const { toast } = useToast();
 
+  const { rows: payments, total, page, pageSize, setPage, loading, error, reload } = usePagedList<CommissionPayment>({
+    filterKey: shopId,
+    pageSize: BILLING_PAGE_SIZE,
+    fetchPage: ({ page, pageSize }) =>
+      readPage<CommissionPayment>(page, pageSize, (from, to) =>
+        supabase.from("commission_payments").select("*", { count: "exact" })
+          .eq("shop_id", shopId)
+          .order("created_at", { ascending: false }).order("id", { ascending: false })
+          .range(from, to)),
+  });
+
+  // Les totaux portent sur tous les règlements payés, pas sur la page affichée. `null` : pas encore lus, ou illisibles.
+  const [paidPayments, setPaidPayments] = useState<PaidAmount[] | null>(null);
   useEffect(() => {
-    (async () => {
-      const { data } = await supabase
-        .from("commission_payments" as any)
-        .select("*")
-        .eq("shop_id", shopId)
-        .order("created_at", { ascending: false });
-      setPayments((data as any[]) || []);
-      setLoading(false);
-    })();
+    let cancelled = false;
+    setPaidPayments(null);
+    readAll<PaidAmount>((from, to) =>
+      supabase.from("commission_payments").select("id, amount, notes")
+        .eq("shop_id", shopId).eq("status", "paid")
+        .order("id").range(from, to))
+      .then(
+        (rows) => { if (!cancelled) setPaidPayments(rows); },
+        (e) => { console.error("Totaux de facturation illisibles:", e); },
+      );
+    return () => { cancelled = true; };
   }, [shopId]);
 
   const perOrder = Number(shop?.commission_per_order) || 50;
   const threshold = Number(shop?.commission_threshold) || 12000;
   const balanceDue = Number(shop?.commission_balance_due) || 0;
-  const paidPayments = payments.filter(p => p.status === "paid");
   // Les règlements d'abonnement et d'activation ne sont pas des commissions : on les sépare pour que
   // « facturé = payé + solde » reste vrai (avant : commandes x commission, faux pour une boutique abonnée
   // dont la commission est nulle, et « payé » mélangeait tout).
-  const isCommissionPayment = (p: any) => !/abonnement|activation/i.test(p.notes || "");
-  const commissionPaid = paidPayments.filter(isCommissionPayment).reduce((s, p) => s + Number(p.amount), 0);
-  const otherPaid = paidPayments.filter(p => !isCommissionPayment(p)).reduce((s, p) => s + Number(p.amount), 0);
+  const isCommissionPayment = (p: PaidAmount) => !/abonnement|activation/i.test(p.notes || "");
+  const paid = paidPayments ?? [];
+  const commissionPaid = paid.filter(isCommissionPayment).reduce((s, p) => s + Number(p.amount), 0);
+  const otherPaid = paid.filter(p => !isCommissionPayment(p)).reduce((s, p) => s + Number(p.amount), 0);
   const totalBilled = commissionPaid + balanceDue;
-  const paidCount = paidPayments.filter(isCommissionPayment).length;
+  const paidCount = paid.filter(isCommissionPayment).length;
+  // Un total inconnu s'affiche « — » : un zéro laisserait croire que rien n'a été payé.
+  const paidKnown = paidPayments !== null;
   const subscription = computeShopSubscription(shop);
 
   const openInvoice = (p: any) => {
@@ -154,16 +178,16 @@ export function BillingHistory({ shopId, shop, orderCount }: BillingHistoryProps
       <div className="grid sm:grid-cols-3 gap-3">
         <Card className="p-4">
           <div className="text-xs text-muted-foreground mb-1">{subscription.isActive ? "Commission sur vos commandes" : "Commissions facturées"}</div>
-          <div className="text-2xl font-bold">{fmt(subscription.isActive ? 0 : totalBilled)} <span className="text-sm font-normal text-muted-foreground">FCFA</span></div>
+          <div className="text-2xl font-bold">{subscription.isActive ? fmt(0) : paidKnown ? fmt(totalBilled) : "—"} <span className="text-sm font-normal text-muted-foreground">FCFA</span></div>
           <div className="text-xs text-muted-foreground mt-1">
             {subscription.isActive ? "Abonnement actif" : `${orderCount} commande${orderCount > 1 ? "s" : ""}`}
           </div>
         </Card>
         <Card className="p-4">
           <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-green-600" />Commissions payées</div>
-          <div className="text-2xl font-bold text-green-600">{fmt(commissionPaid)} <span className="text-sm font-normal text-muted-foreground">FCFA</span></div>
+          <div className="text-2xl font-bold text-green-600">{paidKnown ? fmt(commissionPaid) : "—"} <span className="text-sm font-normal text-muted-foreground">FCFA</span></div>
           <div className="text-xs text-muted-foreground mt-1">
-            {paidCount} règlement{paidCount > 1 ? "s" : ""}
+            {paidKnown ? `${paidCount} règlement${paidCount > 1 ? "s" : ""}` : "Total indisponible pour le moment"}
             {otherPaid > 0 && <> · hors abonnement et activation ({fmt(otherPaid)} FCFA)</>}
           </div>
         </Card>
@@ -209,6 +233,11 @@ export function BillingHistory({ shopId, shop, orderCount }: BillingHistoryProps
         <h3 className="font-semibold mb-4">Mes paiements</h3>
         {loading ? (
           <div className="py-8 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+        ) : error ? (
+          <div className="text-center py-8 space-y-3">
+            <p className="text-sm text-destructive">Impossible de charger vos paiements.</p>
+            <Button size="sm" variant="outline" onClick={reload}>Réessayer</Button>
+          </div>
         ) : payments.length === 0 ? (
           <div className="text-center py-8 text-sm text-muted-foreground">
             Aucun paiement enregistré pour le moment.
@@ -257,6 +286,7 @@ export function BillingHistory({ shopId, shop, orderCount }: BillingHistoryProps
             </TableBody>
           </Table>
         )}
+        <ListPagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} disabled={loading} />
       </Card>
     </div>
   );
