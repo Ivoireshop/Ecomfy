@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,9 @@ import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, CheckCircle2, Loader2, RefreshCw, Search, ShieldCheck, XCircle, RotateCcw } from "lucide-react";
 import type { KycStatus, MerchantKyc } from "@/types/ecomfyPay";
 import { getKycSignedUrls, isLegacyKycValue } from "@/lib/kycStorage";
+import { ListPagination } from "@/components/ListPagination";
+import { usePagedList } from "@/hooks/usePagedList";
+import { readPage, searchFilter } from "@/lib/pagination";
 
 type Tab = "todo" | "VERIFIED" | "REJECTED" | "RESUBMISSION_REQUIRED" | "all";
 type Decision = "VERIFIED" | "REJECTED" | "RESUBMISSION_REQUIRED";
@@ -45,6 +48,9 @@ const DECISION_COPY: Record<Decision, { title: string; confirm: string; reasonRe
   RESUBMISSION_REQUIRED: { title: "Redemander des pièces", confirm: "Redemander", reasonRequired: true },
 };
 
+const TODO_STATUSES: KycStatus[] = ["PENDING", "UNDER_REVIEW"];
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const fmtDate = (d?: string | null) => (d ? new Date(d).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }) : "—");
 
 function DocImage({ label, url, legacy }: { label: string; url?: string | null; legacy?: boolean }) {
@@ -66,8 +72,6 @@ function DocImage({ label, url, legacy }: { label: string; url?: string | null; 
 
 export default function KycReview() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [rows, setRows] = useState<MerchantKyc[]>([]);
   const [tab, setTab] = useState<Tab>("todo");
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<MerchantKyc | null>(null);
@@ -81,20 +85,44 @@ export default function KycReview() {
     selfie: null,
   });
 
-  const load = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      // @ts-ignore table créée par la migration Ecomfy Pay
-      .from("merchant_kyc")
-      .select("*")
-      .order("updated_at", { ascending: true })
-      .limit(500);
-    if (error) toast({ title: "Erreur de chargement", description: error.message, variant: "destructive" });
-    setRows((data as unknown as MerchantKyc[]) || []);
-    setLoading(false);
-  };
+  const list = usePagedList<MerchantKyc>({
+    search: q,
+    filterKey: tab,
+    fetchPage: ({ page, pageSize, search }) =>
+      readPage<MerchantKyc>(page, pageSize, (from, to) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let query = (supabase as any)
+          .from("merchant_kyc")
+          .select("*", { count: "exact" })
+          // Les plus anciens d'abord : c'est l'ordre de traitement.
+          .order("updated_at", { ascending: true })
+          .order("id", { ascending: true })
+          .range(from, to);
+        if (tab === "todo") query = query.in("verification_status", TODO_STATUSES);
+        else if (tab !== "all") query = query.eq("verification_status", tab);
+        // Un identifiant de compte se cherche en entier ; le reste, par morceau de texte.
+        if (UUID.test(search)) return query.eq("user_id", search);
+        const filter = searchFilter(["full_name", "phone_number", "document_number"], search);
+        return filter ? query.or(filter) : query;
+      }),
+  });
 
-  useEffect(() => { void load(); }, []);
+  // Dossiers à examiner, tous onglets confondus.
+  const [todoCount, setTodoCount] = useState(0);
+  const loadTodoCount = useCallback(async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { count, error } = await (supabase as any)
+      .from("merchant_kyc")
+      .select("id", { count: "exact", head: true })
+      .in("verification_status", TODO_STATUSES);
+    if (!error) setTodoCount(count ?? 0);
+  }, []);
+  useEffect(() => { void loadTodoCount(); }, [loadTodoCount]);
+
+  const load = () => {
+    list.reload();
+    void loadTodoCount();
+  };
 
   useEffect(() => {
     setDocUrls({ front: null, back: null, selfie: null });
@@ -109,22 +137,6 @@ export default function KycReview() {
       cancelled = true;
     };
   }, [selected]);
-
-  const counts = useMemo(() => {
-    const todo = rows.filter((r) => r.verification_status === "PENDING" || r.verification_status === "UNDER_REVIEW").length;
-    return { todo, all: rows.length } as Record<string, number>;
-  }, [rows]);
-
-  const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    return rows.filter((r) => {
-      const s = r.verification_status;
-      if (tab === "todo" && s !== "PENDING" && s !== "UNDER_REVIEW") return false;
-      if (tab !== "todo" && tab !== "all" && s !== tab) return false;
-      if (!needle) return true;
-      return [r.full_name, r.phone_number, r.document_number, r.user_id].some((v) => v?.toLowerCase().includes(needle));
-    });
-  }, [rows, tab, q]);
 
   const openDecision = (d: Decision) => {
     setReason("");
@@ -154,7 +166,7 @@ export default function KycReview() {
     toast({ title: decision === "VERIFIED" ? "Dossier validé" : decision === "REJECTED" ? "Dossier rejeté" : "Pièces redemandées" });
     setDecision(null);
     setSelected(null);
-    void load();
+    load();
   };
 
   return (
@@ -173,8 +185,8 @@ export default function KycReview() {
             </p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} /> Actualiser
+        <Button variant="outline" size="sm" onClick={load} disabled={list.loading}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${list.loading ? "animate-spin" : ""}`} /> Actualiser
         </Button>
       </div>
 
@@ -182,8 +194,8 @@ export default function KycReview() {
         {TABS.map((t) => (
           <Button key={t.id} size="sm" variant={tab === t.id ? "default" : "outline"} onClick={() => setTab(t.id)}>
             {t.label}
-            {t.id === "todo" && counts.todo > 0 && (
-              <Badge className="ml-2 bg-amber-500 text-white border-0">{counts.todo}</Badge>
+            {t.id === "todo" && todoCount > 0 && (
+              <Badge className="ml-2 bg-amber-500 text-white border-0">{todoCount}</Badge>
             )}
           </Button>
         ))}
@@ -193,9 +205,16 @@ export default function KycReview() {
         </div>
       </div>
 
-      {loading ? (
+      {list.loading ? (
         <div className="flex justify-center py-16"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>
-      ) : filtered.length === 0 ? (
+      ) : list.error ? (
+        <Card role="alert">
+          <CardContent className="py-12 text-center text-sm text-destructive space-y-3">
+            <p>Erreur de chargement : {list.error.message}</p>
+            <Button size="sm" variant="outline" onClick={load}>Réessayer</Button>
+          </CardContent>
+        </Card>
+      ) : list.rows.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-sm text-muted-foreground">
             {tab === "todo" ? "Aucun dossier en attente d'examen." : "Aucun dossier ne correspond."}
@@ -203,7 +222,7 @@ export default function KycReview() {
         </Card>
       ) : (
         <div className="grid gap-3">
-          {filtered.map((r) => {
+          {list.rows.map((r) => {
             const meta = STATUS_META[r.verification_status] ?? STATUS_META.PENDING;
             return (
               <Card key={r.id} className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setSelected(r)}>
@@ -224,6 +243,8 @@ export default function KycReview() {
           })}
         </div>
       )}
+
+      <ListPagination page={list.page} pageSize={list.pageSize} total={list.total} onPageChange={list.setPage} disabled={list.loading} />
 
       <Dialog open={!!selected && !decision} onOpenChange={(o) => !o && setSelected(null)}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">

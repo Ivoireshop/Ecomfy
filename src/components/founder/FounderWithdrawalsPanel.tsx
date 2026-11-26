@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ListPagination } from "@/components/ListPagination";
+import { usePagedList } from "@/hooks/usePagedList";
+import { pageRange } from "@/lib/pagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,7 +62,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
 
-type RpcResult = { data: { success?: boolean; error?: string; withdrawals?: AdminWithdrawal[] } | null; error: { message?: string } | null };
+type RpcResult = { data: { success?: boolean; error?: string; withdrawals?: AdminWithdrawal[]; total?: number; pending_count?: number } | null; error: { message?: string } | null };
 // Les RPC fondateur ne figurent pas dans les types générés.
 const callRpc = (fn: string, args: Record<string, unknown>) =>
   (supabase as unknown as { rpc: (f: string, a: Record<string, unknown>) => PromiseLike<RpcResult> }).rpc(fn, args);
@@ -67,8 +70,6 @@ const callRpc = (fn: string, args: Record<string, unknown>) =>
 export const FounderWithdrawalsPanel = () => {
   const { toast } = useToast();
   const [filter, setFilter] = useState<Filter>("REQUESTED");
-  const [rows, setRows] = useState<AdminWithdrawal[]>([]);
-  const [loading, setLoading] = useState(true);
   const [pendingCount, setPendingCount] = useState<number | null>(null);
 
   const [target, setTarget] = useState<AdminWithdrawal | null>(null);
@@ -77,22 +78,20 @@ export const FounderWithdrawalsPanel = () => {
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const status = filter === "ALL" ? null : filter;
-    const { data, error } = await callRpc("founder_list_withdrawals", { p_status: status, p_limit: 200 });
-    setLoading(false);
-    if (error || !data?.success) {
-      toast({ title: "Chargement impossible", description: error?.message || "Accès refusé.", variant: "destructive" });
-      return;
-    }
-    setRows(data.withdrawals as AdminWithdrawal[]);
-    if (filter === "REQUESTED") setPendingCount((data.withdrawals as AdminWithdrawal[]).length);
-  }, [filter, toast]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  const list = usePagedList<AdminWithdrawal>({
+    filterKey: filter,
+    fetchPage: async ({ page, pageSize }) => {
+      const { data, error } = await callRpc("founder_list_withdrawals", {
+        p_status: filter === "ALL" ? null : filter,
+        p_limit: pageSize,
+        p_offset: pageRange(page, pageSize)[0],
+      });
+      if (error || !data?.success) throw new Error(error?.message || "Accès refusé.");
+      setPendingCount(data.pending_count ?? null);
+      return { rows: data.withdrawals ?? [], total: data.total ?? 0 };
+    },
+  });
+  const { rows, loading } = list;
 
   const open = (w: AdminWithdrawal, m: "approve" | "reject") => {
     setTarget(w);
@@ -131,7 +130,7 @@ export const FounderWithdrawalsPanel = () => {
       description: mode === "approve" ? `${target.withdrawal_reference} clôturé.` : "Le montant a été recrédité au marchand.",
     });
     close();
-    load();
+    list.reload();
   };
 
   const copy = (value: string, label: string) => {
@@ -156,7 +155,7 @@ export const FounderWithdrawalsPanel = () => {
             de la transaction. Le solde du marchand est déjà débité ; un rejet le recrédite.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2 border-slate-700 bg-transparent text-slate-200 hover:bg-slate-800 hover:text-white">
+        <Button variant="outline" size="sm" onClick={list.reload} disabled={loading} className="gap-2 border-slate-700 bg-transparent text-slate-200 hover:bg-slate-800 hover:text-white">
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Actualiser
         </Button>
       </div>
@@ -178,6 +177,11 @@ export const FounderWithdrawalsPanel = () => {
       {loading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+        </div>
+      ) : list.error ? (
+        <div role="alert" className="text-center py-12 text-rose-400 text-xs font-semibold space-y-3">
+          <p>Chargement impossible : {list.error.message}</p>
+          <Button size="sm" variant="outline" onClick={list.reload} className="border-slate-700 bg-transparent text-slate-200">Réessayer</Button>
         </div>
       ) : rows.length === 0 ? (
         <div className="text-center py-12 text-slate-500 text-xs font-semibold">Aucun retrait dans cette vue.</div>
@@ -266,6 +270,8 @@ export const FounderWithdrawalsPanel = () => {
           })}
         </div>
       )}
+
+      <ListPagination page={list.page} pageSize={list.pageSize} total={list.total} onPageChange={list.setPage} disabled={loading} tone="dark" />
 
       <Dialog open={!!target && !!mode} onOpenChange={(o) => !o && !saving && close()}>
         <DialogContent className="bg-slate-900 border-slate-800 text-white">

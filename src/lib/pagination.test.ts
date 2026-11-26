@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pageCount, pageNumbers, pageRange, searchFilter } from "./pagination";
+import { pageCount, pageNumbers, pageRange, readPage, searchFilter } from "./pagination";
 
 describe("pagination", () => {
   it("calcule les bornes de chaque page", () => {
@@ -26,5 +26,23 @@ describe("pagination", () => {
     expect(searchFilter(["a", "b"], "x,y)")).toBe('a.ilike."%x,y)%",b.ilike."%x,y)%"');
     expect(searchFilter(["a"], "50%")).toBe('a.ilike."%50\\\\%%"');
     expect(searchFilter(["a"], 'di"t')).toBe('a.ilike."%di\\"t%"');
+  });
+
+  it("lit la page demandée", async () => {
+    const result = await readPage(2, 10, async (from, to) => ({ data: [from, to], error: null, count: 25 }));
+    expect(result).toEqual({ rows: [10, 19], total: 25 });
+  });
+
+  it("recule quand la page n'existe plus", async () => {
+    const result = await readPage(9, 10, async (from) =>
+      from > 0
+        ? { data: null, error: { code: "PGRST103", message: "range" }, count: null }
+        : { data: [1], error: null, count: 12 });
+    expect(result).toEqual({ rows: [], total: 12 });
+  });
+
+  it("propage les autres erreurs", async () => {
+    await expect(readPage(1, 10, async () => ({ data: null, error: { message: "refus" }, count: null })))
+      .rejects.toEqual({ message: "refus" });
   });
 });

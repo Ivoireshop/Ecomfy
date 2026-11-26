@@ -1,5 +1,5 @@
 import { 
-  Home, Image, Video, Store, BarChart2, Settings, LogOut, Code2, Bug, Book, Tag, Users, CreditCard, FolderHeart, Truck, GraduationCap, Globe, Search, Boxes, ShieldCheck, Activity, ClipboardCheck, Wallet, Banknote
+  Home, Image, Video, Store, BarChart2, Settings, LogOut, Code2, Bug, Book, Tag, Users, CreditCard, FolderHeart, Truck, GraduationCap, Globe, Search, Boxes, ShieldCheck, Activity, ClipboardCheck, Wallet, Banknote, Lock
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -259,6 +259,7 @@ export function AppSidebar() {
     { title: "Cotisations livraison", url: "/delivery-admin/fees", icon: Wallet },
     { title: "Finances livraison", url: "/delivery-admin/finance", icon: Banknote },
     { title: "Revue KYC", url: "/founder/kyc-review", icon: ShieldCheck },
+    { title: "Paiements boutiques", url: "/founder/shop-payment-control", icon: Lock },
     { title: "Abonnements & commissions", url: "/founder/subscription-plans", icon: CreditCard },
     { title: t("sidebar.items.troubleshooting"), url: "/founder-troubleshooting", icon: Bug },
     { title: "Console API", url: "/api-documentation", icon: Code2 },

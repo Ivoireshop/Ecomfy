@@ -42,7 +42,7 @@ import { FounderWithdrawalsPanel } from "@/components/founder/FounderWithdrawals
 import { Session } from "@supabase/supabase-js";
 import { ListPagination } from "@/components/ListPagination";
 import { useDebounced, usePagedList } from "@/hooks/usePagedList";
-import { fetchFounderShops, fetchFounderUsers, findShopByIdOrSlug, type ShopItem } from "@/lib/founderLists";
+import { fetchFounderFeedback, fetchFounderShops, fetchFounderUsers, findShopByIdOrSlug, type ShopItem } from "@/lib/founderLists";
 import { FinancialMetricsService, FinancialMetrics, TimeRangeFilter, TransactionDetail } from "@/services/financialMetricsService";
 import { RevenueAuditModal } from "@/components/founder/RevenueAuditModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -63,14 +63,6 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-interface PromoCodeUsage {
-  code: string;
-  discount_percentage: number;
-  current_uses: number;
-  max_uses: number;
-  is_active: boolean;
-  expires_at: string;
-}
 
 interface RecentPayment {
   id: string;
@@ -82,16 +74,6 @@ interface RecentPayment {
   description?: string;
 }
 
-interface FeedbackItem {
-  id: string;
-  full_name: string;
-  country: string;
-  rating: number;
-  comment: string;
-  status: string;
-  created_at: string;
-  photo_url: string | null;
-}
 
 
 
@@ -145,7 +127,7 @@ const FounderDashboard = () => {
   // Les écouteurs temps réel appellent toujours la version courante du rechargement (pas celle du premier rendu,
   // qui aurait remis la période sur « Depuis le lancement »).
   const reloadRef = useRef<() => void>(() => {});
-  const [topPromoCodes, setTopPromoCodes] = useState<PromoCodeUsage[]>([]);
+  const [promoCodeCount, setPromoCodeCount] = useState<number | null>(null);
   const [recentPayments, setRecentPayments] = useState<RecentPayment[]>([]);
   const [revenueChartData, setRevenueChartData] = useState<ChartDataPoint[]>([]);
   const [signupsChartData, setSignupsChartData] = useState<ChartDataPoint[]>([]);
@@ -156,7 +138,6 @@ const FounderDashboard = () => {
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [auditModalTab, setAuditModalTab] = useState<"revenue" | "mrr" | "shops" | "clients">("revenue");
   const [auditModalFilter, setAuditModalFilter] = useState("");
-  const [allFeedback, setAllFeedback] = useState<FeedbackItem[]>([]);
   const [allCourses, setAllCourses] = useState<CourseItem[]>([]);
   const [allShowcases, setAllShowcases] = useState<ShowcaseItem[]>([]);
 
@@ -167,6 +148,8 @@ const FounderDashboard = () => {
   // Listes paginées par le serveur ; lues une fois le rôle vérifié (fin de `isLoading`).
   const users = usePagedList({ fetchPage: fetchFounderUsers, search: userSearchQuery, enabled: !isLoading && !!session });
   const shops = usePagedList({ fetchPage: fetchFounderShops, search: shopSearchQuery, enabled: !isLoading && !!session });
+
+  const feedback = usePagedList({ fetchPage: fetchFounderFeedback, enabled: !isLoading && !!session });
 
   // Manual Shop Activation Modal State
   const [isManualPaymentModalOpen, setIsManualPaymentModalOpen] = useState(false);
@@ -400,6 +383,7 @@ const FounderDashboard = () => {
     FinancialMetricsService.invalidate();
     users.reload();
     shops.reload();
+    feedback.reload();
     try {
       await Promise.all([
         loadAiGenerationsCount(),
@@ -407,7 +391,6 @@ const FounderDashboard = () => {
         loadRevenueStats(),
         loadRecentPayments(),
         loadChartData(),
-        loadAllFeedback(),
         loadAllCourses(),
         loadAllShowcases(),
       ]);
@@ -476,20 +459,14 @@ const FounderDashboard = () => {
     }
   };
 
+  // Nombre de codes d'abonnement Ecomfy (ceux que liste l'onglet).
   const loadPromoStats = async () => {
-    try {
-      // @ts-ignore
-      const { data: promoCodes, error } = await (supabase as any)
-        .from("promo_codes")
-        .select("*")
-        .order("current_uses", { ascending: false });
-
-      if (error) throw error;
-
-      setTopPromoCodes(promoCodes || []);
-    } catch (error) {
-      console.error("Error loading promo stats:", error);
-    }
+    const { count, error } = await supabase
+      .from("promo_codes")
+      .select("id", { count: "exact", head: true })
+      .is("shop_id", null);
+    if (error) console.error("Error loading promo stats:", error);
+    setPromoCodeCount(error ? null : count ?? 0);
   };
 
   const loadRevenueStats = async () => {
@@ -563,20 +540,6 @@ const FounderDashboard = () => {
     }
   };
 
-  const loadAllFeedback = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("feedback")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setAllFeedback(data || []);
-    } catch (error) {
-      console.error("Error loading all feedback:", error);
-    }
-  };
-
   const handleChangeFeedbackStatus = async (feedbackId: string, newStatus: string) => {
     try {
       const { error } = await supabase
@@ -591,7 +554,7 @@ const FounderDashboard = () => {
         description: `L'avis client est maintenant marqué comme '${newStatus}'`,
       });
 
-      loadAllFeedback();
+      feedback.reload();
     } catch (error) {
       console.error("Error updating feedback status:", error);
       toast({
@@ -1001,11 +964,11 @@ const FounderDashboard = () => {
             </TabsTrigger>
             <TabsTrigger value="promos" className="rounded-xl text-xs font-bold gap-1.5 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
               <Ticket className="h-4 w-4" />
-              <span>Codes Promo ({topPromoCodes.length})</span>
+              <span>Codes Promo{promoCodeCount === null ? "" : ` (${promoCodeCount})`}</span>
             </TabsTrigger>
             <TabsTrigger value="feedback" className="rounded-xl text-xs font-bold gap-1.5 data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white">
               <MessageSquare className="h-4 w-4" />
-              <span>Avis Clients ({allFeedback.length})</span>
+              <span>Avis Clients{feedback.loading || feedback.error ? "" : ` (${feedback.total.toLocaleString("fr-FR")})`}</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1257,12 +1220,19 @@ const FounderDashboard = () => {
               </div>
 
               <div className="space-y-4">
-                {allFeedback.length === 0 ? (
+                {feedback.loading ? (
+                  <div className="flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-[#0E7C66]" aria-label="Chargement" /></div>
+                ) : feedback.error ? (
+                  <div role="alert" className="text-center py-12 text-rose-400 text-xs font-semibold space-y-3">
+                    <p>Impossible de charger les avis.</p>
+                    <Button size="sm" variant="outline" onClick={feedback.reload} className="border-slate-700 bg-transparent text-slate-200">Réessayer</Button>
+                  </div>
+                ) : feedback.rows.length === 0 ? (
                   <div className="text-center py-12 text-slate-500 text-xs font-semibold">
                     Aucun avis client soumis.
                   </div>
                 ) : (
-                  allFeedback.map((fb) => (
+                  feedback.rows.map((fb) => (
                     <div key={fb.id} className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 flex flex-col sm:flex-row items-start justify-between gap-4">
                       <div className="space-y-2 flex-1">
                         <div className="flex items-center gap-2">
@@ -1307,6 +1277,7 @@ const FounderDashboard = () => {
                   ))
                 )}
               </div>
+              <ListPagination page={feedback.page} pageSize={feedback.pageSize} total={feedback.total} onPageChange={feedback.setPage} disabled={feedback.loading} tone="dark" />
             </Card>
           </TabsContent>
         </Tabs>

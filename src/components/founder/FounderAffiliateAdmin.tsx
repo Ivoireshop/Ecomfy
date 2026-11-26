@@ -19,6 +19,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { ListPagination } from "@/components/ListPagination";
+import { usePagedList } from "@/hooks/usePagedList";
 import {
   Users,
   Wallet,
@@ -60,8 +62,12 @@ export function FounderAffiliateAdmin() {
     remainingPayableAmount: 0,
   });
 
-  const [affiliatesList, setAffiliatesList] = useState<FounderAffiliateListItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const affiliates = usePagedList<FounderAffiliateListItem>({
+    search: searchQuery,
+    filterKey: selectedPeriod,
+    fetchPage: (args) => affiliateService.getFounderAffiliatePage({ ...args, periodCode: selectedPeriod }),
+  });
 
   // Detail Modal State
   const [selectedAffiliateItem, setSelectedAffiliateItem] = useState<FounderAffiliateListItem | null>(null);
@@ -82,18 +88,16 @@ export function FounderAffiliateAdmin() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [periodsData, thresholdData, overviewData, listData] = await Promise.all([
+      const [periodsData, thresholdData, overviewData] = await Promise.all([
         affiliateService.getPayoutPeriods(),
         affiliateService.getMinimumPayoutThreshold(),
         affiliateService.getFounderOverview(selectedPeriod),
-        affiliateService.getFounderAffiliateList(selectedPeriod),
       ]);
 
       setPeriods(periodsData);
       setThreshold(thresholdData);
       setNewThresholdInput(String(thresholdData));
       setOverview(overviewData);
-      setAffiliatesList(listData);
     } catch (err) {
       console.error("Error loading founder affiliate data:", err);
       toast({
@@ -186,6 +190,7 @@ export function FounderAffiliateAdmin() {
       setIsPaidModalOpen(false);
       setIsDetailOpen(false);
       loadData();
+      affiliates.reload();
     } else {
       toast({
         title: "Erreur lors de l'enregistrement",
@@ -203,15 +208,6 @@ export function FounderAffiliateAdmin() {
     }).format(amount).replace("XOF", "FCFA");
   };
 
-  const filteredAffiliates = affiliatesList.filter((item) => {
-    const q = searchQuery.toLowerCase();
-    return (
-      item.user_name?.toLowerCase().includes(q) ||
-      item.user_email?.toLowerCase().includes(q) ||
-      item.affiliate.affiliate_code.toLowerCase().includes(q)
-    );
-  });
-
   return (
     <div className="space-y-6">
       {/* Header controls: Period selector & Minimum Threshold */}
@@ -226,7 +222,7 @@ export function FounderAffiliateAdmin() {
 
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-            <SelectTrigger className="w-[200px] bg-slate-50 border-slate-200 text-xs font-semibold">
+            <SelectTrigger className="w-[200px] bg-slate-50 border-slate-200 text-slate-900 text-xs font-semibold">
               <SelectValue placeholder="Toutes les périodes" />
             </SelectTrigger>
             <SelectContent>
@@ -351,9 +347,14 @@ export function FounderAffiliateAdmin() {
         </CardHeader>
 
         <CardContent>
-          {loading ? (
+          {affiliates.loading ? (
             <div className="text-center py-12 text-slate-400">Chargement de la liste des affiliés...</div>
-          ) : filteredAffiliates.length === 0 ? (
+          ) : affiliates.error ? (
+            <div role="alert" className="text-center py-12 text-rose-600 space-y-3">
+              <p className="text-sm font-medium">Impossible de charger la liste des affiliés.</p>
+              <Button size="sm" variant="outline" onClick={affiliates.reload}>Réessayer</Button>
+            </div>
+          ) : affiliates.rows.length === 0 ? (
             <div className="text-center py-12 text-slate-400 space-y-2">
               <Users className="w-10 h-10 mx-auto text-slate-300" />
               <p className="text-sm font-medium">Aucun affilié trouvé.</p>
@@ -363,19 +364,19 @@ export function FounderAffiliateAdmin() {
               <table className="w-full text-xs text-left text-slate-600">
                 <thead className="bg-slate-50 text-slate-700 uppercase font-semibold border-b">
                   <tr>
-                    <th className="p-3">Affilié</th>
-                    <th className="p-3">Code</th>
-                    <th className="p-3 text-center">Filleuls</th>
-                    <th className="p-3 text-center">Abonnements</th>
-                    <th className="p-3 text-right">Total Gagné</th>
-                    <th className="p-3 text-right">Solde Disponible</th>
-                    <th className="p-3 text-right">Déjà Payé</th>
-                    <th className="p-3 text-center">Éligibilité</th>
-                    <th className="p-3 text-right">Actions</th>
+                    <th className="px-1.5 py-3 text-[10px]">Affilié</th>
+                    <th className="px-1.5 py-3 text-[10px]">Code</th>
+                    <th className="px-1.5 py-3 text-[10px] text-center whitespace-nowrap">Filleuls</th>
+                    <th className="px-1.5 py-3 text-[10px] text-center whitespace-nowrap">Abonnements</th>
+                    <th className="px-1.5 py-3 text-[10px] text-right">Total Gagné</th>
+                    <th className="px-1.5 py-3 text-[10px] text-right">Solde Disponible</th>
+                    <th className="px-1.5 py-3 text-[10px] text-right">Déjà Payé</th>
+                    <th className="px-1.5 py-3 text-[10px] text-center">Éligibilité</th>
+                    <th className="px-1.5 py-3 text-[10px] text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredAffiliates.map((item) => {
+                  {affiliates.rows.map((item) => {
                     const isEligible = item.payable_amount >= threshold;
                     return (
                       <tr key={item.affiliate.id} className="hover:bg-slate-50/50">
@@ -383,16 +384,16 @@ export function FounderAffiliateAdmin() {
                           <div className="font-bold text-slate-900">{item.user_name}</div>
                           <div className="text-[11px] text-slate-400">{item.user_email}</div>
                         </td>
-                        <td className="p-3 font-mono font-bold text-emerald-700">
+                        <td className="p-3 font-mono font-bold text-emerald-700 break-all min-w-[110px]">
                           {item.affiliate.affiliate_code}
                         </td>
                         <td className="p-3 text-center font-semibold">{item.referred_count}</td>
                         <td className="p-3 text-center font-semibold">{item.subscriptions_count}</td>
-                        <td className="p-3 text-right font-medium">{formatCurrency(item.total_earned)}</td>
-                        <td className="p-3 text-right font-bold text-amber-600">
+                        <td className="p-3 text-right font-medium whitespace-nowrap">{formatCurrency(item.total_earned)}</td>
+                        <td className="p-3 text-right font-bold text-amber-600 whitespace-nowrap">
                           {formatCurrency(item.payable_amount)}
                         </td>
-                        <td className="p-3 text-right font-semibold text-emerald-700">
+                        <td className="p-3 text-right font-semibold text-emerald-700 whitespace-nowrap">
                           {formatCurrency(item.paid_amount)}
                         </td>
                         <td className="p-3 text-center">
@@ -406,7 +407,7 @@ export function FounderAffiliateAdmin() {
                             </Badge>
                           )}
                         </td>
-                        <td className="p-3 text-right space-x-2">
+                        <td className="p-3"><div className="flex flex-col items-end gap-1">
                           <Button
                             size="sm"
                             variant="outline"
@@ -427,7 +428,7 @@ export function FounderAffiliateAdmin() {
                           >
                             <DollarSign className="w-3.5 h-3.5" /> Marquer Payé
                           </Button>
-                        </td>
+                        </div></td>
                       </tr>
                     );
                   })}
@@ -435,6 +436,8 @@ export function FounderAffiliateAdmin() {
               </table>
             </div>
           )}
+          <ListPagination page={affiliates.page} pageSize={affiliates.pageSize} total={affiliates.total}
+            onPageChange={affiliates.setPage} disabled={affiliates.loading} />
         </CardContent>
       </Card>
 

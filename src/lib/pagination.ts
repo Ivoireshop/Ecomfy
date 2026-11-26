@@ -45,3 +45,29 @@ export function searchFilter(columns: string[], query: string): string | null {
   const quoted = `"%${like.replace(/[\\"]/g, "\\$&")}%"`;
   return columns.map((c) => `${c}.ilike.${quoted}`).join(",");
 }
+
+interface RangeResponse {
+  data: unknown;
+  error: { code?: string; message: string } | null;
+  count: number | null;
+}
+
+/**
+ * Lit une page d'une requête PostgREST construite avec `{ count: "exact" }` et `.range()`.
+ * Si la page demandée n'existe plus (PGRST103), renvoie une page vide avec le nouveau total :
+ * la liste recule d'elle-même.
+ */
+export async function readPage<T>(
+  page: number,
+  pageSize: number,
+  query: (from: number, to: number) => PromiseLike<RangeResponse>,
+): Promise<PageResult<T>> {
+  const [from, to] = pageRange(page, pageSize);
+  const response = await query(from, to);
+  if (!response.error) return { rows: (response.data ?? []) as T[], total: response.count ?? 0 };
+  if (response.error.code === "PGRST103" && from > 0) {
+    const first = await query(0, pageSize - 1);
+    if (!first.error) return { rows: [], total: first.count ?? 0 };
+  }
+  throw response.error;
+}

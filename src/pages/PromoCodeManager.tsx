@@ -14,6 +14,9 @@ import {
   Truck, UserCheck, ArrowLeft, RefreshCw, Trash2, Crown, Store, Gift
 } from "lucide-react";
 import { Session } from "@supabase/supabase-js";
+import { ListPagination } from "@/components/ListPagination";
+import { usePagedList } from "@/hooks/usePagedList";
+import { readPage } from "@/lib/pagination";
 
 export interface PromoCode {
   id: string;
@@ -50,9 +53,7 @@ export default function PromoCodeManager({
   const navigate = useNavigate();
   const { toast } = useToast();
   const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
-  const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
 
   // Mode: if shopId is provided -> merchant mode, otherwise founder SaaS mode
   const mode: "founder" | "merchant" = propMode || (shopId ? "merchant" : "founder");
@@ -74,10 +75,7 @@ export default function PromoCodeManager({
   const [targetEmailOrPhone, setTargetEmailOrPhone] = useState<string>("");
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      loadPromoCodes();
-    });
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
 
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
@@ -86,36 +84,28 @@ export default function PromoCodeManager({
     );
 
     return () => authSubscription.unsubscribe();
-  }, [shopId, mode]);
+  }, []);
 
-  const loadPromoCodes = async () => {
-    setIsLoading(true);
-    try {
-      let query = (supabase as any).from("promo_codes").select("*");
+  const codes = usePagedList<PromoCode>({
+    pageSize: 12,
+    filterKey: `${mode}:${shopId ?? ""}`,
+    enabled: !!session,
+    fetchPage: ({ page, pageSize }) =>
+      readPage<PromoCode>(page, pageSize, (from, to) => {
+        let query = (supabase as any).from("promo_codes").select("*", { count: "exact" });
 
-      if (isFounderMode) {
-        // Founder mode: get global SaaS codes (shop_id is null)
-        query = query.is("shop_id", null);
-      } else if (shopId) {
-        // Merchant mode: get codes for this specific shop
-        query = query.eq("shop_id", shopId);
-      }
+        if (isFounderMode) {
+          // Founder mode: get global SaaS codes (shop_id is null)
+          query = query.is("shop_id", null);
+        } else if (shopId) {
+          // Merchant mode: get codes for this specific shop
+          query = query.eq("shop_id", shopId);
+        }
 
-      const { data, error } = await query.order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setPromoCodes((data as any) || []);
-    } catch (error: any) {
-      console.error("Error loading promo codes:", error);
-      toast({
-        title: "Erreur de chargement",
-        description: error.message || "Impossible de charger les codes promo",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        return query.order("created_at", { ascending: false }).order("id", { ascending: false }).range(from, to);
+      }),
+  });
+  const promoCodes = codes.rows;
 
   const generateRandomCode = () => {
     const prefix = isFounderMode ? "ECOMFY" : "PROMO";
@@ -288,7 +278,9 @@ export default function PromoCodeManager({
       setCustomCode("");
       setTargetEmailOrPhone("");
       setUseCustomCode(false);
-      loadPromoCodes();
+      // Le nouveau code est le plus récent : il apparaît en tête de la première page.
+      codes.setPage(1);
+      codes.reload();
     } catch (error: any) {
       console.error("Error creating promo code:", error);
       toast({
@@ -365,7 +357,7 @@ export default function PromoCodeManager({
         description: `Le code est maintenant ${!currentStatus ? "Actif" : "Désactivé"}`,
       });
 
-      loadPromoCodes();
+      codes.reload();
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     }
@@ -377,20 +369,11 @@ export default function PromoCodeManager({
       if (error) throw error;
       if (!data || data.length === 0) throw new Error("Seul le propriétaire de la boutique peut supprimer un code promo.");
       toast({ title: "Code supprimé", description: "Le code promo a été supprimé." });
-      setPromoCodes(prev => prev.filter(c => c.id !== id));
+      codes.reload();
     } catch (error: any) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
     }
   };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-16 text-slate-500 font-inter">
-        <Loader2 className="h-6 w-6 animate-spin text-[#0E7C66] mr-2" />
-        <span>Chargement des codes promo {isFounderMode ? "abonnements" : "boutique"}...</span>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6 font-inter text-slate-900">
@@ -414,7 +397,7 @@ export default function PromoCodeManager({
         {/* Title Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-space font-bold text-slate-900 flex items-center gap-2">
+            <h2 className={`text-2xl font-space font-bold flex items-center gap-2 ${isEmbedded && isFounderMode ? "text-white" : "text-slate-900"}`}>
               {isFounderMode ? (
                 <>
                   <Crown className="h-6 w-6 text-amber-500" />
@@ -427,14 +410,14 @@ export default function PromoCodeManager({
                 </>
               )}
             </h2>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className={`text-xs mt-1 ${isEmbedded && isFounderMode ? "text-slate-400" : "text-slate-500"}`}>
               {isFounderMode
                 ? "Créez des réductions (10%, 20%, 50%...) applicables uniquement sur les abonnements SaaS Ecomfy (Pass VIP 35 000 FCFA, Formations, Crédits IA) et attribuez-les aux marchands."
                 : "Générez des réductions sur les articles de votre boutique (pourcentage ou montant fixe), avec un minimum de commande, et partagez-les à vos clients."}
             </p>
           </div>
 
-          <Button size="sm" variant="outline" onClick={loadPromoCodes} className="rounded-full text-xs font-bold gap-1.5 self-start sm:self-auto">
+          <Button size="sm" variant="outline" onClick={codes.reload} className="rounded-full text-xs font-bold gap-1.5 self-start sm:self-auto">
             <RefreshCw className="h-3.5 w-3.5" />
             <span>Actualiser</span>
           </Button>
@@ -732,13 +715,23 @@ export default function PromoCodeManager({
 
         {/* Existing Promo Codes List */}
         <div className="space-y-4">
-          <h3 className="font-space font-bold text-lg text-slate-900 flex items-center justify-between">
+          <h3 className={`font-space font-bold text-lg flex items-center justify-between ${isEmbedded && isFounderMode ? "text-white" : "text-slate-900"}`}>
             <span>
-              {isFounderMode ? "Codes Promo Abonnements Actifs" : "Codes Promo Articles Actifs"} ({promoCodes.length})
+              {isFounderMode ? "Codes Promo Abonnements Actifs" : "Codes Promo Articles Actifs"} ({codes.total})
             </span>
           </h3>
 
-          {promoCodes.length === 0 ? (
+          {codes.loading ? (
+            <div className="flex items-center justify-center py-16 text-slate-500">
+              <Loader2 className="h-6 w-6 animate-spin text-[#0E7C66] mr-2" />
+              <span>Chargement des codes promo…</span>
+            </div>
+          ) : codes.error ? (
+            <Card role="alert" className="rounded-3xl border-rose-200 p-8 text-center text-rose-700 space-y-3">
+              <p className="font-bold text-sm">Impossible de charger les codes promo.</p>
+              <Button size="sm" variant="outline" onClick={codes.reload}>Réessayer</Button>
+            </Card>
+          ) : promoCodes.length === 0 ? (
             <Card className="rounded-3xl border-slate-200 p-8 text-center text-slate-500">
               <Tag className="h-10 w-10 mx-auto text-slate-300 mb-2" />
               <p className="font-bold text-sm text-slate-700">Aucun code promo créé dans ce mode</p>
@@ -861,6 +854,8 @@ export default function PromoCodeManager({
               })}
             </div>
           )}
+          <ListPagination page={codes.page} pageSize={codes.pageSize} total={codes.total} onPageChange={codes.setPage}
+            disabled={codes.loading} tone={isEmbedded && isFounderMode ? "dark" : "default"} />
         </div>
 
       </div>

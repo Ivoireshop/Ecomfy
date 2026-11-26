@@ -1,4 +1,18 @@
 import { supabase } from "@/integrations/supabase/client";
+import { pageRange, type PageResult } from "@/lib/pagination";
+
+export interface FounderAffiliateOverview {
+  totalAffiliates: number;
+  activeAffiliates: number;
+  totalReferredUsers: number;
+  totalSubscriptionsCount: number;
+  pendingAmount: number;
+  approvedAmount: number;
+  payableAmount: number;
+  paidAmount: number;
+  totalPaidAmount: number;
+  remainingPayableAmount: number;
+}
 
 export interface AffiliateProfile {
   id: string;
@@ -490,187 +504,37 @@ export const affiliateService = {
   },
 
   /**
-   * Founder Admin: Global Overview Metrics
+   * Founder Admin: Global Overview Metrics (additionnés en base).
    */
-  async getFounderOverview(periodCode?: string) {
-    try {
-      const { count: totalAffiliates } = await supabase
-        .from("affiliates")
-        .select("*", { count: "exact", head: true });
-
-      const { count: activeAffiliates } = await supabase
-        .from("affiliates")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "active");
-
-      const { count: totalReferredUsers } = await supabase
-        .from("affiliate_referrals")
-        .select("*", { count: "exact", head: true });
-
-      let commissionQuery = supabase.from("affiliate_commissions").select("*");
-      if (periodCode && periodCode !== "ALL") {
-        commissionQuery = commissionQuery.eq("period_code", periodCode);
-      }
-
-      const { data: commissions } = await commissionQuery;
-
-      let pendingAmount = 0;
-      let approvedAmount = 0;
-      let payableAmount = 0;
-      let paidAmount = 0;
-      let subscriptionsCount = 0;
-
-      if (commissions) {
-        subscriptionsCount = commissions.length;
-        for (const c of commissions) {
-          const amt = Number(c.commission_amount || 0);
-          if (c.status === "PENDING") pendingAmount += amt;
-          else if (c.status === "APPROVED") approvedAmount += amt;
-          else if (c.status === "PAYABLE") payableAmount += amt;
-          else if (c.status === "PAID") paidAmount += amt;
-        }
-      }
-
-      let payoutsQuery = supabase.from("affiliate_payouts").select("amount_paid");
-      if (periodCode && periodCode !== "ALL") {
-        payoutsQuery = payoutsQuery.eq("period_code", periodCode);
-      }
-      const { data: payouts } = await payoutsQuery;
-      let totalPaidAmount = 0;
-      if (payouts) {
-        totalPaidAmount = payouts.reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
-      }
-
-      return {
-        totalAffiliates: totalAffiliates || 0,
-        activeAffiliates: activeAffiliates || 0,
-        totalReferredUsers: totalReferredUsers || 0,
-        totalSubscriptionsCount: subscriptionsCount,
-        pendingAmount,
-        approvedAmount,
-        payableAmount: payableAmount + approvedAmount,
-        paidAmount: totalPaidAmount || paidAmount,
-        totalPaidAmount: totalPaidAmount || paidAmount,
-        remainingPayableAmount: payableAmount + approvedAmount,
-      };
-    } catch (err) {
-      console.error("Error fetching founder overview:", err);
-      return {
-        totalAffiliates: 0,
-        activeAffiliates: 0,
-        totalReferredUsers: 0,
-        totalSubscriptionsCount: 0,
-        pendingAmount: 0,
-        approvedAmount: 0,
-        payableAmount: 0,
-        paidAmount: 0,
-        totalPaidAmount: 0,
-        remainingPayableAmount: 0,
-      };
-    }
+  async getFounderOverview(periodCode?: string): Promise<FounderAffiliateOverview> {
+    // Fonctions absentes des types générés.
+    const { data, error } = await supabase.rpc("founder_affiliate_overview" as never, {
+      _period: periodCode || null,
+    } as never);
+    if (error) throw error;
+    if (!data) throw new Error("Accès refusé.");
+    return data as unknown as FounderAffiliateOverview;
   },
 
   /**
-   * Founder Admin: Fetch list of all affiliates with compiled financial stats
+   * Founder Admin: une page d'affiliés avec leurs totaux sur la période.
    */
-  async getFounderAffiliateList(periodCode?: string): Promise<FounderAffiliateListItem[]> {
-    try {
-      const { data: affiliates, error } = await supabase
-        .from("affiliates")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      if (!affiliates || affiliates.length === 0) return [];
-
-      const affiliateIds = affiliates.map((a) => a.id);
-      const userIds = affiliates.map((a) => a.user_id);
-
-      // Fetch user profiles for email & names
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, email, full_name, first_name, last_name")
-        .in("id", userIds);
-
-      const profileMap = new Map<string, any>();
-      if (profiles) {
-        profiles.forEach((p) => profileMap.set(p.id, p));
-      }
-
-      // Fetch payout methods
-      const { data: payoutMethods } = await supabase
-        .from("affiliate_payout_methods")
-        .select("*")
-        .in("affiliate_id", affiliateIds);
-
-      const payoutMap = new Map<string, AffiliatePayoutMethod>();
-      if (payoutMethods) {
-        payoutMethods.forEach((pm) => payoutMap.set(pm.affiliate_id, pm as AffiliatePayoutMethod));
-      }
-
-      // Fetch referral counts per affiliate
-      const { data: referrals } = await supabase
-        .from("affiliate_referrals")
-        .select("affiliate_id");
-
-      const referralCounts = new Map<string, number>();
-      if (referrals) {
-        referrals.forEach((r) => {
-          referralCounts.set(r.affiliate_id, (referralCounts.get(r.affiliate_id) || 0) + 1);
-        });
-      }
-
-      // Fetch commissions per affiliate
-      let commQuery = supabase.from("affiliate_commissions").select("*");
-      if (periodCode && periodCode !== "ALL") {
-        commQuery = commQuery.eq("period_code", periodCode);
-      }
-      const { data: commissions } = await commQuery;
-
-      const statsMap = new Map<string, { total_earned: number; payable: number; paid: number; count: number }>();
-      if (commissions) {
-        commissions.forEach((c) => {
-          const affId = c.affiliate_id;
-          const current = statsMap.get(affId) || { total_earned: 0, payable: 0, paid: 0, count: 0 };
-          const amt = Number(c.commission_amount || 0);
-
-          current.count += 1;
-          if (c.status === "PAYABLE" || c.status === "APPROVED") {
-            current.payable += amt;
-            current.total_earned += amt;
-          } else if (c.status === "PAID") {
-            current.paid += amt;
-            current.total_earned += amt;
-          }
-          statsMap.set(affId, current);
-        });
-      }
-
-      return affiliates.map((aff) => {
-        const prof = profileMap.get(aff.user_id);
-        const pm = payoutMap.get(aff.id) || null;
-        const refCount = referralCounts.get(aff.id) || 0;
-        const st = statsMap.get(aff.id) || { total_earned: 0, payable: 0, paid: 0, count: 0 };
-
-        const name = prof?.full_name || `${prof?.first_name || ""} ${prof?.last_name || ""}`.trim() || prof?.email || "Utilisateur";
-
-        return {
-          affiliate: aff as AffiliateProfile,
-          user_email: prof?.email,
-          user_name: name,
-          payout_method: pm,
-          referred_count: refCount,
-          subscriptions_count: st.count,
-          total_earned: st.total_earned,
-          payable_amount: st.payable,
-          paid_amount: st.paid,
-          status: aff.status,
-        };
-      });
-    } catch (err) {
-      console.error("Error in getFounderAffiliateList:", err);
-      return [];
-    }
+  async getFounderAffiliatePage(params: {
+    periodCode?: string;
+    search: string;
+    page: number;
+    pageSize: number;
+  }): Promise<PageResult<FounderAffiliateListItem>> {
+    const [from] = pageRange(params.page, params.pageSize);
+    const { data, error } = await supabase.rpc("founder_affiliate_list" as never, {
+      _period: params.periodCode || null,
+      _query: params.search || null,
+      _limit: params.pageSize,
+      _offset: from,
+    } as never);
+    if (error) throw error;
+    if (!data) throw new Error("Accès refusé.");
+    return data as unknown as PageResult<FounderAffiliateListItem>;
   },
 
   /**

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { recordManualCommissionPayment } from "@/lib/founderBilling";
@@ -7,42 +7,79 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2, RefreshCw, ShieldCheck, Lock, AlertOctagon, Clock, Search, CalendarClock } from "lucide-react";
+import { ArrowLeft, Loader2, RefreshCw, ShieldCheck, Lock, AlertOctagon, Clock, Search, CalendarClock, type LucideIcon } from "lucide-react";
 import { formatRemaining, computeShopPaymentInfo } from "@/lib/shopPaymentStatus";
 import { useBillingSettings } from "@/hooks/useSubscriptionPlans";
+import { ListPagination } from "@/components/ListPagination";
+import { usePagedList } from "@/hooks/usePagedList";
+import { readPage, searchFilter } from "@/lib/pagination";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.max(0, Math.round(n)));
 
-const STATUS_META: Record<string, { label: string; icon: any; className: string }> = {
+const STATUS_META: Record<string, { label: string; icon: LucideIcon; className: string }> = {
   active: { label: "Active", icon: ShieldCheck, className: "bg-green-100 text-green-800 border-green-300" },
   payment_pending: { label: "Paiement en attente", icon: Clock, className: "bg-amber-100 text-amber-800 border-amber-300" },
   locked: { label: "Verrouillée", icon: Lock, className: "bg-red-100 text-red-800 border-red-300" },
   final_suspension: { label: "Fermeture définitive", icon: AlertOctagon, className: "bg-red-600 text-white border-red-700" },
 };
 
+const TAB_STATUS = { pending: "payment_pending", locked: "locked", final: "final_suspension" } as const;
+type Tab = "all" | keyof typeof TAB_STATUS;
+
+const COLUMNS = "id, business_name, user_id, commission_balance_due, commission_threshold, shop_payment_status, threshold_reached_at, first_deadline_at, locked_at, second_deadline_at, final_suspension_at, is_suspended, updated_at, extra_deadline_active, extra_deadline_started_at, extra_deadline_ends_at";
+
+interface ControlledShop {
+  id: string;
+  business_name: string;
+  commission_balance_due: number | null;
+  [column: string]: unknown;
+}
+
 export default function ShopPaymentControl() {
   const navigate = useNavigate();
   const { settings: billingSettings } = useBillingSettings();
-  const [loading, setLoading] = useState(true);
-  const [rows, setRows] = useState<any[]>([]);
   const [q, setQ] = useState("");
-  const [tab, setTab] = useState<"all" | "pending" | "locked" | "final">("pending");
+  const [tab, setTab] = useState<Tab>("pending");
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const load = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("shops")
-      .select("id, business_name, user_id, commission_balance_due, commission_threshold, shop_payment_status, threshold_reached_at, first_deadline_at, locked_at, second_deadline_at, final_suspension_at, is_suspended, updated_at, extra_deadline_active, extra_deadline_started_at, extra_deadline_ends_at")
-      .gt("commission_balance_due", 0)
-      .order("updated_at", { ascending: false })
-      .limit(500);
-    if (error) toast({ title: "Erreur de chargement", description: error.message, variant: "destructive" });
-    setRows(data || []);
-    setLoading(false);
-  };
+  const list = usePagedList<ControlledShop>({
+    search: q,
+    filterKey: tab,
+    fetchPage: ({ page, pageSize, search }) =>
+      readPage<ControlledShop>(page, pageSize, (from, to) => {
+        let query = supabase
+          .from("shops")
+          .select(COLUMNS, { count: "exact" })
+          .gt("commission_balance_due", 0)
+          .order("updated_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(from, to);
+        if (tab !== "all") query = query.eq("shop_payment_status", TAB_STATUS[tab]);
+        const filter = searchFilter(["business_name"], search);
+        return filter ? query.or(filter) : query;
+      }),
+  });
 
-  useEffect(() => { void load(); }, []);
+  // Nombre de boutiques par onglet (indépendant de la recherche).
+  const [counts, setCounts] = useState<Record<Tab, number | null>>({ all: null, pending: null, locked: null, final: null });
+  const loadCounts = useCallback(async () => {
+    const count = async (status?: string) => {
+      let query = supabase.from("shops").select("id", { count: "exact", head: true }).gt("commission_balance_due", 0);
+      if (status) query = query.eq("shop_payment_status", status);
+      const result = await query;
+      return result.error ? null : result.count;
+    };
+    const [all, pending, locked, final] = await Promise.all([
+      count(), count(TAB_STATUS.pending), count(TAB_STATUS.locked), count(TAB_STATUS.final),
+    ]);
+    setCounts({ all, pending, locked, final });
+  }, []);
+  useEffect(() => { void loadCounts(); }, [loadCounts]);
+
+  const load = () => {
+    list.reload();
+    void loadCounts();
+  };
 
   const reset = async (shopId: string) => {
     setBusyId(shopId);
@@ -50,7 +87,7 @@ export default function ShopPaymentControl() {
     setBusyId(null);
     if (error) return toast({ title: "Erreur", description: error.message, variant: "destructive" });
     toast({ title: "Boutique réactivée" });
-    void load();
+    load();
   };
 
   const grantExtra = async (shopId: string) => {
@@ -62,14 +99,14 @@ export default function ShopPaymentControl() {
     const { data, error } = await supabase.rpc("founder_grant_extra_deadline", { _shop_id: shopId, _days: days });
     setBusyId(null);
     if (error) return toast({ title: "Erreur", description: error.message, variant: "destructive" });
-    if ((data as any)?.success === false) {
-      return toast({ title: "Refusé", description: (data as any)?.error || "Action refusée", variant: "destructive" });
+    if ((data as { success?: boolean } | null)?.success === false) {
+      return toast({ title: "Refusé", description: (data as { error?: string } | null)?.error || "Action refusée", variant: "destructive" });
     }
     toast({ title: `Délai supplémentaire de ${days} jour(s) accordé` });
-    void load();
+    load();
   };
 
-  const manualPayment = async (shop: any) => {
+  const manualPayment = async (shop: ControlledShop) => {
     const defaultAmount = Math.round(Number(shop.commission_balance_due) || 12000);
     const raw = window.prompt(`Saisir le montant encaissé manuellement pour "${shop.business_name}" (FCFA) :`, String(defaultAmount));
     if (!raw) return;
@@ -83,29 +120,13 @@ export default function ShopPaymentControl() {
         paymentMethod: "cash_direct",
         notes: "Règlement manuel admin enregistré par le fondateur (Secours GeniusPay)",
       });
-    } catch (e: any) {
+    } catch (e) {
       setBusyId(null);
-      return toast({ title: "Erreur", description: e?.message, variant: "destructive" });
+      return toast({ title: "Erreur", description: e instanceof Error ? e.message : undefined, variant: "destructive" });
     }
     setBusyId(null);
     toast({ title: `Paiement manuel de ${fmt(amount)} FCFA enregistré !` });
-    void load();
-  };
-
-  const filtered = rows.filter((r) => {
-    const info = computeShopPaymentInfo(r);
-    if (tab === "pending" && info.status !== "payment_pending") return false;
-    if (tab === "locked" && info.status !== "locked") return false;
-    if (tab === "final" && info.status !== "final_suspension") return false;
-    if (q && !String(r.business_name || "").toLowerCase().includes(q.toLowerCase())) return false;
-    return true;
-  });
-
-  const counts = {
-    all: rows.length,
-    pending: rows.filter((r) => r.shop_payment_status === "payment_pending").length,
-    locked: rows.filter((r) => r.shop_payment_status === "locked").length,
-    final: rows.filter((r) => r.shop_payment_status === "final_suspension").length,
+    load();
   };
 
   return (
@@ -116,15 +137,15 @@ export default function ShopPaymentControl() {
           <h1 className="text-2xl font-bold">Contrôle de paiement des boutiques</h1>
           <p className="text-sm text-muted-foreground">Boutiques ayant atteint le seuil de {fmt(billingSettings.commission_threshold)} FCFA</p>
         </div>
-        <Button variant="outline" onClick={load} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} /> Actualiser
+        <Button variant="outline" onClick={load} disabled={list.loading}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${list.loading ? "animate-spin" : ""}`} /> Actualiser
         </Button>
       </div>
 
       <div className="flex flex-wrap gap-2">
         {(["all", "pending", "locked", "final"] as const).map((k) => (
           <Button key={k} size="sm" variant={tab === k ? "default" : "outline"} onClick={() => setTab(k)}>
-            {k === "all" ? "Toutes" : k === "pending" ? "En attente" : k === "locked" ? "Verrouillées" : "Fermées"} ({counts[k]})
+            {k === "all" ? "Toutes" : k === "pending" ? "En attente" : k === "locked" ? "Verrouillées" : "Fermées"} ({counts[k] ?? "…"})
           </Button>
         ))}
         <div className="relative flex-1 min-w-[220px]">
@@ -134,15 +155,20 @@ export default function ShopPaymentControl() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Résultats ({filtered.length})</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Résultats{list.loading || list.error ? "" : ` (${list.total})`}</CardTitle></CardHeader>
         <CardContent>
-          {loading ? (
+          {list.loading ? (
             <div className="py-10 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-          ) : filtered.length === 0 ? (
+          ) : list.error ? (
+            <div role="alert" className="py-8 text-center text-sm text-destructive space-y-3">
+              <p>Erreur de chargement : {list.error.message}</p>
+              <Button size="sm" variant="outline" onClick={load}>Réessayer</Button>
+            </div>
+          ) : list.rows.length === 0 ? (
             <p className="text-sm text-muted-foreground py-8 text-center">Aucune boutique correspondante.</p>
           ) : (
             <div className="space-y-3">
-              {filtered.map((shop) => {
+              {list.rows.map((shop) => {
                 const info = computeShopPaymentInfo(shop);
                 const meta = STATUS_META[info.status] || STATUS_META.active;
                 const Icon = meta.icon;
@@ -185,6 +211,7 @@ export default function ShopPaymentControl() {
               })}
             </div>
           )}
+          <ListPagination page={list.page} pageSize={list.pageSize} total={list.total} onPageChange={list.setPage} disabled={list.loading} />
         </CardContent>
       </Card>
     </div>

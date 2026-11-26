@@ -1,6 +1,6 @@
 // Listes paginées du tableau de bord fondateur (la RLS réserve ces lectures à la direction).
 import { supabase } from "@/integrations/supabase/client";
-import { pageRange, searchFilter, type PageResult } from "@/lib/pagination";
+import { pageRange, readPage, searchFilter, type PageResult } from "@/lib/pagination";
 
 export interface UserProfile {
   id: string;
@@ -36,27 +36,18 @@ const SHOP_COLUMNS =
 type PageArgs = { page: number; pageSize: number; search: string };
 
 export async function fetchFounderUsers({ page, pageSize, search }: PageArgs): Promise<PageResult<UserProfile>> {
-  const [from, to] = pageRange(page, pageSize);
   const filter = searchFilter(["full_name", "email", "phone", "country"], search);
-  let query = supabase
-    .from("profiles")
-    .select("id, email, full_name, phone, country, created_at, free_generations_remaining", { count: "exact" })
-    // Second tri : sans lui, deux inscriptions à la même date pourraient changer de page d'une lecture à l'autre.
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .range(from, to);
-  if (filter) query = query.or(filter);
-
-  const { data, error, count } = await query;
-  if (error) {
-    // PGRST103 : la page demandée n'existe plus. On rend le nouveau total, la liste recule d'elle-même.
-    if (error.code === "PGRST103" && page > 1) {
-      const first = await fetchFounderUsers({ page: 1, pageSize, search });
-      return { rows: [], total: first.total };
-    }
-    throw error;
-  }
-  return { rows: (data ?? []) as UserProfile[], total: count ?? 0 };
+  return readPage(page, pageSize, (from, to) => {
+    let query = supabase
+      .from("profiles")
+      .select("id, email, full_name, phone, country, created_at, free_generations_remaining", { count: "exact" })
+      // Second tri : sans lui, deux inscriptions à la même date pourraient changer de page d'une lecture à l'autre.
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(from, to);
+    if (filter) query = query.or(filter);
+    return query;
+  });
 }
 
 export async function fetchFounderShops({ page, pageSize, search }: PageArgs): Promise<PageResult<ShopItem>> {
@@ -84,4 +75,24 @@ export async function findShopByIdOrSlug(value: string): Promise<ShopItem | null
     .maybeSingle();
   if (error) throw error;
   return data as ShopItem | null;
+}
+
+export interface FeedbackItem {
+  id: string;
+  full_name: string | null;
+  country: string | null;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  status: string;
+}
+
+export async function fetchFounderFeedback({ page, pageSize }: PageArgs): Promise<PageResult<FeedbackItem>> {
+  return readPage(page, pageSize, (from, to) =>
+    supabase
+      .from("feedback")
+      .select("*", { count: "exact" })
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(from, to));
 }
