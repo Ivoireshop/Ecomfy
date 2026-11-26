@@ -59,7 +59,7 @@ export function ShopSidebar({
     return true;
   });
   return (
-    <aside className="w-[240px] shrink-0 bg-white border-r border-slate-200 text-slate-700 flex flex-col h-full md:h-screen md:sticky md:top-0 overflow-y-auto">
+    <aside className="w-[240px] shrink-0 bg-white border-r border-slate-200 text-slate-700 flex flex-col h-full env-sticky env-screen-md md:h-screen md:sticky md:top-0 overflow-y-auto">
       {/* Header */}
       <div className="px-4 py-5 border-b border-slate-100">
         <div className="flex items-center gap-3 mb-1">

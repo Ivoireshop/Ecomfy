@@ -268,7 +268,7 @@ export const HomepageBuilder: React.FC<HomepageBuilderProps> = ({
   const selectedSection = config.sections.find((s) => s.id === selectedSectionId);
 
   return (
-    <div className="flex flex-col h-screen max-h-screen bg-slate-100 overflow-hidden font-inter">
+    <div className="env-screen flex flex-col h-screen max-h-screen bg-slate-100 overflow-hidden font-inter">
       {/* Top Navbar */}
       <header className="h-14 bg-white border-b border-slate-200 px-4 flex items-center justify-between shrink-0 z-20">
         <div className="flex items-center gap-3">

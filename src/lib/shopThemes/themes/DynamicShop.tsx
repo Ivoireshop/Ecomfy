@@ -27,7 +27,7 @@ export default function DynamicShop({ data }: { data: ShopThemeData }) {
         );
       case "header":
         return (
-          <header key={block.id} className="w-full bg-white border-b py-4 px-6 flex justify-between items-center sticky top-0 z-50 shadow-sm">
+          <header key={block.id} className="w-full bg-white border-b py-4 px-6 flex justify-between items-center env-sticky sticky top-0 z-50 shadow-sm">
             <div className="font-bold text-xl">{shopName}</div>
             <nav className="hidden md:flex gap-4">
               <a href="#" className="text-sm font-medium hover:text-primary">Accueil</a>

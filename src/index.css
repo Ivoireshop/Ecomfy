@@ -606,3 +606,91 @@ p, .text-content {
 .stagger-4 { animation-delay: 400ms; }
 .stagger-5 { animation-delay: 500ms; }
 
+
+/* ===== Bandeau « MODE TEST » (src/lib/testEnvBanner.ts) =====
+   Tout dépend de la classe `test-env`, posée uniquement sur un serveur d'essai.
+   Le décalage porte sur #root et non sur body : les fenêtres modales réécrivent les marges de body. */
+html.test-env {
+  --env-banner-h: calc(28px + env(safe-area-inset-top, 0px));
+}
+.env-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2147483647;
+  display: flex;
+  height: var(--env-banner-h);
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: env(safe-area-inset-top, 0px) 8px 0;
+  overflow: hidden;
+  white-space: nowrap;
+  background: #fbbf24;
+  color: #1c1917;
+  font: 700 12px/1 'Poppins', sans-serif;
+}
+.env-banner-long {
+  display: none;
+}
+@media (min-width: 640px) {
+  .env-banner-short {
+    display: none;
+  }
+  .env-banner-long {
+    display: inline;
+  }
+}
+html.test-env #root {
+  padding-top: var(--env-banner-h);
+}
+html.test-env #root .min-h-screen,
+html.test-env #root .min-h-svh {
+  min-height: calc(100vh - var(--env-banner-h));
+}
+/* Éléments collés en haut de la page et colonnes sur toute la hauteur */
+html.test-env .env-sticky {
+  top: var(--env-banner-h);
+}
+html.test-env .env-screen {
+  height: calc(100vh - var(--env-banner-h));
+  max-height: calc(100vh - var(--env-banner-h));
+}
+@media (min-width: 768px) {
+  html.test-env .env-screen-md {
+    height: calc(100vh - var(--env-banner-h));
+  }
+}
+html.test-env .sticky.top-20 {
+  top: calc(5rem + var(--env-banner-h));
+}
+html.test-env .sticky.top-24 {
+  top: calc(6rem + var(--env-banner-h));
+}
+/* Calques plein écran, panneaux latéraux et barres fixes (les messages flottants gardent leur place sur grand écran) */
+html.test-env .fixed.inset-0,
+html.test-env .fixed.inset-y-0,
+html.test-env .fixed.top-0:not(.sm\:top-auto) {
+  top: var(--env-banner-h);
+}
+html.test-env .fixed.inset-y-0.h-full {
+  height: auto;
+}
+@media (max-width: 639px) {
+  html.test-env .fixed.top-0.sm\:top-auto {
+    top: var(--env-banner-h);
+  }
+  html.test-env [role="dialog"].h-\[100dvh\] {
+    top: calc(50% + var(--env-banner-h) / 2);
+    height: calc(100dvh - var(--env-banner-h));
+  }
+}
+@media print {
+  html.test-env {
+    --env-banner-h: 0px;
+  }
+  .env-banner {
+    display: none;
+  }
+}

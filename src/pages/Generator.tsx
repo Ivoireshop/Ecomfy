@@ -1079,7 +1079,7 @@ ${showPrice && previewTexts.promotionalPrice ? `Prix promotionnel: ${previewText
           <Tabs
             value={generationType === "video" ? "image" : generationType}
             onValueChange={(v) => setGenerationType(v as "image" | "video" | "pro" | "advanced")}
-            className="mb-6 md:mb-10 sticky top-0 z-30 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 py-4 -mx-3 px-3 md:mx-0 md:px-0 border-b md:border-none md:bg-transparent md:backdrop-blur-none transition-all"
+            className="mb-6 md:mb-10 env-sticky sticky top-0 z-30 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 py-4 -mx-3 px-3 md:mx-0 md:px-0 border-b md:border-none md:bg-transparent md:backdrop-blur-none transition-all"
           >
             <TabsList className="flex w-full max-w-3xl mx-auto h-auto bg-white/40 backdrop-blur-md rounded-2xl p-1.5 shadow-inner border border-primary/10">
               <TabsTrigger 

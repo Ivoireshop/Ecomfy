@@ -5,7 +5,6 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { ecomfyPayApi } from "@/lib/ecomfyPay";
@@ -34,8 +33,6 @@ import {
   Settings as SettingsIcon,
   RefreshCw,
   Store,
-  FlaskConical,
-  Zap,
   Code2,
 } from "lucide-react";
 
@@ -53,7 +50,6 @@ export default function EcomfyPay() {
   const [shops, setShops] = useState<{ id: string; name: string }[]>([]);
   const [selectedShopId, setSelectedShopId] = useState<string | undefined>();
   const [withdrawalModalOpen, setWithdrawalModalOpen] = useState(false);
-  const [isSandbox, setIsSandbox] = useState(false);
 
   const navigate = useNavigate();
 
@@ -121,8 +117,8 @@ export default function EcomfyPay() {
         <title>Ecomfy Pay (BETA) — Infrastructure de Paiement &amp; Wallet Marchand</title>
       </Helmet>
 
-      {/* Header Bar avec Mode Sandbox / Live & Badge BETA */}
-      <header className="bg-white border-b border-slate-200/80 sticky top-0 z-30 px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
+      {/* Header Bar & Badge BETA */}
+      <header className="bg-white border-b border-slate-200/80 env-sticky sticky top-0 z-30 px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <SidebarTrigger />
           <div className="p-2 bg-[#0E7C66] text-white rounded-xl shadow-sm shrink-0">
@@ -144,23 +140,6 @@ export default function EcomfyPay() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Commutateur Mode Sandbox vs Production */}
-          <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold">
-            {isSandbox ? (
-              <FlaskConical className="w-3.5 h-3.5 text-amber-600" />
-            ) : (
-              <Zap className="w-3.5 h-3.5 text-emerald-600" />
-            )}
-            <span className={isSandbox ? "text-amber-800 font-bold" : "text-emerald-800 font-bold"}>
-              {isSandbox ? "Sandbox (Test)" : "Production (Live)"}
-            </span>
-            <Switch
-              checked={isSandbox}
-              onCheckedChange={setIsSandbox}
-              className="data-[state=checked]:bg-amber-500 data-[state=unchecked]:bg-emerald-600"
-            />
-          </div>
-
           {shops.length > 0 && (
             <div className="hidden lg:flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold">
               <Store className="w-3.5 h-3.5 text-[#0E7C66]" />
@@ -179,14 +158,6 @@ export default function EcomfyPay() {
           </Button>
         </div>
       </header>
-
-      {/* Mode Sandbox Notice */}
-      {isSandbox && (
-        <div className="bg-amber-500 text-white text-center py-1.5 px-4 text-xs font-bold flex items-center justify-center gap-2">
-          <FlaskConical className="w-3.5 h-3.5" />
-          <span>Mode Test (Sandbox) Actif — Les transactions générées utiliseront des paiements de démonstration sans débit réel.</span>
-        </div>
-      )}
 
       {/* Main Dashboard Workspace */}
       <main className="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto space-y-6">

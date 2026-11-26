@@ -10,6 +10,7 @@
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "build:vps": "vite build --mode vps --outDir dist-vps",
     "lint": "eslint . --pass-on-unpruned-suppressions",
     "lint:prune": "eslint . --prune-suppressions",
     "typecheck": "node scripts/typecheck.mjs",

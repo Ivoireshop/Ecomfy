@@ -1582,7 +1582,7 @@ const ProductView = () => {
       </Helmet>
       {/* Preview Banner */}
       {shop._isPreview && (
-        <div className="bg-amber-500 text-white text-center py-2 px-4 text-sm font-medium sticky top-0 z-50">
+        <div className="bg-amber-500 text-white text-center py-2 px-4 text-sm font-medium env-sticky sticky top-0 z-50">
           ⚠️ Mode prévisualisation — Cette boutique n'est pas encore en ligne
         </div>
       )}
@@ -1605,7 +1605,7 @@ const ProductView = () => {
       {/* Header - conditionally hidden */}
       {!shop.theme_config?.hide_product_header && (
         <header
-          className="border-b sticky top-0 z-40 bg-[var(--shop-header-mobile-bg)] md:bg-[var(--shop-header-desktop-bg)] border-[color:var(--shop-header-mobile-border)] md:border-[color:var(--shop-header-desktop-border)]"
+          className="border-b env-sticky sticky top-0 z-40 bg-[var(--shop-header-mobile-bg)] md:bg-[var(--shop-header-desktop-bg)] border-[color:var(--shop-header-mobile-border)] md:border-[color:var(--shop-header-desktop-border)]"
           style={{
             "--shop-header-mobile-bg": themeConfig.header_mobile_bg || "#FFFFFF",
             "--shop-header-desktop-bg": themeConfig.header_desktop_bg || themeConfig.header_mobile_bg || "#FFFFFF",

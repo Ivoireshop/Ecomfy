@@ -161,7 +161,7 @@ export default function EcomfyPayApiDocs() {
         <meta name="description" content="Encaissez par API avec Ecomfy Pay : paiements, webhooks signés et sandbox pour tester sans argent réel." />
       </Helmet>
 
-      <header className="border-b border-slate-200 sticky top-0 bg-white/95 backdrop-blur z-20">
+      <header className="border-b border-slate-200 env-sticky sticky top-0 bg-white/95 backdrop-blur z-20">
         <div className="max-w-6xl mx-auto px-4 sm:px-8 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 font-extrabold"><Code2 className="w-5 h-5 text-[#0E7C66]" /> API Ecomfy Pay <span className="text-xs font-semibold text-slate-400">v1</span></div>
           <div className="flex items-center gap-4 text-sm">

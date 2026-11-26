@@ -5,7 +5,7 @@ export default function BeautyShop({ data }: ShopThemeProps) {
   const { shop, products, primaryColor, currency, productHref } = data;
   return (
     <div className="min-h-screen text-neutral-800" style={{ background: "linear-gradient(180deg, #fff5f3 0%, #ffffff 60%)" }}>
-      <header className="bg-white/80 backdrop-blur sticky top-0 z-30 border-b border-rose-100">
+      <header className="bg-white/80 backdrop-blur env-sticky sticky top-0 z-30 border-b border-rose-100">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {shop.logo_url && <img src={shop.logo_url} alt="" className="max-h-10 w-auto max-w-[200px] object-contain flex-shrink-0" />}

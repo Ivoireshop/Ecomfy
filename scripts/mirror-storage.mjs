@@ -5,6 +5,9 @@ import { createClient } from '@supabase/supabase-js'
 import { appendFileSync, writeFileSync } from 'node:fs'
 
 const { SRC_URL, SRC_KEY, DST_URL, DST_KEY, FAIL_LOG = 'storage-failures.log' } = process.env
+// FORCE_COPY=1 : tout recopier, même si la cible liste déjà le fichier avec la même taille. Nécessaire quand
+// les lignes storage.objects ont été restaurées avec la base sans les fichiers (miroir vers le VPS).
+const FORCE = process.env.FORCE_COPY === '1'
 if (!SRC_URL || !SRC_KEY || !DST_URL || !DST_KEY) throw new Error('Variables SRC_/DST_ manquantes')
 if (SRC_URL === DST_URL) throw new Error('Source et cible identiques, abandon')
 
@@ -69,7 +72,7 @@ for (const b of buckets) {
   if (extra.length) console.log(`[${b.id}] ${extra.length} fichiers absents de la source supprimés du dev`)
 
   await pool(files, 5, async (f) => {
-    if (existing.get(f.path) === f.size && f.size !== undefined) return void skipped++
+    if (!FORCE && existing.get(f.path) === f.size && f.size !== undefined) return void skipped++
     try {
       const { data: blob, error: dErr } = await src.storage.from(b.id).download(f.path)
       if (dErr) throw dErr

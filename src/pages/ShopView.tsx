@@ -768,7 +768,7 @@ const ShopView = () => {
 
   if (loading) return (
     <div className="min-h-screen bg-white">
-      <div className="border-b sticky top-0 z-40 bg-white">
+      <div className="border-b env-sticky sticky top-0 z-40 bg-white">
         <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2.5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className="h-8 w-8 rounded-lg bg-gray-200 animate-pulse" />
@@ -1337,7 +1337,7 @@ const ShopView = () => {
           </div>
         )}
         {selectedCategory !== "all" && (
-          <div className="sticky top-0 z-40 flex items-center justify-center gap-3 border-b bg-white/95 px-4 py-2.5 text-sm backdrop-blur">
+          <div className="env-sticky sticky top-0 z-40 flex items-center justify-center gap-3 border-b bg-white/95 px-4 py-2.5 text-sm backdrop-blur">
             <span className="text-gray-600">Catégorie : <b className="text-gray-900">{selectedCategory}</b></span>
             <button
               type="button"
@@ -1444,7 +1444,7 @@ const ShopView = () => {
 
       {/* Sticky Header - Premium Glassmorphism */}
       <header
-        className="border-b sticky top-0 z-40 bg-[var(--shop-header-mobile-bg,rgba(255,255,255,0.85))] md:bg-[var(--shop-header-desktop-bg,rgba(255,255,255,0.85))] border-[color:var(--shop-header-mobile-border)] md:border-[color:var(--shop-header-desktop-border)] backdrop-blur-xl shadow-sm transition-all duration-300"
+        className="border-b env-sticky sticky top-0 z-40 bg-[var(--shop-header-mobile-bg,rgba(255,255,255,0.85))] md:bg-[var(--shop-header-desktop-bg,rgba(255,255,255,0.85))] border-[color:var(--shop-header-mobile-border)] md:border-[color:var(--shop-header-desktop-border)] backdrop-blur-xl shadow-sm transition-all duration-300"
         style={{
           ...(themeConfig.header_mobile_bg || themeConfig.header_desktop_bg ? {
             "--shop-header-mobile-bg": themeConfig.header_mobile_bg || themeConfig.header_desktop_bg,
