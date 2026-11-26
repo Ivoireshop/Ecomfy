@@ -1,6 +1,6 @@
 # Environnement de test Ecomfy sur VPS (Supabase auto-hébergé)
 
-État au 24/11/2026. Branche `test/vps-selfhosted`.
+État au 24/11/2026, connexion Google ajoutée le 26/11. Branche `test/vps-selfhosted`.
 
 - Front : `https://test.ecomfy.cloud` (Apache).
 - Supabase auto-hébergé : `https://supabase.ecomfy.cloud` (Docker derrière Apache, Let's Encrypt). Studio est protégé par une authentification basique.
@@ -20,9 +20,10 @@ Ce document décrit l'environnement tel qu'il fonctionne, les opérations couran
 | Auth (GoTrue v2.198.0) | e-mail avec confirmation, téléphone coupé, e-mails captés par Mailpit | inscription, confirmation, réinitialisation et reconnexion testées dans Chrome |
 | Edge Functions (edge-runtime v1.79.2) | 74 fonctions, contrôle JWT par fonction, CORS limité à `test.ecomfy.cloud` | fonction publique 200, fonction protégée 401, en-tête CORS |
 | Vault et tâches cron | `supabase_project_url` et `cron_secret` posés | `app-health-monitor` et le cron des e-mails de livraison répondent 200 |
-| Clés tierces (Resend, GeniusPay, IA, Meta, Google OAuth) | **aucune** (volontaire) | — |
+| Connexion Google | client OAuth **de test** (§4.5) | redirection vers Google en 302, connexion confirmée dans le navigateur le 26/11 |
+| Autres clés tierces (Resend, GeniusPay, IA, Meta Ads, Search Console) | **aucune** (volontaire) | — |
 
-Conséquence de l'absence de clés tierces : sur le VPS, les e-mails applicatifs, les paiements, la génération IA et la connexion Google échouent. On les ajoute une par une, avec des clés **de test**, quand on veut tester ces parcours (§7.3).
+Conséquence de l'absence de ces clés : sur le VPS, les e-mails applicatifs, les paiements, la génération IA et les connexions Meta Ads et Search Console échouent. On les ajoute une par une, avec des clés **de test**, quand on veut tester ces parcours (§7.3).
 
 ### Architecture sur le VPS
 
@@ -92,7 +93,7 @@ Après un déploiement, le service worker peut servir l'ancienne version : recha
 Le `docker-compose.yml` d'origine n'est pas modifié. Les ajouts passent par :
 
 - **`.env`** : `COMPOSE_FILE=docker-compose.yml:docker-compose.override.yml`. Sans cette ligne, l'override est ignoré (« no such service: mailpit »).
-- **`docker-compose.override.yml`** : service `mailpit`, et `env_file: ./functions.env` pour le service `functions`.
+- **`docker-compose.override.yml`** : service `mailpit`, `env_file: ./functions.env` pour le service `functions`, et variables de la connexion Google pour le service `auth` (§4.5).
 - **`functions.env`** (droits 600, hors dépôt) : variables des Edge Functions (§6.3).
 
 Des sauvegardes horodatées existent à côté de chaque fichier modifié (`.env.bak-*`, `docker-compose.override.yml.bak`, `main/index.ts.orig-*`).
@@ -123,6 +124,60 @@ Les secrets par défaut du compose (JWT, mots de passe, clés) ont été vérifi
 ### 4.4 Mailpit
 
 Interface, depuis le poste local : `ssh -N -L 8025:127.0.0.1:8025 root@<vps>`, puis `http://localhost:8025`. Les e-mails sont ceux de GoTrue, en anglais.
+
+### 4.5 Connexion Google
+
+**Dans Google Cloud Console**, avec un client réservé au test, jamais celui de la prod :
+
+1. Écran de consentement OAuth : type *Externe*, laissé en mode **Test**, avec les seules adresses de l'équipe en utilisateurs de test.
+2. Identifiants → ID client OAuth → *Application Web* :
+   - origine JavaScript : `https://test.ecomfy.cloud` ;
+   - URI de redirection : `https://supabase.ecomfy.cloud/auth/v1/callback`.
+
+**Sur le VPS**, sauvegarder `.env` et `docker-compose.override.yml`, puis ajouter à `/opt/supabase/.env` :
+
+```dotenv
+GOOGLE_LOGIN_CLIENT_ID=<ID client de test>
+GOOGLE_LOGIN_SECRET=<secret du client de test>
+```
+
+Dans `docker-compose.override.yml`, ajouter `auth` sous la clé `services:` existante :
+
+```yaml
+  auth:
+    environment:
+      GOTRUE_EXTERNAL_GOOGLE_ENABLED: "true"
+      GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: ${GOOGLE_LOGIN_CLIENT_ID}
+      GOTRUE_EXTERNAL_GOOGLE_SECRET: ${GOOGLE_LOGIN_SECRET}
+      GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI: https://supabase.ecomfy.cloud/auth/v1/callback
+```
+
+Appliquer, depuis `/opt/supabase` :
+
+```bash
+docker compose config -q && docker compose up -d auth && docker restart supabase-envoy
+```
+
+Contrôles :
+
+```bash
+ANON=$(grep '^ANON_KEY=' .env | cut -d= -f2-)
+curl -s https://supabase.ecomfy.cloud/auth/v1/settings -H "apikey: $ANON"     # "google": true
+# requête GET : curl -I (HEAD) n'affiche rien sur cette route
+curl -s -o /dev/null -w "%{http_code} %{redirect_url}\n" "https://supabase.ecomfy.cloud/auth/v1/authorize?provider=google"   # 302 vers accounts.google.com
+```
+
+Le secret n'est contrôlé qu'au retour de Google : finir par une connexion réelle sur `https://test.ecomfy.cloud/auth`, qui doit arriver sur `/dashboard`.
+
+| Erreur | Cause probable |
+|---|---|
+| `redirect_uri_mismatch` | l'URI déclarée chez Google diffère de celle ci-dessus |
+| `access_denied` | l'adresse n'est pas dans les utilisateurs de test |
+| `invalid_client` ou échec d'échange du code | secret erroné dans `.env` |
+
+En cas d'échec : `docker logs --since 10m supabase-auth 2>&1 | grep -iE "error|google|callback"`.
+
+La base étant une copie de la prod, une connexion Google avec une adresse déjà inscrite ouvre en principe le compte existant : utiliser les adresses de l'équipe ou des comptes de test.
 
 ---
 
@@ -282,7 +337,7 @@ Les tâches cron présentes au 24/11 sont `expire-stale-studio-generations` (SQL
 | Point | Cause | Piste |
 |---|---|---|
 | E-mails applicatifs, paiements, IA | pas de clés tierces (§2) | clés de test, une par une (§7.3) |
-| Connexion Google | pas de client OAuth | client OAuth **de test** : URI `https://supabase.ecomfy.cloud/auth/v1/callback`, origine `https://test.ecomfy.cloud`, variables `GOTRUE_EXTERNAL_GOOGLE_*` dans le service `auth` (override) |
+| Connexions Search Console et Meta Ads | pas de clés | clés de test dans `functions.env` (§7.3, point 5) |
 | E-mails d'auth en français (hook `auth-email-hook`) | le lien est construit avec `SUPABASE_URL` (`http://api-gw:8000`) dans [auth-email-hook/index.ts](../supabase/functions/auth-email-hook/index.ts) et [send-email/index.ts](../supabase/functions/send-email/index.ts) | lire `SUPABASE_PUBLIC_URL` en priorité (correctif de code) |
 | 6 fonctions d'e-mail en JSX (`auth-email-hook`, `send-transactional-email`, `process-email-queue`, `preview-transactional-email`, `handle-email-*`) | le routeur charge un `deno.jsonc` commun et ignore le `deno.json` propre à chaque fonction | adapter `importMapPath` dans `main/index.ts` |
 | Page « code à 6 chiffres » ([VerifyEmail.tsx](../src/pages/VerifyEmail.tsx)) | le modèle GoTrue par défaut n'envoie qu'un lien | `GOTRUE_MAILER_TEMPLATES_CONFIRMATION` ; la confirmation par lien fonctionne |
@@ -302,13 +357,22 @@ Les tâches cron présentes au 24/11 sont `expire-stale-studio-generations` (SQL
 2. `docker compose up -d functions && docker restart supabase-envoy`.
 3. Pour Resend : vérifier d'abord `EMAIL_MODE=redirect` et `EMAIL_REDIRECT_TO`. Contrôler que les fonctions qui appellent Resend passent toutes par `guardEmail` ([_shared/email-sender.ts](../supabase/functions/_shared/email-sender.ts)) : 13 fonctions appellent Resend directement.
 4. Pour GeniusPay : clés sandbox uniquement ; webhooks vers `https://supabase.ecomfy.cloud/functions/v1/...`.
+5. Pour Search Console et Meta Ads (non configurés au 26/11) : ajouter les variables ci-dessous, et déclarer chaque URI de retour chez Google et dans une application Meta de test. Activer aussi l'API Search Console dans Google Cloud. **Sans les deux lignes `*_REDIRECT_URI`, le retour se fait vers la prod** (`ecomfy.cloud`).
+   ```dotenv
+   GOOGLE_OAUTH_CLIENT_ID=<ID client de test>
+   GOOGLE_OAUTH_CLIENT_SECRET=<secret de test>
+   GOOGLE_OAUTH_REDIRECT_URI=https://test.ecomfy.cloud/seo
+   META_APP_ID=<application de test>
+   META_APP_SECRET=<secret de test>
+   META_OAUTH_REDIRECT_URI=https://test.ecomfy.cloud/meta-ads/callback
+   ```
 
 ### 7.4 Recette restante
 
 | # | Parcours | État |
 |---|---|---|
 | 1 | Inscription, confirmation, profil, déconnexion, mot de passe oublié, reconnexion | fait le 24/11 |
-| 2 | Connexion Google | en attente du client de test |
+| 2 | Connexion Google | fait le 26/11 |
 | 3 | Boutique publique, fiche produit, commande | à faire |
 | 4 | Tableau de bord marchand, appel d'une Edge Function protégée | à faire |
 | 5 | Temps réel (WebSocket `wss://supabase.ecomfy.cloud/realtime/v1/...`) | à faire |
