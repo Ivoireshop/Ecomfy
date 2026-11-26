@@ -34,7 +34,7 @@ serveCors("app", async (req) => {
   const rows = (batch || []) as Array<{
     id: string; email: string | null; kind: string; tone: string; title: string; body: string | null; link: string | null;
   }>;
-  let sent = 0, skipped = 0, retried = 0, failed = 0;
+  let sent = 0, skipped = 0, retried = 0;
 
   for (const r of rows) {
     const mark = (outcome: string, msg?: string) =>
@@ -60,5 +60,5 @@ serveCors("app", async (req) => {
     }
   }
 
-  return reply({ success: true, claimed: rows.length, sent, skipped, retried, failed });
+  return reply({ success: true, claimed: rows.length, sent, skipped, retried });
 });
