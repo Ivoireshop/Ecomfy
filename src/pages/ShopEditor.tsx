@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef, lazy, Suspense } from "react";
+import { PaymentNetworks } from "@/components/ecomfy-pay/PaymentMethodLogo";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
@@ -1570,8 +1571,9 @@ const ShopEditor = () => {
                 {activating ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-5 w-5" />}
                 Activer ma boutique (1 300 FCFA)
               </Button>
+              <PaymentNetworks />
               <p className="text-[11px] text-center text-muted-foreground">
-                🔒 Paiement sécurisé multi-réseaux (Orange Money 🟠, MTN 🟡, Wave 🔵, Moov 🟢, Carte 💳) via GeniusPay.
+                🔒 Paiement sécurisé multi-réseaux via GeniusPay.
               </p>
             </div>
           </DialogContent>

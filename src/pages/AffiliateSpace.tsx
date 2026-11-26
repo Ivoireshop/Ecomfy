@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { PaymentMethodLogo } from "@/components/ecomfy-pay/PaymentMethodLogo";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -374,11 +375,11 @@ export default function AffiliateSpace() {
                             <SelectValue placeholder="Choisir un moyen de paiement" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="orange_money">Orange Money 🟠</SelectItem>
-                            <SelectItem value="wave">Wave 🌊</SelectItem>
-                            <SelectItem value="mtn_money">MTN Mobile Money 🟡</SelectItem>
-                            <SelectItem value="moov_money">Moov Money 🔵</SelectItem>
-                            <SelectItem value="bank_transfer">Compte Bancaire / Virement 🏦</SelectItem>
+                            <SelectItem value="orange_money"><span className="flex items-center gap-2"><PaymentMethodLogo id="orange_money" size={20} />Orange Money</span></SelectItem>
+                            <SelectItem value="wave"><span className="flex items-center gap-2"><PaymentMethodLogo id="wave" size={20} />Wave</span></SelectItem>
+                            <SelectItem value="mtn_money"><span className="flex items-center gap-2"><PaymentMethodLogo id="mtn_money" size={20} />MTN Mobile Money</span></SelectItem>
+                            <SelectItem value="moov_money"><span className="flex items-center gap-2"><PaymentMethodLogo id="moov_money" size={20} />Moov Money</span></SelectItem>
+                            <SelectItem value="bank_transfer"><span className="flex items-center gap-2"><PaymentMethodLogo id="bank_transfer" size={20} />Compte Bancaire / Virement</span></SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

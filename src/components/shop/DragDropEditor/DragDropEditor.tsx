@@ -119,7 +119,7 @@ export function DragDropEditor({ shop, setShop, onClose }: DragDropEditorProps) 
       {/* Navbar */}
       <header className="h-14 border-b flex items-center justify-between px-4 shrink-0 bg-card">
         <div className="font-semibold flex items-center gap-2">
-          <span>Éditeur Visuel (Beta)</span>
+          <span>Éditeur Visuel</span>
         </div>
         
         {/* Device Switcher */}

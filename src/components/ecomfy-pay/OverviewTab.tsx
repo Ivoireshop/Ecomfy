@@ -1,4 +1,5 @@
 import React from "react";
+import { paymentStatusLabel } from "@/lib/ecomfyPayLabels";
 import { Wallet, EcomfyPayment, MerchantKyc } from "@/types/ecomfyPay";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -115,7 +116,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
               <span className="text-sm font-medium text-slate-500">FCFA</span>
             </h3>
             <p className="text-[11px] text-slate-400 mt-1">
-              Délai de règlement 72h encours
+              Délai de règlement de 72h en cours
             </p>
           </div>
           <div className="text-[11px] font-medium text-amber-600 bg-amber-50 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5">
@@ -294,14 +295,8 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                   <span className="font-bold text-slate-900 block">
                     +{formatPrice(p.net_merchant_amount)} FCFA
                   </span>
-                  <Badge
-                    className={
-                      p.status === "SUCCEEDED"
-                        ? "bg-emerald-100 text-emerald-800 text-[10px]"
-                        : "bg-amber-100 text-amber-800 text-[10px]"
-                    }
-                  >
-                    {p.status}
+                  <Badge className={`${paymentStatusLabel(p.status).className} border-0 text-[10px]`}>
+                    {paymentStatusLabel(p.status).label}
                   </Badge>
                 </div>
               </div>

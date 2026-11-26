@@ -6,6 +6,7 @@ import { Wallet as WalletIcon, ArrowUpRight, ArrowDownLeft, Clock, History, Aler
 import { LoadMoreButton } from "@/components/LoadMoreButton";
 import { useLoadMore } from "@/hooks/useLoadMore";
 import { ecomfyPayApi } from "@/lib/ecomfyPay";
+import { paymentMethodLabel, withdrawalStatusLabel } from "@/lib/ecomfyPayLabels";
 
 interface WalletTabProps {
   wallet: Wallet | null;
@@ -90,31 +91,23 @@ export const WalletTab: React.FC<WalletTabProps> = ({
               <tbody className="divide-y divide-slate-100 font-medium">
                 {withdrawals.map((w) => (
                   <tr key={w.id} className="hover:bg-slate-50">
-                    <td className="py-3 px-3 font-mono font-bold text-slate-900">
+                    <td className="py-3 px-3 font-mono font-bold text-slate-900 whitespace-nowrap">
                       {w.withdrawal_reference}
                     </td>
                     <td className="py-3 px-3">
-                      <span className="font-semibold text-slate-800 capitalize block">
-                        {w.payout_method.replace("_", " ")}
+                      <span className="font-semibold text-slate-800 block">
+                        {paymentMethodLabel(w.payout_operator || w.payout_method)}
                       </span>
                       <span className="text-[11px] text-slate-400 block">
                         {w.destination_phone || w.destination_name || "Compte Vendeur"}
                       </span>
                     </td>
-                    <td className="py-3 px-3 font-bold text-slate-900">
+                    <td className="py-3 px-3 font-bold text-slate-900 whitespace-nowrap">
                       {formatPrice(w.amount)} FCFA
                     </td>
                     <td className="py-3 px-3">
-                      <Badge
-                        className={
-                          w.status === "SUCCEEDED"
-                            ? "bg-emerald-100 text-emerald-800 text-[10px]"
-                            : w.status === "PROCESSING" || w.status === "REQUESTED"
-                            ? "bg-amber-100 text-amber-800 text-[10px]"
-                            : "bg-rose-100 text-rose-800 text-[10px]"
-                        }
-                      >
-                        {w.status === "REQUESTED" ? "En attente de validation" : w.status}
+                      <Badge className={`${withdrawalStatusLabel(w.status).className} border-0 text-[10px] whitespace-nowrap`}>
+                        {withdrawalStatusLabel(w.status).label}
                       </Badge>
                     </td>
                     <td className="py-3 px-3 text-slate-400 text-xs">
@@ -163,7 +156,7 @@ export const WalletTab: React.FC<WalletTabProps> = ({
                     <span className="text-[11px] text-slate-400 block truncate">
                       Réf: {entry.internal_reference || entry.reference_id || "N/A"}
                       {entry.order_number ? ` • Commande ${entry.order_number}` : ""}
-                      {entry.operator ? ` • ${entry.operator}` : ""} • {new Date(entry.created_at).toLocaleString("fr-FR")}
+                      {entry.operator ? ` • ${paymentMethodLabel(entry.operator)}` : ""} • {new Date(entry.created_at).toLocaleString("fr-FR")}
                     </span>
                   </div>
 
@@ -179,7 +172,7 @@ export const WalletTab: React.FC<WalletTabProps> = ({
                         : `${formatPrice(entry.amount)} FCFA`}
                     </span>
                     <span className="text-[10px] text-slate-400 block">
-                      Solde Avail: {formatPrice(entry.running_available_balance)} FCFA
+                      Solde disponible : {formatPrice(entry.running_available_balance)} FCFA
                     </span>
                   </div>
                 </div>

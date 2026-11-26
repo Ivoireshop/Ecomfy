@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { PaymentMethodLogo } from "@/components/ecomfy-pay/PaymentMethodLogo";
 import {
   affiliateService,
   FounderAffiliateListItem,
@@ -402,7 +403,7 @@ export function FounderAffiliateAdmin() {
                               Éligible (&ge; {formatCurrency(threshold)})
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="text-slate-500">
+                            <Badge variant="outline" className="text-slate-500 whitespace-nowrap">
                               Sous le seuil
                             </Badge>
                           )}
@@ -617,12 +618,12 @@ export function FounderAffiliateAdmin() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="orange_money">Orange Money 🟠</SelectItem>
-                    <SelectItem value="wave">Wave 🌊</SelectItem>
-                    <SelectItem value="mtn_money">MTN Mobile Money 🟡</SelectItem>
-                    <SelectItem value="moov_money">Moov Money 🔵</SelectItem>
-                    <SelectItem value="bank_transfer">Virement Bancaire 🏦</SelectItem>
-                    <SelectItem value="cash">Comptant / Autre 💵</SelectItem>
+                    <SelectItem value="orange_money"><span className="flex items-center gap-2"><PaymentMethodLogo id="orange_money" size={20} />Orange Money</span></SelectItem>
+                    <SelectItem value="wave"><span className="flex items-center gap-2"><PaymentMethodLogo id="wave" size={20} />Wave</span></SelectItem>
+                    <SelectItem value="mtn_money"><span className="flex items-center gap-2"><PaymentMethodLogo id="mtn_money" size={20} />MTN Mobile Money</span></SelectItem>
+                    <SelectItem value="moov_money"><span className="flex items-center gap-2"><PaymentMethodLogo id="moov_money" size={20} />Moov Money</span></SelectItem>
+                    <SelectItem value="bank_transfer"><span className="flex items-center gap-2"><PaymentMethodLogo id="bank_transfer" size={20} />Virement Bancaire</span></SelectItem>
+                    <SelectItem value="cash"><span className="flex items-center gap-2"><PaymentMethodLogo id="cash" size={20} />Comptant / Autre</span></SelectItem>
                   </SelectContent>
                 </Select>
               </div>

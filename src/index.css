@@ -338,8 +338,17 @@ html {
   }
 }
 
-/* Text formatting - aligned left with proper line breaks */
-p, li, span, div, a, button, label, input, textarea {
+/* Text formatting - aligned left with proper line breaks.
+   Les descendants d'un bloc « text-center » en sont exclus : ils héritent de son alignement. */
+p:not(:where([class*="text-center"] *)),
+li:not(:where([class*="text-center"] *)),
+span:not(:where([class*="text-center"] *)),
+div:not(:where([class*="text-center"] *)),
+a:not(:where([class*="text-center"] *)),
+button:not(:where([class*="text-center"] *)),
+label:not(:where([class*="text-center"] *)),
+input:not(:where([class*="text-center"] *)),
+textarea:not(:where([class*="text-center"] *)) {
   text-align: left;
 }
 

@@ -6,165 +6,184 @@ interface PaymentMethodLogoProps {
   className?: string;
 }
 
-export const PaymentMethodLogo: React.FC<PaymentMethodLogoProps> = ({
-  id,
-  size = 44,
-  className = "",
-}) => {
-  switch (id.toLowerCase()) {
-    case "wave":
-    case "wave_money":
-      return (
-        <div
-          style={{ width: size, height: size }}
-          className={`rounded-2xl bg-[#1DC3F5] flex items-center justify-center shadow-sm shrink-0 overflow-hidden relative border border-cyan-400/30 ${className}`}
-          title="Wave Mobile Money"
-        >
-          {/* Logo SVG Pingouin Wave Authentique */}
-          <svg viewBox="0 0 100 100" className="w-full h-full p-1">
-            <path
-              d="M50 12 C32 12 22 28 22 52 C22 72 32 88 50 88 C68 88 78 72 78 52 C78 28 68 12 50 12 Z"
-              fill="#1B2B4A"
-            />
-            <path
-              d="M50 32 C40 32 32 44 32 64 C32 80 40 84 50 84 C60 84 68 80 68 64 C68 44 60 32 50 32 Z"
-              fill="#FFFFFF"
-            />
-            <circle cx="43" cy="30" r="3" fill="#FFFFFF" />
-            <circle cx="57" cy="30" r="3" fill="#FFFFFF" />
-            <circle cx="44" cy="30" r="1.5" fill="#1B2B4A" />
-            <circle cx="56" cy="30" r="1.5" fill="#1B2B4A" />
-            <polygon points="50,34 43,42 57,42" fill="#FFC107" />
-            <ellipse cx="40" cy="86" rx="5" ry="3" fill="#FF9800" />
-            <ellipse cx="60" cy="86" rx="5" ry="3" fill="#FF9800" />
-          </svg>
-        </div>
-      );
+interface Mark {
+  name: string;
+  background: string;
+  art: React.ReactNode;
+}
 
-    case "orange":
-    case "orange_money":
-      return (
-        <div
-          style={{ width: size, height: size }}
-          className={`rounded-2xl bg-[#FF6600] flex flex-col items-center justify-center p-1 text-white shadow-sm shrink-0 overflow-hidden font-sans border border-orange-700 ${className}`}
-          title="Orange Money"
-        >
-          {/* Logo Officiel Orange Money sur Fond Orange Vif avec bloc Noir */}
-          <div className="w-full h-full bg-black rounded-xl p-1 flex flex-col items-center justify-center border border-orange-400/40">
-            <div className="w-3.5 h-3.5 bg-[#FF6600] mb-0.5 rounded-xs" />
-            <span className="text-[10px] font-black text-white uppercase tracking-tight leading-none">
-              orange
-            </span>
-            <span className="text-[8px] font-black text-[#FF6600] uppercase tracking-widest leading-none mt-0.5">
-              MONEY
-            </span>
-          </div>
-        </div>
-      );
+const FONT = "Arial, Helvetica, sans-serif";
 
-    case "mtn":
-    case "mtn_momo":
-    case "momo":
-      return (
-        <div
-          style={{ width: size, height: size }}
-          className={`rounded-2xl bg-[#FFCC00] flex flex-col items-center justify-center text-[#002B49] shadow-sm shrink-0 overflow-hidden font-extrabold border border-yellow-400 p-1 ${className}`}
-          title="MTN Mobile Money"
-        >
-          <div className="border-2 border-[#002B49] rounded-full px-2 py-0.5 flex flex-col items-center justify-center bg-[#FFCC00]">
-            <span className="text-[11px] font-black tracking-tighter leading-none text-[#002B49]">
-              MoMo
-            </span>
-          </div>
-          <span className="text-[7px] font-black text-[#002B49] uppercase tracking-tighter mt-0.5">
-            MTN MONEY
-          </span>
-        </div>
-      );
+/** Texte centré dans le dessin ; `width` impose sa largeur pour qu'il ne déborde dans aucune police. */
+const Word = ({ y, size, width, fill, italic, children }: {
+  y: number; size: number; width: number; fill: string; italic?: boolean; children: React.ReactNode;
+}) => (
+  <text x="50" y={y} textAnchor="middle" fontFamily={FONT} fontWeight={900} fontSize={size} fill={fill}
+    fontStyle={italic ? "italic" : undefined} textLength={width} lengthAdjust="spacingAndGlyphs">
+    {children}
+  </text>
+);
 
-    case "moov":
-    case "moov_money":
-    case "flooz":
-      return (
-        <div
-          style={{ width: size, height: size }}
-          className={`rounded-2xl bg-[#005C9E] flex flex-col items-center justify-center text-white shadow-sm shrink-0 overflow-hidden font-extrabold border border-blue-600 p-1 ${className}`}
-          title="Moov Money (Flooz)"
-        >
-          <span className="text-[11px] font-black tracking-tighter text-white leading-none">
-            Moov
-          </span>
-          <div className="bg-[#F37023] px-1.5 py-0.5 rounded text-[7px] font-black text-white uppercase tracking-wider mt-0.5 leading-none">
-            Money
-          </div>
-        </div>
-      );
-
-    case "card":
-    case "visa":
-    case "mastercard":
-    case "stripe":
-      return (
-        <div
-          style={{ width: size, height: size }}
-          className={`rounded-2xl bg-slate-900 flex flex-col items-center justify-center text-white shadow-sm shrink-0 overflow-hidden border border-slate-700 p-1 ${className}`}
-          title="Visa & Mastercard"
-        >
-          <div className="flex items-center justify-center gap-1 w-full">
-            <span className="text-[10px] font-black italic text-blue-400 tracking-tighter">
-              VISA
-            </span>
-            <div className="flex -space-x-1 items-center">
-              <div className="w-2.5 h-2.5 rounded-full bg-red-500 opacity-90" />
-              <div className="w-2.5 h-2.5 rounded-full bg-amber-400 opacity-90" />
-            </div>
-          </div>
-          <span className="text-[7px] font-bold text-slate-300 uppercase tracking-widest mt-0.5">
-            CARTE
-          </span>
-        </div>
-      );
-
-    case "djamo":
-      return (
-        <div
-          style={{ width: size, height: size }}
-          className={`rounded-2xl bg-[#0A0E17] flex flex-col items-center justify-center text-white shadow-sm shrink-0 overflow-hidden border border-slate-800 p-1 ${className}`}
-          title="Djamo"
-        >
-          <div className="flex items-center gap-0.5">
-            <span className="text-[11px] font-black tracking-tighter text-[#00D2FF] font-sans">
-              djamo
-            </span>
-            <div className="w-1.5 h-1.5 rounded-full bg-[#00D2FF]" />
-          </div>
-          <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-            PAY
-          </span>
-        </div>
-      );
-
-    case "cinetpay":
-      return (
-        <div
-          style={{ width: size, height: size }}
-          className={`rounded-2xl bg-[#1D3557] flex flex-col items-center justify-center text-white shadow-sm shrink-0 overflow-hidden p-1 ${className}`}
-          title="CinetPay"
-        >
-          <span className="text-[10px] font-black tracking-tight text-[#45B69C]">
-            Cinet<span className="text-white">Pay</span>
-          </span>
-        </div>
-      );
-
-    default:
-      return (
-        <div
-          style={{ width: size, height: size }}
-          className={`rounded-2xl bg-slate-100 flex items-center justify-center text-slate-700 font-bold shrink-0 ${className}`}
-        >
-          💳
-        </div>
-      );
-  }
+const WAVE: Mark = {
+  name: "Wave Mobile Money",
+  background: "#1DC3F5",
+  art: (
+    <>
+      <path d="M50 14 C33 14 24 29 24 51 C24 70 34 85 50 85 C66 85 76 70 76 51 C76 29 67 14 50 14 Z" fill="#1B2B4A" />
+      <path d="M50 33 C41 33 34 45 34 63 C34 78 41 82 50 82 C59 82 66 78 66 63 C66 45 59 33 50 33 Z" fill="#FFFFFF" />
+      <circle cx="43" cy="30" r="3.5" fill="#FFFFFF" />
+      <circle cx="57" cy="30" r="3.5" fill="#FFFFFF" />
+      <circle cx="44" cy="30" r="1.8" fill="#1B2B4A" />
+      <circle cx="56" cy="30" r="1.8" fill="#1B2B4A" />
+      <polygon points="50,43 43,35 57,35" fill="#FFC107" />
+      <ellipse cx="40" cy="85" rx="6" ry="3.5" fill="#FF9800" />
+      <ellipse cx="60" cy="85" rx="6" ry="3.5" fill="#FF9800" />
+    </>
+  ),
 };
+
+const ORANGE: Mark = {
+  name: "Orange Money",
+  background: "#000000",
+  art: (
+    <>
+      <rect x="36" y="14" width="28" height="28" rx="3" fill="#FF6600" />
+      <Word y={66} size={24} width={74} fill="#FFFFFF">orange</Word>
+      <Word y={85} size={17} width={66} fill="#FF6600">MONEY</Word>
+    </>
+  ),
+};
+
+const MTN: Mark = {
+  name: "MTN Mobile Money",
+  background: "#FFCC00",
+  art: (
+    <>
+      <ellipse cx="50" cy="39" rx="38" ry="21" fill="none" stroke="#002B49" strokeWidth="5" />
+      <Word y={48} size={25} width={50} fill="#002B49">MTN</Word>
+      <Word y={84} size={24} width={60} fill="#002B49">MoMo</Word>
+    </>
+  ),
+};
+
+const MOOV: Mark = {
+  name: "Moov Money (Flooz)",
+  background: "#005C9E",
+  art: (
+    <>
+      <Word y={49} size={32} width={76} fill="#FFFFFF">Moov</Word>
+      <rect x="14" y="58" width="72" height="24" rx="6" fill="#F37023" />
+      <Word y={76} size={17} width={58} fill="#FFFFFF">MONEY</Word>
+    </>
+  ),
+};
+
+const CARD: Mark = {
+  name: "Carte bancaire (Visa, Mastercard)",
+  background: "#0F172A",
+  art: (
+    <>
+      <Word y={44} size={32} width={68} fill="#60A5FA" italic>VISA</Word>
+      <circle cx="40" cy="68" r="14" fill="#EF4444" />
+      <circle cx="60" cy="68" r="14" fill="#FBBF24" fillOpacity="0.9" />
+    </>
+  ),
+};
+
+const DJAMO: Mark = {
+  name: "Djamo",
+  background: "#0A0E17",
+  art: <Word y={60} size={28} width={76} fill="#00D2FF">djamo</Word>,
+};
+
+const CINETPAY: Mark = {
+  name: "CinetPay",
+  background: "#1D3557",
+  art: (
+    <>
+      <Word y={48} size={26} width={70} fill="#45B69C">Cinet</Word>
+      <Word y={76} size={26} width={44} fill="#FFFFFF">Pay</Word>
+    </>
+  ),
+};
+
+const MOBILE_MONEY: Mark = {
+  name: "Mobile Money",
+  background: "#0E7C66",
+  art: (
+    <>
+      <rect x="32" y="16" width="36" height="68" rx="7" fill="none" stroke="#FFFFFF" strokeWidth="6" />
+      <rect x="43" y="71" width="14" height="5" rx="2.5" fill="#FFFFFF" />
+      <Word y={55} size={22} width={18} fill="#FFFFFF">F</Word>
+    </>
+  ),
+};
+
+const BANK: Mark = {
+  name: "Virement bancaire",
+  background: "#334155",
+  art: (
+    <g fill="#FFFFFF">
+      <polygon points="50,16 84,36 16,36" />
+      <rect x="23" y="43" width="9" height="28" />
+      <rect x="45.5" y="43" width="9" height="28" />
+      <rect x="68" y="43" width="9" height="28" />
+      <rect x="16" y="76" width="68" height="8" rx="2" />
+    </g>
+  ),
+};
+
+const OTHER: Mark = {
+  name: "Paiement",
+  background: "#E2E8F0",
+  art: (
+    <>
+      <rect x="18" y="28" width="64" height="44" rx="7" fill="none" stroke="#334155" strokeWidth="6" />
+      <rect x="18" y="39" width="64" height="9" fill="#334155" />
+    </>
+  ),
+};
+
+const MARKS: Record<string, Mark> = {
+  wave: WAVE,
+  wave_money: WAVE,
+  orange: ORANGE,
+  orange_money: ORANGE,
+  mtn: MTN,
+  mtn_momo: MTN,
+  mtn_money: MTN,
+  momo: MTN,
+  moov: MOOV,
+  moov_money: MOOV,
+  flooz: MOOV,
+  card: CARD,
+  visa: CARD,
+  mastercard: CARD,
+  stripe: CARD,
+  djamo: DJAMO,
+  cinetpay: CINETPAY,
+  mobile_money: MOBILE_MONEY,
+  bank_transfer: BANK,
+};
+
+/** Dessin vectoriel : il reste entier et net à toutes les tailles. */
+export const PaymentMethodLogo: React.FC<PaymentMethodLogoProps> = ({ id, size = 44, className = "" }) => {
+  const mark = MARKS[id.toLowerCase()] ?? OTHER;
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} role="img" aria-label={mark.name}
+      className={`shrink-0 ${className}`}>
+      <title>{mark.name}</title>
+      <rect width="100" height="100" rx="24" fill={mark.background} />
+      {mark.art}
+    </svg>
+  );
+};
+
+const NETWORKS = ["orange_money", "mtn_momo", "wave", "moov_money", "card"];
+
+/** Rangée des moyens de paiement acceptés, pour les écrans de paiement. */
+export const PaymentNetworks: React.FC<{ size?: number; className?: string }> = ({ size = 24, className = "" }) => (
+  <div className={`flex flex-wrap items-center justify-center gap-1.5 ${className}`}>
+    {NETWORKS.map((id) => <PaymentMethodLogo key={id} id={id} size={size} />)}
+  </div>
+);

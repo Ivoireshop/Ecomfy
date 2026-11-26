@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { PaymentNetworks } from "@/components/ecomfy-pay/PaymentMethodLogo";
 import { Button } from "@/components/ui/button";
 import { Check, ShieldCheck, Loader2, Crown } from "lucide-react";
 import { useAuthReady } from "@/hooks/useAuthReady";
@@ -358,7 +359,7 @@ export default function PricingDashboard() {
                   </div>
 
                   <Button
-                    className={`w-full rounded-xl font-bold h-11 shadow-lg text-sm ${
+                    className={`w-full rounded-xl font-bold h-auto min-h-11 py-2 whitespace-normal leading-snug shadow-lg text-sm ${
                       active
                         ? "bg-emerald-600 text-white opacity-90 cursor-default"
                         : premium
@@ -375,9 +376,7 @@ export default function PricingDashboard() {
                     )}
                     {active ? "✓ VOTRE PLAN ACTUEL (0 FCFA COMMISSION)" : `Activer ${plan.name}`}
                   </Button>
-                  <div className="text-[10px] text-center text-emerald-400 font-medium">
-                    Paiement 🟠 Orange · 🟡 MTN · 🔵 Wave · 🟢 Moov · 💳 Carte
-                  </div>
+                  <PaymentNetworks />
 
                   <ul className={`space-y-3 text-xs ${premium ? "text-slate-100" : "text-slate-200"}`}>
                     {features.map((feature) => (

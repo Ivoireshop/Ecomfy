@@ -298,7 +298,7 @@ export default function DeliveryAdminPage() {
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as TabKey)} className="w-full sm:w-auto">
-            <TabsList className="bg-slate-900 border border-slate-800 p-1 flex-wrap h-auto">
+            <TabsList className="bg-slate-900 border border-slate-800 p-1 flex-wrap h-auto text-slate-300">
               {tabs.map((t) => (
                 <TabsTrigger key={t.key} value={t.key} className={`text-xs font-semibold ${t.style}`}>
                   {t.label} ({counts[t.key] ?? "…"})

@@ -4,7 +4,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { ecomfyPayApi } from "@/lib/ecomfyPay";
@@ -111,10 +110,10 @@ export default function EcomfyPay() {
   return (
     <div className="min-h-screen flex flex-col w-full bg-slate-50 text-slate-900 font-inter pb-20 md:pb-8">
       <Helmet>
-        <title>Ecomfy Pay (BETA) — Infrastructure de Paiement &amp; Wallet Marchand</title>
+        <title>Ecomfy Pay — Infrastructure de Paiement &amp; Wallet Marchand</title>
       </Helmet>
 
-      {/* Header Bar & Badge BETA */}
+      {/* Header Bar */}
       <header className="bg-white border-b border-slate-200/80 env-sticky sticky top-0 z-30 px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <SidebarTrigger />
@@ -126,9 +125,6 @@ export default function EcomfyPay() {
               <h1 className="font-extrabold text-lg sm:text-xl text-slate-900 tracking-tight">
                 Ecomfy Pay
               </h1>
-              <Badge className="bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-[10px] px-2 py-0.5 rounded-md border-0 uppercase tracking-wider">
-                BETA
-              </Badge>
             </div>
             <p className="text-xs text-slate-500 truncate hidden sm:block">
               Infrastructure de paiement centralisée &amp; Portefeuille marchands
@@ -159,7 +155,7 @@ export default function EcomfyPay() {
       {/* Main Dashboard Workspace */}
       <main className="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto space-y-6">
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="bg-white border border-slate-200/80 p-1.5 rounded-2xl flex items-center justify-start overflow-x-auto w-full mb-6 shadow-sm gap-1">
+          <TabsList className="bg-white border border-slate-200/80 p-1.5 rounded-2xl flex flex-wrap h-auto items-center justify-start w-full mb-6 shadow-sm gap-1">
             <TabsTrigger
               value="overview"
               className="rounded-xl px-4 py-2 text-xs font-bold data-[state=active]:bg-[#0E7C66] data-[state=active]:text-white text-slate-600 shrink-0 gap-1.5 transition-all"

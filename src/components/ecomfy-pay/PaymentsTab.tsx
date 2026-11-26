@@ -8,6 +8,7 @@ import { PaymentMethodLogo } from "./PaymentMethodLogo";
 import { ListPagination } from "@/components/ListPagination";
 import { usePagedList } from "@/hooks/usePagedList";
 import { ecomfyPayApi } from "@/lib/ecomfyPay";
+import { paymentMethodLabel, paymentStatusLabel } from "@/lib/ecomfyPayLabels";
 
 interface PaymentsTabProps {
   refreshKey: number;
@@ -103,45 +104,36 @@ export const PaymentsTab: React.FC<PaymentsTabProps> = ({
               <tbody className="divide-y divide-slate-100 font-medium">
                 {list.rows.map((p) => (
                   <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3 px-4 font-mono font-bold text-slate-900">
+                    <td className="py-3 px-4 font-mono font-bold text-slate-900 whitespace-nowrap">
                       {p.internal_reference}
                     </td>
                     <td className="py-3 px-4">
                       <div className="font-semibold text-slate-900">
                         {p.customer_name || "Client anonyme"}
                       </div>
-                      <div className="text-[11px] text-slate-400">
+                      <div className="text-[11px] text-slate-400 whitespace-nowrap">
                         {p.customer_phone || p.customer_email || "—"}
                       </div>
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
                         <PaymentMethodLogo id={p.payment_method_code || p.payment_method} size={28} />
-                        <span className="capitalize font-semibold text-slate-800">
-                          {p.payment_method.replace("_", " ")}
+                        <span className="font-semibold text-slate-800 whitespace-nowrap">
+                          {paymentMethodLabel(p.payment_method)}
                         </span>
                       </div>
                     </td>
-                    <td className="py-3 px-4 font-semibold text-slate-900">
+                    <td className="py-3 px-4 font-semibold text-slate-900 whitespace-nowrap">
                       {formatPrice(p.amount)} FCFA
                     </td>
-                    <td className="py-3 px-4 font-bold text-emerald-700">
+                    <td className="py-3 px-4 font-bold text-emerald-700 whitespace-nowrap">
                       +{formatPrice(p.net_merchant_amount)} FCFA
                     </td>
                     <td className="py-3 px-4">
-                      {p.status === "SUCCEEDED" ? (
-                        <Badge className="bg-emerald-100 text-emerald-800 border-0 gap-1 text-[10px]">
-                          <CheckCircle2 className="w-3 h-3" /> Réussi
-                        </Badge>
-                      ) : p.status === "PENDING" ? (
-                        <Badge className="bg-amber-100 text-amber-800 border-0 gap-1 text-[10px]">
-                          <Clock className="w-3 h-3" /> En attente
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-rose-100 text-rose-800 border-0 gap-1 text-[10px]">
-                          <XCircle className="w-3 h-3" /> Échoué
-                        </Badge>
-                      )}
+                      <Badge className={`${paymentStatusLabel(p.status).className} border-0 gap-1 text-[10px] whitespace-nowrap`}>
+                        {p.status === "SUCCEEDED" ? <CheckCircle2 className="w-3 h-3" /> : p.status === "FAILED" ? <XCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                        {paymentStatusLabel(p.status).label}
+                      </Badge>
                     </td>
                     <td className="py-3 px-4 text-slate-400 text-xs whitespace-nowrap">
                       {new Date(p.created_at).toLocaleString("fr-FR")}

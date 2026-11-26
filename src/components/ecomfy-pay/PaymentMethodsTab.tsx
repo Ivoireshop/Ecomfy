@@ -98,7 +98,7 @@ export const PaymentMethodsTab: React.FC = () => {
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <h5 className="font-bold text-slate-900 text-sm">{m.name}</h5>
-                  <Badge className="bg-emerald-100 text-emerald-800 text-[10px] border-0 font-bold px-2 py-0.5">
+                  <Badge className="shrink-0 bg-emerald-100 text-emerald-800 text-[10px] border-0 font-bold px-2 py-0.5">
                     Actif
                   </Badge>
                 </div>

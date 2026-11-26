@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PaymentNetworks } from "@/components/ecomfy-pay/PaymentMethodLogo";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -121,9 +122,7 @@ export function SubscriptionCard({ shopId, shop }: Props) {
                 {loadingCode === p.code ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Sparkle className="h-4 w-4 mr-1" />}
                 {current ? `Prolonger 1 mois (${formatFcfa(p.price_monthly)} FCFA)` : `Activer ${p.name} (${formatFcfa(p.price_monthly)} FCFA)`}
               </Button>
-              <div className="mt-2 text-[10px] text-center text-muted-foreground">
-                🟠 Orange Money · 🟡 MTN MoMo · 🔵 Wave · 🟢 Moov · 💳 Carte
-              </div>
+              <PaymentNetworks className="mt-3" />
             </div>
           );
         })}
