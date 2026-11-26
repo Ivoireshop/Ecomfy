@@ -1,41 +1,18 @@
-import { Home, Image, Store, Truck, Menu, Users, CreditCard, FolderHeart, BarChart2, Settings, LogOut, GraduationCap, Globe } from "lucide-react";
+import { Home, Store, Menu, LogOut, GraduationCap, Globe } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useState } from "react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { LanguageSelector } from "@/components/LanguageSelector";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useCommunityUnread } from "@/hooks/useCommunityUnread";
+import { isExactMatch, useNavigationMenu, type NavigationItem } from "@/hooks/useNavigationMenu";
 
-interface NavItemDef {
-  title: string;
-  url: string;
-  icon: React.ElementType;
-  comingSoon?: boolean;
-  onClick?: string;
-}
-
-const mainNav: NavItemDef[] = [
+/** Raccourcis de la barre du bas ; le menu complet est derrière « Plus ». */
+const mainNav: NavigationItem[] = [
   { title: "Accueil", url: "/dashboard", icon: Home },
   { title: "Boutique", url: "/shop-manager", icon: Store },
   { title: "Académie", url: "/academy", icon: GraduationCap },
   { title: "ConnectUs", url: "/connectus", icon: Globe },
-];
-
-const activeItems: NavItemDef[] = [
-  { title: "Accueil", url: "/dashboard", icon: Home },
-  { title: "Boutique", url: "/shop-manager", icon: Store },
-  { title: "Académie", url: "/academy", icon: GraduationCap },
-  { title: "Communauté", url: "/community", icon: Users },
-  { title: "Tarifs", url: "/pricing", icon: CreditCard },
-  { title: "Bibliothèque", url: "/library", icon: FolderHeart },
-  { title: "Ecomfy Pay 💳", url: "/ecomfy-pay", icon: CreditCard },
-  { title: "Statistiques", url: "/statistics", icon: BarChart2 },
-  { title: "Paramètres", url: "/profile", icon: Settings },
-];
-
-const comingSoonItems: NavItemDef[] = [
-  { title: "Studio IA", url: "/studio", icon: Image, comingSoon: true },
-  { title: "Livraison 🚚", url: "/delivery-dashboard", icon: Truck, comingSoon: true },
 ];
 
 const PUBLIC_PAGES = ["/", "/auth", "/reset-password", "/privacy-policy", "/terms-of-service", "/cookies-policy", "/legal-notice"];
@@ -44,7 +21,8 @@ export function MobileBottomNav() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
-  const communityUnread = useCommunityUnread();
+  const { mainItems, comingSoonItems, founderItems, founderLabel, accountItems, communityUnread } =
+    useNavigationMenu({ enabled: open });
 
   const isShowcaseView = location.pathname.startsWith("/showcase/");
   const isShopView = location.pathname.startsWith("/shop/") || location.pathname.startsWith("/shop-preview/");
@@ -67,44 +45,20 @@ export function MobileBottomNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur-sm md:hidden">
       <div className="flex items-center justify-around h-14">
-        {mainNav.map((item) => {
-          if (item.comingSoon) {
-            return (
-              <button
-                key={item.title}
-                onClick={() => {
-                  toast({
-                    title: "Bientôt disponible 🚀",
-                    description: `L'option ${item.title} sera bientôt accessible.`,
-                  });
-                }}
-                className="flex flex-col items-center gap-0.5 px-3 py-1.5 text-[10px] text-slate-400 opacity-60 cursor-not-allowed relative"
-              >
-                <item.icon className="h-5 w-5 opacity-50" />
-                <span className="truncate">{item.title}</span>
-                <span className="absolute -top-1 right-1 text-[7px] font-extrabold bg-amber-100 text-amber-900 px-1 rounded-full">
-                  Bientôt
-                </span>
-              </button>
-            );
-          }
-
-          return (
-            <NavLink
-              key={item.url}
-              to={item.url}
-              end={item.url === "/"}
-              className={({ isActive }) =>
-                `flex flex-col items-center gap-0.5 px-3 py-1.5 text-[10px] transition-colors ${
-                  isActive ? "text-primary font-semibold" : "text-muted-foreground"
-                }`
-              }
-            >
-              <item.icon className="h-5 w-5" />
-              <span>{item.title}</span>
-            </NavLink>
-          );
-        })}
+        {mainNav.map((item) => (
+          <NavLink
+            key={item.url}
+            to={item.url}
+            className={({ isActive }) =>
+              `flex flex-col items-center gap-0.5 px-3 py-1.5 text-[10px] transition-colors ${
+                isActive ? "text-primary font-semibold" : "text-muted-foreground"
+              }`
+            }
+          >
+            <item.icon className="h-5 w-5" />
+            <span>{item.title}</span>
+          </NavLink>
+        ))}
 
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
@@ -118,66 +72,24 @@ export function MobileBottomNav() {
               <span>Plus</span>
             </button>
           </SheetTrigger>
-          <SheetContent side="bottom" className="max-h-[75vh] rounded-t-2xl pb-8 overflow-y-auto">
+          <SheetContent side="bottom" className="max-h-[75vh] rounded-t-2xl pb-8 overflow-y-auto" aria-describedby={undefined}>
+            <SheetTitle className="sr-only">Menu</SheetTitle>
+            {/* Mêmes rubriques, dans le même ordre, que le menu de bureau. */}
             <div className="space-y-4 pt-4">
-              <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2 px-1">
-                  Fonctionnalités Disponibles
-                </span>
-                <div className="grid grid-cols-3 gap-3">
-                  {activeItems.map((item) => (
-                    <NavLink
-                      key={item.url}
-                      to={item.url}
-                      end={item.url === "/"}
-                      onClick={() => setOpen(false)}
-                      className={({ isActive }) =>
-                        `flex flex-col items-center gap-1.5 rounded-xl p-3 text-xs transition-colors ${
-                          isActive
-                            ? "bg-primary/10 text-primary font-semibold"
-                            : "text-muted-foreground hover:bg-muted"
-                        }`
-                      }
-                    >
-                      <span className="relative">
-                        <item.icon className="h-5 w-5" />
-                        {item.url === "/community" && communityUnread > 0 && (
-                          <span className="absolute -right-2 -top-1.5 min-w-[16px] rounded-full bg-primary px-1 text-center text-[9px] font-bold leading-4 text-primary-foreground">
-                            {communityUnread > 99 ? "99+" : communityUnread}
-                          </span>
-                        )}
-                      </span>
-                      <span className="text-center leading-tight">{item.title}</span>
-                    </NavLink>
-                  ))}
-                  <button
-                    onClick={() => {
-                      setOpen(false);
-                      handleSignOut();
-                    }}
-                    className="flex flex-col items-center gap-1.5 rounded-xl p-3 text-xs transition-colors text-muted-foreground hover:bg-muted"
-                  >
-                    <LogOut className="h-5 w-5 text-rose-500" />
-                    <span className="text-center leading-tight">Déconnexion</span>
-                  </button>
-                </div>
-              </div>
+              <MenuGrid items={mainItems} onSelect={() => setOpen(false)} />
 
-              <div className="border-t border-slate-100 pt-3">
-                <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider block mb-2 px-1">
-                  Bientôt Disponible
-                </span>
-                <div className="grid grid-cols-3 gap-3">
+              <MenuSection title="Bientôt disponible" tone="text-amber-700">
+                <div className="grid grid-cols-3 gap-2">
                   {comingSoonItems.map((item) => (
                     <button
-                      key={item.title}
+                      key={item.url}
                       onClick={() => {
                         toast({
                           title: "Bientôt disponible 🚀",
-                          description: `L'option ${item.title.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim()} sera bientôt accessible.`,
+                          description: `L'option ${item.title} sera disponible très prochainement.`,
                         });
                       }}
-                      className="flex flex-col items-center gap-1.5 rounded-xl p-3 text-xs transition-colors text-slate-400 bg-slate-50/60 opacity-60 cursor-not-allowed relative border border-slate-200/60"
+                      className="flex min-w-0 flex-col items-center gap-1.5 rounded-xl px-1 py-3 text-[11px] transition-colors text-slate-400 bg-slate-50/60 opacity-60 cursor-not-allowed relative border border-slate-200/60"
                     >
                       <item.icon className="h-5 w-5 opacity-50" />
                       <span className="text-center leading-tight line-clamp-1">{item.title}</span>
@@ -187,11 +99,78 @@ export function MobileBottomNav() {
                     </button>
                   ))}
                 </div>
+              </MenuSection>
+
+              {founderItems.length > 0 && (
+                <MenuSection title={founderLabel}>
+                  <MenuGrid items={founderItems} onSelect={() => setOpen(false)} />
+                </MenuSection>
+              )}
+
+              <div className="border-t border-slate-100 pt-3">
+                <MenuGrid items={accountItems} onSelect={() => setOpen(false)}>
+                  <button
+                    onClick={() => {
+                      setOpen(false);
+                      handleSignOut();
+                    }}
+                    className="flex min-w-0 flex-col items-center gap-1.5 rounded-xl px-1 py-3 text-[11px] transition-colors text-muted-foreground hover:bg-muted"
+                  >
+                    <LogOut className="h-5 w-5 text-rose-500" />
+                    <span className="text-center leading-tight">Déconnexion</span>
+                  </button>
+                </MenuGrid>
+                <div className="mt-2 flex justify-center">
+                  <LanguageSelector showLabel />
+                </div>
               </div>
             </div>
           </SheetContent>
         </Sheet>
       </div>
     </nav>
+  );
+}
+
+function MenuSection({ title, tone = "text-slate-400", children }: { title: string; tone?: string; children: React.ReactNode }) {
+  return (
+    <div className="border-t border-slate-100 pt-3">
+      <span className={`text-[11px] font-bold uppercase tracking-wider block mb-2 px-1 ${tone}`}>{title}</span>
+      {children}
+    </div>
+  );
+}
+
+function MenuGrid({ items, onSelect, children }: { items: NavigationItem[]; onSelect: () => void; children?: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {items.map((item) => (
+        <NavLink
+          key={item.url}
+          to={item.url}
+          end={isExactMatch(item.url)}
+          onClick={onSelect}
+          className={({ isActive }) =>
+            `flex min-w-0 flex-col items-center gap-1.5 rounded-xl px-1 py-3 text-[11px] transition-colors ${
+              isActive ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground hover:bg-muted"
+            }`
+          }
+        >
+          <span className="relative">
+            <item.icon className="h-5 w-5" />
+            {!!item.badge && (
+              <span
+                className="absolute -right-2 -top-1.5 min-w-[16px] rounded-full bg-primary px-1 text-center text-[9px] font-bold leading-4 text-primary-foreground"
+                aria-label={`${item.badge} non lu${item.badge > 1 ? "s" : ""}`}
+              >
+                {item.badge > 99 ? "99+" : item.badge}
+              </span>
+            )}
+          </span>
+          <span className="text-center leading-tight">{item.title}</span>
+        </NavLink>
+      ))}
+      {children}
+    </div>
   );
 }

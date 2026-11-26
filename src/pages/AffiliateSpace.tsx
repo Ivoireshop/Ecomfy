@@ -12,7 +12,6 @@ import {
 } from "@/services/affiliateService";
 import { Header } from "@/components/Header";
 import { AppSidebar } from "@/components/AppSidebar";
-import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -645,7 +644,6 @@ export default function AffiliateSpace() {
             </TabsContent>
           </Tabs>
         </main>
-        <MobileBottomNav />
     </div>
   );
 }

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
@@ -283,7 +282,6 @@ export default function EcomfyPay() {
         formatPrice={formatPrice}
       />
 
-      <MobileBottomNav />
     </div>
   );
 }

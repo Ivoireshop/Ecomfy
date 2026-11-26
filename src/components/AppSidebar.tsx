@@ -1,13 +1,7 @@
-import { 
-  Home, Image, Video, Store, BarChart2, Settings, LogOut, Code2, Bug, Book, Tag, Users, CreditCard, FolderHeart, Truck, GraduationCap, Globe, Search, Boxes, ShieldCheck, Activity, ClipboardCheck, Wallet, Banknote, Lock
-} from "lucide-react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { LogOut } from "lucide-react";
+import { NavLink } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { deliveryService } from "@/lib/deliveryService";
-import { useAuthReady } from "@/hooks/useAuthReady";
-import { useCommunityUnread } from "@/hooks/useCommunityUnread";
-import { useTranslation } from "react-i18next";
+import { isExactMatch, useNavigationMenu } from "@/hooks/useNavigationMenu";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { useToast } from "@/hooks/use-toast";
 
@@ -101,7 +95,7 @@ const NavItem = ({ item, isCollapsed }: NavItemProps) => {
             ) : (
               <NavLink
                 to={item.url}
-                end={item.url === "/" || item.url === "/delivery-admin"}
+                end={isExactMatch(item.url)}
                 className={({ isActive }) => {
                   const isCurrent = isActive;
                   return `flex items-center gap-2.5 rounded-r-[9px] px-2.5 py-2 transition-all duration-200 font-inter text-[13.5px] font-medium border-l-4 ${
@@ -161,14 +155,8 @@ const NavSection = ({ label, items, isCollapsed }: NavSectionProps) => (
 export function AppSidebar() {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
-  const [isFounder, setIsFounder] = useState(false);
-  const [isFieldAgent, setIsFieldAgent] = useState(false);
-  const { user, isReady } = useAuthReady();
-  const { t } = useTranslation();
-  const navigate = useNavigate();
-  const { pathname } = useLocation();
   const { toast } = useToast();
-  const communityUnread = useCommunityUnread();
+  const { mainItems, comingSoonItems, founderItems, founderLabel, accountItems } = useNavigationMenu();
 
   const handleSignOut = async () => {
     try {
@@ -183,87 +171,9 @@ export function AppSidebar() {
     }
   };
 
-  // 1. Available active options first
-  const activeMainItems = [
-    { title: "Accueil", url: "/dashboard", icon: Home },
-    { title: "Boutique", url: "/shop-manager", icon: Store },
-    { title: "Affiliation 🤝", url: "/affiliate", icon: Users },
-    { title: "SEO Intelligence 🔍", url: "/seo", icon: Search },
-    { title: "Académie", url: "/academy", icon: GraduationCap },
-    { title: "Communauté", url: "/community", icon: Users, badge: communityUnread },
-    { title: "Tarifs", url: "/pricing", icon: CreditCard },
-    { title: "Bibliothèque", url: "/library", icon: FolderHeart },
-    { title: "Ecomfy Pay 💳", url: "/ecomfy-pay", icon: CreditCard },
-    { title: "Ecomfy Livraison 🚚", url: "/delivery/register", icon: Truck },
-    { title: "Répertoire livreurs", url: "/delivery/directory", icon: Search },
-    ...(isFieldAgent ? [{ title: "Missions terrain", url: "/delivery-agent", icon: ClipboardCheck }] : []),
-    { title: "ConnectUs 🌐", url: "/connectus", icon: Globe },
-  ];
-
-  // 2. Grouped "Bientôt disponible" options placed below Bibliothèque
-  const comingSoonItems = [
-    { title: "Studio IA", url: "/studio", icon: Image, comingSoon: true },
-  ];
-
   const bottomItems = [
-    { title: "Documentation 📚", url: "/documentation", icon: Book },
-    { title: "Paramètres", url: "/profile", icon: Settings },
+    ...accountItems,
     { title: "Déconnexion", url: "#", icon: LogOut, onClick: handleSignOut },
-  ];
-
-  useEffect(() => {
-    // Seul le rôle en base donne accès au menu fondateur ; une erreur de lecture le masque.
-    let cancelled = false;
-    const checkFounderStatus = async () => {
-      if (!user?.id) {
-        setIsFounder(false);
-        return;
-      }
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        // @ts-ignore
-        .in("role", ["founder", "co_founder", "shareholder", "admin"]);
-
-      if (!cancelled) setIsFounder(!error && !!data?.length);
-    };
-
-    if (isReady) checkFounderStatus();
-    return () => {
-      cancelled = true;
-    };
-  }, [isReady, user?.id]);
-
-  useEffect(() => {
-    let cancelled = false;
-    // Relu à chaque changement de page : une désignation (ou une désactivation) faite
-    // par l'administration apparaît dans le menu sans rechargement ni reconnexion.
-    if (isReady && user?.id) {
-      void deliveryService.isFieldAgent().then((ok) => {
-        if (!cancelled) setIsFieldAgent(ok);
-      });
-    } else {
-      setIsFieldAgent(false);
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [isReady, user?.id, pathname]);
-
-  const founderItems = [
-    { title: t("sidebar.items.dashboard"), url: "/founder-dashboard", icon: BarChart2 },
-    { title: "Fondation Livraison 🛡️", url: "/delivery-admin", icon: Truck },
-    { title: "Opérations Livraison", url: "/delivery-admin/operations", icon: Activity },
-    { title: "Visites terrain", url: "/delivery-admin/visits", icon: ClipboardCheck },
-    { title: "Cotisations livraison", url: "/delivery-admin/fees", icon: Wallet },
-    { title: "Finances livraison", url: "/delivery-admin/finance", icon: Banknote },
-    { title: "Revue KYC", url: "/founder/kyc-review", icon: ShieldCheck },
-    { title: "Paiements boutiques", url: "/founder/shop-payment-control", icon: Lock },
-    { title: "Abonnements & commissions", url: "/founder/subscription-plans", icon: CreditCard },
-    { title: t("sidebar.items.troubleshooting"), url: "/founder-troubleshooting", icon: Bug },
-    { title: "Console API", url: "/api-documentation", icon: Code2 },
-    { title: t("sidebar.items.promoCodes"), url: "/promo-codes", icon: Tag },
   ];
 
   return (
@@ -291,13 +201,13 @@ export function AppSidebar() {
           {/* Navigation groups */}
           <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pt-1">
             {/* Options Actives Disponibles */}
-            <NavSection items={activeMainItems} isCollapsed={isCollapsed} />
+            <NavSection items={mainItems} isCollapsed={isCollapsed} />
             
             {/* Options Bientôt Disponibles Regroupées après Bibliothèque */}
-            <NavSection label="Bientôt disponible" items={comingSoonItems} isCollapsed={isCollapsed} />
+            <NavSection label="Bientôt disponible" items={comingSoonItems.map((item) => ({ ...item, comingSoon: true }))} isCollapsed={isCollapsed} />
 
-            {isFounder && (
-              <NavSection label={t("sidebar.sections.admin")} items={founderItems} isCollapsed={isCollapsed} />
+            {founderItems.length > 0 && (
+              <NavSection label={founderLabel} items={founderItems} isCollapsed={isCollapsed} />
             )}
           </div>
 
