@@ -3,21 +3,12 @@ import { Button } from "@/components/ui/button";
 import { ShoppingCart, Package, Bell, TrendingUp, ArrowUpRight, DollarSign, ExternalLink } from "lucide-react";
 import { useMemo } from "react";
 import { ShopResources } from "./ShopResources";
-import { format, subDays } from "date-fns";
+import { lastSevenDays, salesPeriods, type ShopOrderSummary } from "@/lib/shopOrderSummary";
+import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer
 } from "recharts";
-
-interface Order {
-  id: string;
-  order_number: string;
-  customer_name: string;
-  total: number;
-  order_status: string;
-  is_read: boolean;
-  created_at: string;
-}
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   new: { label: "Nouveau", color: "bg-blue-50 text-blue-600 border border-blue-200" },
@@ -30,14 +21,9 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
   returned: { label: "Retourné", color: "bg-orange-50 text-orange-600 border border-orange-200" },
 };
 
-// Annulées et retournées ne comptent ni dans les ventes ni dans le chiffre d'affaires.
-const isSale = (o: { order_status: string }) => o.order_status !== "cancelled" && o.order_status !== "returned";
-
 interface ShopOverviewProps {
-  orders: Order[];
+  summary: ShopOrderSummary;
   productCount: number;
-  totalRevenue: number;
-  unreadOrders: number;
   onViewAllOrders: () => void;
   isRestricted?: boolean;
 }
@@ -64,56 +50,15 @@ const PeriodCard = ({ label, count, total, accentClass, bgIconClass, Icon }: { l
   </Card>
 );
 
-export function ShopOverview({ orders, productCount, totalRevenue, unreadOrders, onViewAllOrders, isRestricted = false }: ShopOverviewProps) {
+export function ShopOverview({ summary, productCount, onViewAllOrders, isRestricted = false }: ShopOverviewProps) {
+  const { days, recent, revenueTotal, unreadCount } = summary;
 
-  const periods = useMemo(() => {
-    const now = new Date();
-    const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
-    const today = startOfDay(now);
-    const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
-    const endYesterday = new Date(today);
-    const dow = (today.getDay() + 6) % 7; // Monday=0
-    const startWeek = new Date(today); startWeek.setDate(startWeek.getDate() - dow);
-    const startMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const periods = useMemo(() => salesPeriods(days), [days]);
 
-    const sum = (from: Date, to?: Date) => {
-      const list = orders.filter(o => {
-        if (!isSale(o)) return false;
-        const t = new Date(o.created_at).getTime();
-        return t >= from.getTime() && (!to || t < to.getTime());
-      });
-      return { count: list.length, total: list.reduce((s, o) => s + Number(o.total || 0), 0) };
-    };
-
-    return {
-      today: sum(today),
-      yesterday: sum(yesterday, endYesterday),
-      week: sum(startWeek),
-      month: sum(startMonth),
-    };
-  }, [orders]);
-
-  // Generate chart data for the last 7 days
-  const chartData = useMemo(() => {
-    const data = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = subDays(new Date(), i);
-      const start = new Date(date); start.setHours(0,0,0,0);
-      const end = new Date(date); end.setHours(23,59,59,999);
-      
-      const dayOrders = orders.filter(o => {
-        if (!isSale(o)) return false;
-        const t = new Date(o.created_at).getTime();
-        return t >= start.getTime() && t <= end.getTime();
-      });
-      
-      data.push({
-        name: format(date, "dd MMM", { locale: fr }),
-        total: dayOrders.reduce((s, o) => s + Number(o.total || 0), 0)
-      });
-    }
-    return data;
-  }, [orders]);
+  const chartData = useMemo(
+    () => lastSevenDays(days).map((d) => ({ name: format(d.date, "dd MMM", { locale: fr }), total: d.total })),
+    [days],
+  );
 
   const weekTotal = useMemo(() => chartData.reduce((s, d) => s + d.total, 0), [chartData]);
 
@@ -144,7 +89,7 @@ export function ShopOverview({ orders, productCount, totalRevenue, unreadOrders,
             </div>
             <div>
               <p className="text-[10px] text-slate-500 uppercase font-semibold">Nouvelles</p>
-              <p className="font-bold text-slate-900 leading-none">{unreadOrders}</p>
+              <p className="font-bold text-slate-900 leading-none">{unreadCount}</p>
             </div>
           </div>
         </div>
@@ -171,7 +116,7 @@ export function ShopOverview({ orders, productCount, totalRevenue, unreadOrders,
               <div className="text-right">
                 <p className="text-xs text-slate-500 uppercase font-semibold">Total sur 7 jours</p>
                 <p className="text-xl font-bold text-[#0E7C66]">{fmt(weekTotal)} FCFA</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">Cumul depuis le début : {fmt(totalRevenue)} FCFA</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Cumul depuis le début : {fmt(revenueTotal)} FCFA</p>
               </div>
             </div>
             
@@ -228,7 +173,7 @@ export function ShopOverview({ orders, productCount, totalRevenue, unreadOrders,
               </Button>
             </div>
             
-            {orders.length === 0 ? (
+            {recent.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">
                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mb-3 shadow-sm">
                   <ShoppingCart className="w-5 h-5 text-slate-300" />
@@ -238,7 +183,7 @@ export function ShopOverview({ orders, productCount, totalRevenue, unreadOrders,
               </div>
             ) : (
               <div className="space-y-3 flex-1 overflow-y-auto pr-1">
-                {orders.slice(0, 4).map(order => (
+                {recent.map(order => (
                   <div key={order.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50/50 transition-colors group cursor-default">
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${!order.is_read ? 'bg-[#0E7C66]/10 text-[#0E7C66]' : 'bg-slate-100 text-slate-400'}`}>

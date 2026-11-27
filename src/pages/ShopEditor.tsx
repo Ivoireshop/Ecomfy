@@ -65,6 +65,7 @@ import {
   fetchShopCatalog, fetchShopProductNames, sortProductImages,
   type ProductImageRow, type ShopProduct as Product, type ShopProductName,
 } from "@/lib/shopProducts";
+import { useShopOrderSummary } from "@/hooks/useShopOrderSummary";
 
 interface Order {
   id: string;
@@ -82,8 +83,6 @@ interface Order {
   created_at: string;
   order_items?: { id: string; product_name: string; quantity: number; unit_price: number; total_price: number; product_image_url: string | null; product_id: string }[];
 }
-
-const EXCLUDED_FROM_REVENUE = new Set(["cancelled", "returned"]);
 
 // Colonnes lues dans shop_visits pour la page Statistiques (lecture complète et lecture des nouvelles visites).
 const VISIT_COLUMNS = "visited_at, product_id, session_id, visitor_country, referrer, device_type";
@@ -185,8 +184,10 @@ const ShopEditor = () => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [collabRoles, setCollabRoles] = useState<string[] | null>(null);
   const lastPassiveRefreshRef = useRef(0);
-  // Dérivé de la liste : reste exact quand une commande est lue depuis un autre appareil ou onglet.
-  const unreadOrders = useMemo(() => orders.filter(o => !o.is_read).length, [orders]);
+  // Compteurs et chiffre d'affaires calculés par la base ; relus après chaque changement de commande.
+  const { summary: orderSummary, failed: orderSummaryFailed, refresh: refreshOrderSummary } = useShopOrderSummary(id);
+  const unreadOrders = orderSummary?.unreadCount ?? 0;
+  const summaryShopRef = useRef<string>();
 
   // Avis en attente de modération : pastille dans le menu (le marchand n'était jamais prévenu d'un nouvel avis).
   const [pendingReviews, setPendingReviews] = useState(0);
@@ -242,6 +243,9 @@ const ShopEditor = () => {
   // (jusqu'à 5 pages de commandes avec articles, livraisons par lots de 100).
   const fetchDataNow = useCallback(async (passive = false) => {
     if (!id) return;
+    // La première lecture des indicateurs est faite par leur propre hook.
+    if (summaryShopRef.current === id) refreshOrderSummary();
+    summaryShopRef.current = id;
     // Les visites ne sont plus lues ici : elles ne servent qu'à la page Statistiques et se chargent à l'ouverture de
     // cette page (voir plus bas). Jusqu'à 5 pages de 1 000 lignes relues à chaque rechargement figuraient en tête des
     // requêtes les plus coûteuses de la base le 12/11/2026.
@@ -367,7 +371,7 @@ const ShopEditor = () => {
       setOrders(finalOrders);
     }
     setLoading(false);
-  }, [id, productsChanged]);
+  }, [id, productsChanged, refreshOrderSummary]);
 
   // Un seul rechargement à la fois. `fetchData` est appelé de partout (retour d'onglet, alertes de livraison, fermeture
   // d'un éditeur, après chaque action) : sans ce regroupement, plusieurs rechargements complets tournaient en parallèle.
@@ -501,6 +505,7 @@ const ShopEditor = () => {
     const channel = supabase.channel(`shop-orders-${id}_${Math.random().toString(36).substring(2, 8)}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders", filter: `shop_id=eq.${id}` }, (payload) => {
         const newOrder = payload.new as Order;
+        refreshOrderSummary();
         let isDuplicate = false;
         setOrders(prev => {
           isDuplicate = prev.some(o => o.id === newOrder.id);
@@ -513,10 +518,13 @@ const ShopEditor = () => {
         (async () => {
           const { data } = await supabase.from("orders").select("*, order_items(*)").eq("id", newOrder.id).maybeSingle();
           if (data) setOrders(prev => prev.map(o => o.id === newOrder.id ? { ...o, ...(data as any) } : o));
+          // Le total vient d'être calculé : les indicateurs sont relus une seconde fois.
+          refreshOrderSummary();
         })();
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders", filter: `shop_id=eq.${id}` }, (payload) => {
         const updatedOrder = payload.new as Order;
+        refreshOrderSummary();
         setOrders(prev => prev.map(o => o.id === updatedOrder.id ? { ...o, ...updatedOrder } : o));
       })
       .subscribe();
@@ -539,7 +547,7 @@ const ShopEditor = () => {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); supabase.removeChannel(shopChannel); };
-  }, [id]);
+  }, [id, refreshOrderSummary]);
 
   // Refresh orders when the tab becomes visible or window regains focus
   const showProductEditorRef = useRef(showProductEditor);
@@ -1347,7 +1355,9 @@ const ShopEditor = () => {
     if (error) {
       console.error("Failed to mark order as read", error);
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, is_read: false } : o));
+      return;
     }
+    refreshOrderSummary();
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -1355,8 +1365,6 @@ const ShopEditor = () => {
 
   const primaryColor = shop.primary_color || "#2563eb";
   const catalogProducts = catalog?.shopId === shop.id ? catalog.products : null;
-  // Les commandes annulées ou retournées ne sont pas du chiffre d'affaires.
-  const totalRevenue = orders.reduce((sum, o) => sum + (EXCLUDED_FROM_REVENUE.has(o.order_status) ? 0 : o.total), 0);
 
   const openPreview = () => window.open(shop?.is_activated && shop?.is_published ? `/shop/${shop.slug}` : `/shop-preview/${shop.id}`, "_blank");
 
@@ -1598,7 +1606,14 @@ const ShopEditor = () => {
         <div className="px-4 md:px-8 py-6 md:py-8">
           <Suspense fallback={<SectionFallback />}>
           {activeSection === "overview" && (
-            <ShopOverview orders={orders} productCount={productCount} totalRevenue={totalRevenue} unreadOrders={unreadOrders} onViewAllOrders={() => setActiveSection("orders")} isRestricted={isRestricted} />
+            orderSummary ? (
+              <ShopOverview summary={orderSummary} productCount={productCount} onViewAllOrders={() => setActiveSection("orders")} isRestricted={isRestricted} />
+            ) : orderSummaryFailed ? (
+              <Card className="p-8 text-center space-y-3">
+                <p className="text-sm text-muted-foreground">Les indicateurs n'ont pas pu être chargés.</p>
+                <Button variant="outline" size="sm" onClick={refreshOrderSummary}>Réessayer</Button>
+              </Card>
+            ) : <SectionFallback />
           )}
 
           {activeSection === "statistics" && (
@@ -1663,7 +1678,7 @@ const ShopEditor = () => {
             const info = computeShopPaymentInfo(shop);
             const ownerLocked = !!shop?.is_suspended || info.isLocked || info.isFinal;
             return ownerLocked
-              ? <LockedOrdersScreen shopId={shop.id} paymentDeadline={shop.payment_deadline} ordersCount={orders?.length || 0} isFinal={info.isFinal} />
+              ? <LockedOrdersScreen shopId={shop.id} paymentDeadline={shop.payment_deadline} ordersCount={orderSummary?.totalCount ?? 0} isFinal={info.isFinal} />
               : <OrdersList shopId={shop.id} orders={orders} onUpdateStatus={updateOrderStatus} onMarkRead={markOrderRead} onOrderUpdated={fetchData} isRestricted={isRestricted} />;
           })()}
 
@@ -1823,7 +1838,7 @@ const ShopEditor = () => {
           )}
 
           {activeSection === "billing" && (
-            <BillingHistory shopId={shop.id} shop={shop} orderCount={orders.length} />
+            <BillingHistory shopId={shop.id} shop={shop} orderCount={orderSummary?.totalCount ?? 0} />
           )}
 
           {activeSection === "reviews" && (
