@@ -6,6 +6,11 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Copy, Gift, Users, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ListPagination } from "@/components/ListPagination";
+import { usePagedList } from "@/hooks/usePagedList";
+import { readAll, readPage } from "@/lib/pagination";
+
+const REFERRALS_PAGE_SIZE = 20;
 
 interface Referral {
   id: string;
@@ -19,10 +24,23 @@ interface Referral {
 
 const Referral = () => {
   const [referralCode, setReferralCode] = useState<string>("");
-  const [referrals, setReferrals] = useState<Referral[]>([]);
+  const [userId, setUserId] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [totalBonus, setTotalBonus] = useState(0);
+  // null tant que le total n'est pas lu : jamais un zéro trompeur.
+  const [totalBonus, setTotalBonus] = useState<number | null>(null);
   const { toast } = useToast();
+
+  const referrals = usePagedList<Referral>({
+    enabled: !!userId,
+    filterKey: userId,
+    pageSize: REFERRALS_PAGE_SIZE,
+    fetchPage: ({ page, pageSize }) =>
+      readPage<Referral>(page, pageSize, (from, to) =>
+        supabase.from("referrals").select("*", { count: "exact" })
+          .eq("referrer_id", userId).eq("status", "completed")
+          .order("created_at", { ascending: false }).order("id", { ascending: false })
+          .range(from, to)),
+  });
 
   useEffect(() => {
     loadReferralData();
@@ -32,27 +50,25 @@ const Referral = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      setUserId(user.id);
 
-      // Load user's referral code and referrals
-      const { data: referralData, error } = await supabase
+      // La ligne la plus récente porte le code de parrainage de l'utilisateur.
+      const { data: latest, error } = await supabase
         .from("referrals")
-        .select("*")
+        .select("referral_code")
         .eq("referrer_id", user.id)
-        .order("created_at", { ascending: false });
-
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
       if (error) throw error;
+      if (latest) setReferralCode(latest.referral_code);
 
-      if (referralData && referralData.length > 0) {
-        // First entry should be the user's own code
-        setReferralCode(referralData[0].referral_code);
-        setReferrals(referralData.filter(r => r.status === 'completed'));
-        
-        // Calculate total bonus
-        const total = referralData
-          .filter(r => r.status === 'completed')
-          .reduce((sum, r) => sum + r.bonus_generations, 0);
-        setTotalBonus(total);
-      }
+      // Le total des bonus porte sur tous les parrainages réussis, pas sur la page affichée.
+      const completed = await readAll<{ bonus_generations: number }>((from, to) =>
+        supabase.from("referrals").select("id, bonus_generations")
+          .eq("referrer_id", user.id).eq("status", "completed")
+          .order("id").range(from, to));
+      setTotalBonus(completed.reduce((sum, r) => sum + r.bonus_generations, 0));
     } catch (error) {
       console.error("Error loading referral data:", error);
       toast({
@@ -121,7 +137,7 @@ const Referral = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{referrals.length}</div>
+              <div className="text-2xl font-bold">{referrals.loading || referrals.error ? "—" : referrals.total}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 Utilisateurs parrainés
               </p>
@@ -136,7 +152,7 @@ const Referral = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalBonus}</div>
+              <div className="text-2xl font-bold">{totalBonus ?? "—"}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 Générations gratuites
               </p>
@@ -209,7 +225,14 @@ const Referral = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {referrals.length === 0 ? (
+            {referrals.loading ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Chargement…</p>
+            ) : referrals.error ? (
+              <div className="py-8 text-center space-y-3">
+                <p className="text-sm text-destructive">Impossible de charger vos filleuls.</p>
+                <Button size="sm" variant="outline" onClick={referrals.reload}>Réessayer</Button>
+              </div>
+            ) : referrals.rows.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>Aucun filleul pour le moment</p>
@@ -217,7 +240,7 @@ const Referral = () => {
               </div>
             ) : (
               <div className="space-y-3">
-                {referrals.map((referral) => (
+                {referrals.rows.map((referral) => (
                   <div
                     key={referral.id}
                     className="flex items-center justify-between p-3 bg-muted rounded-lg"
@@ -240,6 +263,7 @@ const Referral = () => {
                 ))}
               </div>
             )}
+            <ListPagination page={referrals.page} pageSize={referrals.pageSize} total={referrals.total} onPageChange={referrals.setPage} disabled={referrals.loading} />
           </CardContent>
         </Card>
       </div>

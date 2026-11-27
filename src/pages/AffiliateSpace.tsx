@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { PaymentMethodLogo } from "@/components/ecomfy-pay/PaymentMethodLogo";
 import { useAuthReady } from "@/hooks/useAuthReady";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,8 +8,11 @@ import {
   AffiliatePayoutMethod,
   AffiliateCommission,
   AffiliatePayout,
+  AffiliateReferral,
   AffiliateStats,
 } from "@/services/affiliateService";
+import { ListPagination } from "@/components/ListPagination";
+import { usePagedList } from "@/hooks/usePagedList";
 import { Header } from "@/components/Header";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Button } from "@/components/ui/button";
@@ -36,6 +39,8 @@ import {
   ArrowRight,
 } from "lucide-react";
 
+const AFFILIATE_PAGE_SIZE = 20;
+
 export default function AffiliateSpace() {
   const { user, isReady } = useAuthReady();
   const { toast } = useToast();
@@ -45,9 +50,21 @@ export default function AffiliateSpace() {
   const [profile, setProfile] = useState<AffiliateProfile | null>(null);
   const [stats, setStats] = useState<AffiliateStats | null>(null);
   const [payoutMethod, setPayoutMethod] = useState<AffiliatePayoutMethod | null>(null);
-  const [commissions, setCommissions] = useState<AffiliateCommission[]>([]);
-  const [payouts, setPayouts] = useState<AffiliatePayout[]>([]);
-  const [referrals, setReferrals] = useState<any[]>([]);
+
+  const affiliateId = profile?.id;
+  const listOptions = { enabled: !!affiliateId, filterKey: affiliateId ?? "", pageSize: AFFILIATE_PAGE_SIZE };
+  const referrals = usePagedList<AffiliateReferral>({
+    ...listOptions,
+    fetchPage: ({ page, pageSize }) => affiliateService.getReferralsPage(affiliateId as string, page, pageSize),
+  });
+  const commissions = usePagedList<AffiliateCommission>({
+    ...listOptions,
+    fetchPage: ({ page, pageSize }) => affiliateService.getCommissionsPage(affiliateId as string, page, pageSize),
+  });
+  const payouts = usePagedList<AffiliatePayout>({
+    ...listOptions,
+    fetchPage: ({ page, pageSize }) => affiliateService.getPayoutsPage(affiliateId as string, page, pageSize),
+  });
 
   // Payout method form state
   const [provider, setProvider] = useState<
@@ -78,20 +95,19 @@ export default function AffiliateSpace() {
           variant: "destructive",
         });
       } else {
-        // 2. Fetch stats, payout method, commissions, payouts, referrals
-        const [statsData, methodData, commsData, payoutsData, refsData] = await Promise.all([
-          affiliateService.getStats(affProfile.id),
+        // 2. Totaux et moyen de paiement ; les listes sont lues page par page.
+        const [statsData, methodData] = await Promise.all([
+          // Des totaux illisibles s'affichent « — » sans empêcher de gérer le moyen de paiement.
+          affiliateService.getStats(affProfile.id).catch((err) => {
+            console.error("Error loading affiliate totals:", err);
+            toast({ title: "Totaux indisponibles", description: "Vos totaux n'ont pas pu être lus. Réessayez dans un instant.", variant: "destructive" });
+            return null;
+          }),
           affiliateService.getPayoutMethod(affProfile.id),
-          affiliateService.getCommissions(affProfile.id),
-          affiliateService.getPayouts(affProfile.id),
-          affiliateService.getReferrals(affProfile.id),
         ]);
 
         setStats(statsData);
         setPayoutMethod(methodData);
-        setCommissions(commsData);
-        setPayouts(payoutsData);
-        setReferrals(refsData);
 
         if (methodData) {
           setProvider(methodData.provider);
@@ -276,7 +292,7 @@ export default function AffiliateSpace() {
                   <TrendingUp className="w-4 h-4 text-emerald-600" />
                 </div>
                 <div className="text-lg md:text-2xl font-bold text-slate-900">
-                  {formatCurrency(stats?.totalEarned || 0)}
+                  {stats ? formatCurrency(stats.totalEarned) : "—"}
                 </div>
                 <p className="text-[11px] text-slate-400">Cumul historique validé</p>
               </CardContent>
@@ -289,7 +305,7 @@ export default function AffiliateSpace() {
                   <Clock className="w-4 h-4 text-amber-500" />
                 </div>
                 <div className="text-lg md:text-2xl font-bold text-slate-900">
-                  {formatCurrency(stats?.pendingAmount || 0)}
+                  {stats ? formatCurrency(stats.pendingAmount) : "—"}
                 </div>
                 <p className="text-[11px] text-slate-400">En cours de vérification</p>
               </CardContent>
@@ -302,7 +318,7 @@ export default function AffiliateSpace() {
                   <Wallet className="w-4 h-4 text-blue-600" />
                 </div>
                 <div className="text-lg md:text-2xl font-bold text-emerald-600">
-                  {formatCurrency(stats?.payableAmount || 0)}
+                  {stats ? formatCurrency(stats.payableAmount) : "—"}
                 </div>
                 <div className="flex items-center gap-1 text-[11px] text-slate-500">
                   {stats?.isEligibleForPayout ? (
@@ -325,7 +341,7 @@ export default function AffiliateSpace() {
                   <CheckCircle className="w-4 h-4 text-emerald-600" />
                 </div>
                 <div className="text-lg md:text-2xl font-bold text-slate-900">
-                  {formatCurrency(stats?.paidAmount || 0)}
+                  {stats ? formatCurrency(stats.paidAmount) : "—"}
                 </div>
                 <p className="text-[11px] text-slate-400">Versé par Ecomfy</p>
               </CardContent>
@@ -339,13 +355,13 @@ export default function AffiliateSpace() {
                 Mon Affiliation & Paiement
               </TabsTrigger>
               <TabsTrigger value="referrals" className="text-xs sm:text-sm font-medium">
-                Mes Filleuls ({stats?.referredCount || 0})
+                Mes Filleuls ({stats?.referredCount ?? "—"})
               </TabsTrigger>
               <TabsTrigger value="commissions" className="text-xs sm:text-sm font-medium">
-                Commissions ({commissions.length})
+                Commissions ({stats?.commissionsCount ?? "—"})
               </TabsTrigger>
               <TabsTrigger value="history" className="text-xs sm:text-sm font-medium">
-                Historique Paiements ({payouts.length})
+                Historique Paiements ({stats?.payoutsCount ?? "—"})
               </TabsTrigger>
             </TabsList>
 
@@ -499,7 +515,8 @@ export default function AffiliateSpace() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {referrals.length === 0 ? (
+                  <PagedSection list={referrals}>
+                  {referrals.rows.length === 0 ? (
                     <div className="text-center py-10 text-slate-400 space-y-3">
                       <Users className="w-12 h-12 mx-auto text-slate-300" />
                       <p className="text-sm">Vous n'avez pas encore de filleuls inscrits.</p>
@@ -519,7 +536,7 @@ export default function AffiliateSpace() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {referrals.map((ref) => (
+                          {referrals.rows.map((ref) => (
                             <tr key={ref.id} className="hover:bg-slate-50/50">
                               <td className="p-3 font-medium text-slate-900">
                                 {ref.referred_user_id.substring(0, 8)}...
@@ -535,6 +552,7 @@ export default function AffiliateSpace() {
                       </table>
                     </div>
                   )}
+                  </PagedSection>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -549,7 +567,8 @@ export default function AffiliateSpace() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {commissions.length === 0 ? (
+                  <PagedSection list={commissions}>
+                  {commissions.rows.length === 0 ? (
                     <div className="text-center py-10 text-slate-400 space-y-3">
                       <TrendingUp className="w-12 h-12 mx-auto text-slate-300" />
                       <p className="text-sm">Aucune commission enregistrée pour le moment.</p>
@@ -571,7 +590,7 @@ export default function AffiliateSpace() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {commissions.map((comm) => (
+                          {commissions.rows.map((comm) => (
                             <tr key={comm.id} className="hover:bg-slate-50/50">
                               <td className="p-3">{new Date(comm.created_at).toLocaleDateString("fr-FR")}</td>
                               <td className="p-3 font-semibold text-slate-700">{comm.period_code || "En cours"}</td>
@@ -587,6 +606,7 @@ export default function AffiliateSpace() {
                       </table>
                     </div>
                   )}
+                  </PagedSection>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -601,7 +621,8 @@ export default function AffiliateSpace() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {payouts.length === 0 ? (
+                  <PagedSection list={payouts}>
+                  {payouts.rows.length === 0 ? (
                     <div className="text-center py-10 text-slate-400 space-y-3">
                       <Wallet className="w-12 h-12 mx-auto text-slate-300" />
                       <p className="text-sm">Aucun versement effectué pour le moment.</p>
@@ -623,7 +644,7 @@ export default function AffiliateSpace() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {payouts.map((p) => (
+                          {payouts.rows.map((p) => (
                             <tr key={p.id} className="hover:bg-slate-50/50">
                               <td className="p-3">{new Date(p.paid_at).toLocaleDateString("fr-FR")}</td>
                               <td className="p-3 font-semibold text-slate-700">{p.period_code || "Direct"}</td>
@@ -639,11 +660,34 @@ export default function AffiliateSpace() {
                       </table>
                     </div>
                   )}
+                  </PagedSection>
                 </CardContent>
               </Card>
             </TabsContent>
           </Tabs>
         </main>
     </div>
+  );
+}
+
+/** Habillage commun des trois listes : chargement, erreur avec nouvel essai, puis numéros de page. */
+function PagedSection({ list, children }: {
+  list: { loading: boolean; error: Error | null; page: number; pageSize: number; total: number; setPage: (page: number) => void; reload: () => void };
+  children: ReactNode;
+}) {
+  if (list.loading) return <p className="py-10 text-center text-sm text-slate-400">Chargement…</p>;
+  if (list.error) {
+    return (
+      <div className="py-10 text-center space-y-3">
+        <p className="text-sm text-destructive">Impossible de charger cette liste.</p>
+        <Button size="sm" variant="outline" onClick={list.reload}>Réessayer</Button>
+      </div>
+    );
+  }
+  return (
+    <>
+      {children}
+      <ListPagination page={list.page} pageSize={list.pageSize} total={list.total} onPageChange={list.setPage} />
+    </>
   );
 }

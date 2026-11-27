@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { readPage, searchFilter, type PageResult, readAll } from "@/lib/pagination";
+import type { DeliveryCompanyOverview } from "@/lib/deliveryOverview";
 import {
   DeliveryAuditEntry,
   DeliveryCompany,
@@ -980,20 +981,44 @@ export const deliveryService = {
     return (data ?? []) as unknown as { shop_id: string; business_name: string }[];
   },
 
-  /**
-   * Fetch Delivery Company Dispatches
-   */
-  async getCompanyDispatches(companyId: string): Promise<DeliveryDispatch[]> {
-    const { data, error } = await supabase
-      .from("delivery_dispatches" as any)
-      .select("*, company:delivery_companies(*), driver:delivery_drivers(*), cash_transfer:delivery_cash_transfers(*)")
-      .eq("company_id", companyId)
-      .order("created_at", { ascending: false });
+  /** Une page du suivi d'une structure ; un filtre absent ne restreint rien (`driverId` null : sans livreur). */
+  async getCompanyDispatchesPage({ companyId, status, shopId, driverId, since, search, page, pageSize }: {
+    companyId: string;
+    status?: string;
+    shopId?: string;
+    driverId?: string | null;
+    since?: string | null;
+    search: string;
+    page: number;
+    pageSize: number;
+  }): Promise<PageResult<DeliveryDispatch>> {
+    return readPage<DeliveryDispatch>(page, pageSize, (from, to) => {
+      let query = supabase
+        .from("delivery_dispatches" as never)
+        .select("*, company:delivery_companies(*), driver:delivery_drivers(*), cash_transfer:delivery_cash_transfers(*)", { count: "exact" })
+        .eq("company_id", companyId);
+      if (status) query = query.eq("status", status);
+      if (shopId) query = query.eq("shop_id", shopId);
+      if (driverId === null) query = query.is("assigned_driver_id", null);
+      else if (driverId) query = query.eq("assigned_driver_id", driverId);
+      // La date retenue est celle de la transmission, à défaut celle de création.
+      if (since) query = query.or(`transmitted_at.gte."${since}",and(transmitted_at.is.null,created_at.gte."${since}")`);
+      const matches = searchFilter(["recipient_name", "recipient_phone", "city", "delivery_address"], search);
+      if (matches) query = query.or(matches);
+      return query
+        .order("created_at", { ascending: false }).order("id", { ascending: false })
+        .range(from, to);
+    });
+  },
 
-    if (error) {
-      console.error("Error fetching company dispatches:", error);
-      return [];
-    }
-    return ((data || []) as unknown) as DeliveryDispatch[];
+  /** Totaux par statut et activité des derniers jours, comptés par la base dans le fuseau du navigateur. */
+  async getCompanyOverview(companyId: string, days = 30): Promise<DeliveryCompanyOverview> {
+    const { data, error } = await supabase.rpc("delivery_company_overview" as never, {
+      _company_id: companyId,
+      _days: days,
+      _timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    } as never);
+    if (error) throw new Error(error.message);
+    return data as unknown as DeliveryCompanyOverview;
   }
 };

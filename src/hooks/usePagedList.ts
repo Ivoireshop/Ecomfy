@@ -22,6 +22,8 @@ export function usePagedList<T>({ fetchPage, filterKey = "", search = "", pageSi
   // La page est liée aux filtres qui l'ont produite : en changer ramène à la page 1 sans lire la mauvaise page.
   const [position, setPosition] = useState({ key: resetKey, page: 1 });
   const page = position.key === resetKey ? position.page : 1;
+  // L'ancienne position est oubliée : revenir à un filtre déjà utilisé ne doit pas rouvrir son ancienne page.
+  if (position.key !== resetKey) setPosition({ key: resetKey, page: 1 });
   const setPage = useCallback((next: number) => setPosition({ key: resetKey, page: next }), [resetKey]);
 
   const [rows, setRows] = useState<T[]>([]);

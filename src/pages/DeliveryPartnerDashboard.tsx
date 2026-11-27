@@ -1,4 +1,7 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { ListPagination } from "@/components/ListPagination";
+import { usePagedList } from "@/hooks/usePagedList";
+import { periodStart, type DeliveryCompanyOverview, type DispatchPeriod } from "@/lib/deliveryOverview";
 import { useNavigate } from "react-router-dom";
 import {
   Truck, 
@@ -39,6 +42,8 @@ const DISPATCH_STATUS_LABELS: Record<string, string> = {
   deposit_pending: "Reversement en attente", completed: "Terminée", cancelled: "Annulée", disputed: "Litige",
 };
 
+const DISPATCHES_PAGE_SIZE = 20;
+
 export default function DeliveryPartnerDashboard() {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -46,11 +51,10 @@ export default function DeliveryPartnerDashboard() {
   const [showProfile, setShowProfile] = useState<boolean>(false);
   const [company, setCompany] = useState<DeliveryWorkspace | null>(null);
   const [drivers, setDrivers] = useState<DeliveryAssignableDriver[]>([]);
-  const [dispatches, setDispatches] = useState<DeliveryDispatch[]>([]);
   // Filtres du §7.2 : statut, livreur affecté, zone (ville), date.
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [driverFilter, setDriverFilter] = useState<string>("all");
-  const [periodFilter, setPeriodFilter] = useState<string>("all");
+  const [periodFilter, setPeriodFilter] = useState<DispatchPeriod>("all");
   const [search, setSearch] = useState<string>("");
   const [shopFilter, setShopFilter] = useState<string>("all");
   const [shops, setShops] = useState<{ shop_id: string; business_name: string }[]>([]);
@@ -62,8 +66,6 @@ export default function DeliveryPartnerDashboard() {
       setCompany(ws);
 
       if (ws) {
-        const list = await deliveryService.getCompanyDispatches(ws.company_id);
-        setDispatches(list);
         setShops(ws.perms.includes("read") ? await deliveryService.getCompanyDispatchShops(ws.company_id) : []);
         // Les livreurs affectables ne sont chargés que pour qui a le droit d'affecter.
         setDrivers(ws.perms.includes("assign") ? await deliveryService.getAssignableDrivers(ws.company_id) : []);
@@ -80,14 +82,52 @@ export default function DeliveryPartnerDashboard() {
     loadDashboard();
   }, []);
 
-  // Temps réel (§10) : une nouvelle transmission ou un changement de statut apparaît sans recharger la page.
   const companyId = company?.company_id;
+  // Avance à chaque changement : la page, les totaux et les performances sont relus.
+  const [revision, setRevision] = useState(0);
+
+  const list = usePagedList<DeliveryDispatch>({
+    enabled: !!companyId,
+    filterKey: JSON.stringify([companyId, statusFilter, shopFilter, driverFilter, periodFilter]),
+    search,
+    refreshKey: revision,
+    pageSize: DISPATCHES_PAGE_SIZE,
+    fetchPage: ({ page, pageSize, search }) =>
+      deliveryService.getCompanyDispatchesPage({
+        companyId: companyId as string,
+        status: statusFilter === "all" ? undefined : statusFilter,
+        shopId: shopFilter === "all" ? undefined : shopFilter,
+        driverId: driverFilter === "all" ? undefined : driverFilter === "none" ? null : driverFilter,
+        since: periodStart(periodFilter),
+        search,
+        page,
+        pageSize,
+      }),
+  });
+
+  const [overview, setOverview] = useState<DeliveryCompanyOverview | null>(null);
+  useEffect(() => {
+    if (!companyId) return;
+    let cancelled = false;
+    deliveryService.getCompanyOverview(companyId).then(
+      (result) => { if (!cancelled) setOverview(result); },
+      (err) => { console.error("Totaux de livraison illisibles:", err); },
+    );
+    return () => { cancelled = true; };
+  }, [companyId, revision]);
+
+  const refreshAll = async () => {
+    setRevision((r) => r + 1);
+    await loadDashboard();
+  };
+
+  // Temps réel (§10) : une nouvelle transmission ou un changement de statut apparaît sans recharger la page.
   useEffect(() => {
     if (!companyId) return;
     const channel = supabase
       .channel(`company-dispatches-${companyId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "delivery_dispatches", filter: `company_id=eq.${companyId}` }, () => {
-        deliveryService.getCompanyDispatches(companyId).then(setDispatches);
+        setRevision((r) => r + 1);
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -105,7 +145,7 @@ export default function DeliveryPartnerDashboard() {
       toast({ title: success });
       setReasonFor(null);
       setReason("");
-      await loadDashboard();
+      await refreshAll();
     } catch (err: any) {
       toast({ variant: "destructive", title: "Action impossible", description: err.message });
     } finally {
@@ -142,19 +182,8 @@ export default function DeliveryPartnerDashboard() {
     );
   }
 
-  const periodStart = periodFilter === "today" ? new Date(new Date().setHours(0, 0, 0, 0)).getTime()
-    : periodFilter === "7d" ? Date.now() - 7 * 86400000
-    : periodFilter === "30d" ? Date.now() - 30 * 86400000 : 0;
-  const needle = search.trim().toLowerCase();
-  const filteredDispatches = dispatches.filter((d) => {
-    if (statusFilter !== "all" && d.status !== statusFilter) return false;
-    if (shopFilter !== "all" && d.shop_id !== shopFilter) return false;
-    if (driverFilter === "none" ? !!d.assigned_driver_id : driverFilter !== "all" && d.assigned_driver_id !== driverFilter) return false;
-    if (periodStart && new Date(d.transmitted_at ?? d.created_at).getTime() < periodStart) return false;
-    if (needle && !`${d.recipient_name} ${d.recipient_phone} ${d.city} ${d.delivery_address}`.toLowerCase().includes(needle)) return false;
-    return true;
-  });
-  const filtersActive = shopFilter !== "all" || statusFilter !== "all" || driverFilter !== "all" || periodFilter !== "all" || needle !== "";
+  const total = overview ? Object.values(overview.by_status).reduce((sum, n) => sum + n, 0) : null;
+  const filtersActive = shopFilter !== "all" || statusFilter !== "all" || driverFilter !== "all" || periodFilter !== "all" || search.trim() !== "";
   const selectClass = "h-9 rounded-md bg-slate-900 border border-slate-700 text-xs text-slate-200 px-2";
 
   return (
@@ -222,7 +251,7 @@ export default function DeliveryPartnerDashboard() {
               </Button>
             )}
             <Button
-              onClick={loadDashboard}
+              onClick={refreshAll}
               variant="outline"
               size="sm"
               className="bg-slate-900 hover:text-white border-slate-800 text-slate-300 hover:bg-slate-900"
@@ -234,7 +263,7 @@ export default function DeliveryPartnerDashboard() {
 
         {/* Vue d'ensemble (§3.1) : compteurs par état, livreurs actifs, activité quotidienne */}
         <DeliveryStructureOverview
-          dispatches={dispatches}
+          overview={overview}
           activeDrivers={can("assign") ? activeDrivers.length : company.drivers_count}
         />
         <div className="text-xs text-slate-400">Note des vendeurs : ⭐ {company.rating_score || 5.0}</div>
@@ -249,13 +278,13 @@ export default function DeliveryPartnerDashboard() {
             >
               {showProfile ? "Masquer le profil" : "Modifier le profil de ma structure"}
             </Button>
-            {showProfile && <DeliveryProfileEditor onSaved={() => void loadDashboard()} />}
+            {showProfile && <DeliveryProfileEditor onSaved={() => void refreshAll()} />}
           </div>
         )}
 
         {can("manage_team") && <DeliveryTeamPanel companyId={company.company_id} role={company.role} />}
 
-        {can("stats") && <DeliveryDriverStatsPanel companyId={company.company_id} refreshKey={dispatches.map((d) => `${d.id}${d.status}${d.assigned_driver_id ?? ""}`).join("|")} />}
+        {can("stats") && <DeliveryDriverStatsPanel companyId={company.company_id} refreshKey={String(revision)} />}
 
         {/* Dispatches List */}
         <div className="space-y-4">
@@ -263,7 +292,7 @@ export default function DeliveryPartnerDashboard() {
             <Package className="w-5 h-5 text-emerald-400" /> Commandes Assignées à votre Structure
           </h2>
 
-          {dispatches.length === 0 ? (
+          {total === 0 && !filtersActive ? (
             <div className="py-16 text-center text-slate-500 text-sm bg-slate-900/50 rounded-2xl border border-slate-800">
               Aucune commande attribuée pour le moment. Dès qu'un marchand vous transmet une commande, elle apparaîtra ici et vous serez notifié.
             </div>
@@ -292,7 +321,7 @@ export default function DeliveryPartnerDashboard() {
                   <option value="none">Sans livreur</option>
                   {drivers.map((d) => <option key={d.id} value={d.id}>{d.full_name}</option>)}
                 </select>
-                <select aria-label="Filtrer par date" value={periodFilter} onChange={(e) => setPeriodFilter(e.target.value)} className={selectClass}>
+                <select aria-label="Filtrer par date" value={periodFilter} onChange={(e) => setPeriodFilter(e.target.value as DispatchPeriod)} className={selectClass}>
                   <option value="all">Toutes les dates</option>
                   <option value="today">Aujourd'hui</option>
                   <option value="7d">7 derniers jours</option>
@@ -307,14 +336,21 @@ export default function DeliveryPartnerDashboard() {
                     Réinitialiser
                   </button>
                 )}
-                <span className="text-xs text-slate-500 ml-auto">{filteredDispatches.length} / {dispatches.length}</span>
+                <span className="text-xs text-slate-500 ml-auto">{list.loading ? "…" : list.total} / {total ?? "—"}</span>
               </div>
-              {filteredDispatches.length === 0 && (
+              {list.loading ? (
+                <div className="flex justify-center py-10"><RefreshCw className="w-6 h-6 text-emerald-400 animate-spin" /></div>
+              ) : list.error ? (
+                <div className="py-10 text-center text-sm bg-slate-900/50 rounded-2xl border border-slate-800 space-y-3">
+                  <p className="text-red-300">Impossible de charger les commandes.</p>
+                  <Button size="sm" onClick={list.reload} className="bg-slate-800 text-slate-100 hover:bg-slate-700 border border-slate-700 text-xs">Réessayer</Button>
+                </div>
+              ) : list.rows.length === 0 ? (
                 <div className="py-10 text-center text-slate-500 text-sm bg-slate-900/50 rounded-2xl border border-slate-800">
                   Aucune commande ne correspond à ces filtres.
                 </div>
-              )}
-              {filteredDispatches.map((dispatch) => (
+              ) : null}
+              {!list.loading && list.rows.map((dispatch) => (
                 <Card key={dispatch.id} className="bg-slate-900 border-slate-800 p-4 space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
                     <div>
@@ -502,9 +538,10 @@ export default function DeliveryPartnerDashboard() {
                   )}
 
                   {/* Cash Cycle Tracker component */}
-                  {can("cash") && ["delivered", "cod_collected", "completed", "deposit_pending"].includes(dispatch.status) && <DeliveryCashTracker dispatch={dispatch} userRole="partner" onUpdate={loadDashboard} />}
+                  {can("cash") && ["delivered", "cod_collected", "completed", "deposit_pending"].includes(dispatch.status) && <DeliveryCashTracker dispatch={dispatch} userRole="partner" onUpdate={refreshAll} />}
                 </Card>
               ))}
+              <ListPagination tone="dark" page={list.page} pageSize={list.pageSize} total={list.total} onPageChange={list.setPage} disabled={list.loading} />
             </div>
           )}
         </div>

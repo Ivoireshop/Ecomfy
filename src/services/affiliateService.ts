@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { pageRange, type PageResult } from "@/lib/pagination";
+import { pageRange, type PageResult, readPage } from "@/lib/pagination";
 
 export interface FounderAffiliateOverview {
   totalAffiliates: number;
@@ -85,6 +85,15 @@ export interface AffiliateStats {
   commissionRate: number;
   minimumThreshold: number;
   isEligibleForPayout: boolean;
+  commissionsCount: number;
+  payoutsCount: number;
+}
+
+export interface AffiliateReferral {
+  id: string;
+  referred_user_id: string;
+  referral_code_used: string;
+  created_at: string;
 }
 
 export interface FounderAffiliateListItem {
@@ -227,82 +236,34 @@ export const affiliateService = {
   },
 
   /**
-   * Calculate stats for an affiliate
+   * Totaux d'un affilié, comptés par la base. Lève une erreur si la lecture échoue : des zéros laisseraient
+   * croire qu'il n'y a aucune commission.
    */
   async getStats(affiliateId: string): Promise<AffiliateStats> {
-    try {
-      // 1. Minimum threshold
-      const threshold = await this.getMinimumPayoutThreshold();
+    const [threshold, summary, profile] = await Promise.all([
+      this.getMinimumPayoutThreshold(),
+      supabase.rpc("affiliate_summary" as never, { _affiliate_id: affiliateId } as never),
+      supabase.from("affiliates").select("commission_rate").eq("id", affiliateId).single(),
+    ]);
+    if (summary.error) throw summary.error;
+    const totals = summary.data as unknown as Record<
+      "pending_amount" | "payable_amount" | "paid_amount" | "paid_customers" | "commissions_count" | "referred_count" | "payouts_count", number>;
 
-      // 2. Referrals count
-      const { count: referredCount } = await supabase
-        .from("affiliate_referrals")
-        .select("*", { count: "exact", head: true })
-        .eq("affiliate_id", affiliateId);
-
-      // 3. Commissions
-      const { data: commissions } = await supabase
-        .from("affiliate_commissions")
-        .select("*")
-        .eq("affiliate_id", affiliateId);
-
-      let totalEarned = 0;
-      let pendingAmount = 0;
-      let payableAmount = 0;
-      let paidAmount = 0;
-      const paidUserIds = new Set<string>();
-
-      if (commissions) {
-        for (const c of commissions) {
-          const amt = Number(c.commission_amount || 0);
-          if (c.status === "PENDING") {
-            pendingAmount += amt;
-          } else if (c.status === "PAYABLE" || c.status === "APPROVED") {
-            payableAmount += amt;
-            totalEarned += amt;
-            paidUserIds.add(c.referred_user_id);
-          } else if (c.status === "PAID") {
-            paidAmount += amt;
-            totalEarned += amt;
-            paidUserIds.add(c.referred_user_id);
-          }
-        }
-      }
-
-      // Profile for rate
-      const { data: profile } = await supabase
-        .from("affiliates")
-        .select("commission_rate")
-        .eq("id", affiliateId)
-        .single();
-
-      const rate = profile ? Number(profile.commission_rate) : 0.20;
-
-      return {
-        totalEarned,
-        pendingAmount,
-        payableAmount,
-        paidAmount,
-        referredCount: referredCount || 0,
-        paidCustomersCount: paidUserIds.size,
-        commissionRate: rate,
-        minimumThreshold: threshold,
-        isEligibleForPayout: payableAmount >= threshold,
-      };
-    } catch (err) {
-      console.error("Error calculating affiliate stats:", err);
-      return {
-        totalEarned: 0,
-        pendingAmount: 0,
-        payableAmount: 0,
-        paidAmount: 0,
-        referredCount: 0,
-        paidCustomersCount: 0,
-        commissionRate: 0.20,
-        minimumThreshold: 10000,
-        isEligibleForPayout: false,
-      };
-    }
+    const payableAmount = Number(totals.payable_amount);
+    const paidAmount = Number(totals.paid_amount);
+    return {
+      totalEarned: payableAmount + paidAmount,
+      pendingAmount: Number(totals.pending_amount),
+      payableAmount,
+      paidAmount,
+      referredCount: Number(totals.referred_count),
+      paidCustomersCount: Number(totals.paid_customers),
+      commissionsCount: Number(totals.commissions_count),
+      payoutsCount: Number(totals.payouts_count),
+      commissionRate: profile.data ? Number(profile.data.commission_rate) : 0.20,
+      minimumThreshold: threshold,
+      isEligibleForPayout: payableAmount >= threshold,
+    };
   },
 
   /**
@@ -349,66 +310,37 @@ export const affiliateService = {
     }
   },
 
-  /**
-   * Fetch referrals list for affiliate
-   */
-  async getReferrals(affiliateId: string) {
-    try {
-      const { data, error } = await supabase
+  /** Une page des filleuls, les plus récents d'abord. */
+  async getReferralsPage(affiliateId: string, page: number, pageSize: number): Promise<PageResult<AffiliateReferral>> {
+    return readPage<AffiliateReferral>(page, pageSize, (from, to) =>
+      supabase
         .from("affiliate_referrals")
-        .select(`
-          id,
-          referred_user_id,
-          referral_code_used,
-          created_at
-        `)
+        .select("id, referred_user_id, referral_code_used, created_at", { count: "exact" })
         .eq("affiliate_id", affiliateId)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      return data || [];
-    } catch (err) {
-      console.error("Error fetching referrals:", err);
-      return [];
-    }
+        .order("created_at", { ascending: false }).order("id", { ascending: false })
+        .range(from, to));
   },
 
-  /**
-   * Fetch commissions list for affiliate
-   */
-  async getCommissions(affiliateId: string): Promise<AffiliateCommission[]> {
-    try {
-      const { data, error } = await supabase
+  /** Une page des commissions, les plus récentes d'abord. */
+  async getCommissionsPage(affiliateId: string, page: number, pageSize: number): Promise<PageResult<AffiliateCommission>> {
+    return readPage<AffiliateCommission>(page, pageSize, (from, to) =>
+      supabase
         .from("affiliate_commissions")
-        .select("*")
+        .select("*", { count: "exact" })
         .eq("affiliate_id", affiliateId)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      return (data || []) as AffiliateCommission[];
-    } catch (err) {
-      console.error("Error fetching commissions:", err);
-      return [];
-    }
+        .order("created_at", { ascending: false }).order("id", { ascending: false })
+        .range(from, to));
   },
 
-  /**
-   * Fetch payout history for affiliate
-   */
-  async getPayouts(affiliateId: string): Promise<AffiliatePayout[]> {
-    try {
-      const { data, error } = await supabase
+  /** Une page des versements reçus, les plus récents d'abord. */
+  async getPayoutsPage(affiliateId: string, page: number, pageSize: number): Promise<PageResult<AffiliatePayout>> {
+    return readPage<AffiliatePayout>(page, pageSize, (from, to) =>
+      supabase
         .from("affiliate_payouts")
-        .select("*")
+        .select("*", { count: "exact" })
         .eq("affiliate_id", affiliateId)
-        .order("paid_at", { ascending: false });
-
-      if (error) throw error;
-      return (data || []) as AffiliatePayout[];
-    } catch (err) {
-      console.error("Error fetching payouts:", err);
-      return [];
-    }
+        .order("paid_at", { ascending: false }).order("id", { ascending: false })
+        .range(from, to));
   },
 
   /**
