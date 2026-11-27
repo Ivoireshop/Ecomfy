@@ -59,11 +59,12 @@ export function isShopRowRestricted(shop: { is_suspended?: boolean | null; shop_
 
 /**
  * Le système de factures par seuil (table shop_invoices, RPC check_and_trigger_billing_threshold et
- * enforce_shop_billing_deadlines) n'existe pas sur toutes les bases. Quand PostgREST répond « introuvable »,
- * on s'en souvient pour le reste de la session au lieu de renvoyer 2 à 3 requêtes en 404 à chaque rafraîchissement
- * (le hook est monté plusieurs fois dans le tableau de bord).
+ * enforce_shop_billing_deadlines) n'est pas installé partout : le front ne l'interroge que si la variable
+ * VITE_BILLING_INVOICES vaut « true » (à poser une fois ses migrations appliquées), sinon chaque ouverture du tableau
+ * de bord affichait des erreurs 404. S'il est activé sur une base qui ne l'a pas, la première réponse « introuvable »
+ * l'écarte pour le reste de la session.
  */
-let invoiceSystemMissing = false;
+let invoiceSystemMissing = import.meta.env.VITE_BILLING_INVOICES !== "true";
 
 /** Vrai tant qu'aucune requête n'a montré que le système de factures est absent de la base. */
 export function isInvoiceSystemAvailable(): boolean {
