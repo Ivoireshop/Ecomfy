@@ -13,7 +13,6 @@ import {
 } from "@/services/affiliateService";
 import { ListPagination } from "@/components/ListPagination";
 import { usePagedList } from "@/hooks/usePagedList";
-import { Header } from "@/components/Header";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -220,8 +219,6 @@ export default function AffiliateSpace() {
 
   return (
     <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50 min-h-screen">
-      <Header title="Programme d'Affiliation Ecomfy" />
-
       <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 pb-20 md:pb-6">
           {/* Hero Banner */}
           <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-700 via-emerald-600 to-teal-800 p-6 md:p-8 text-white shadow-lg">
