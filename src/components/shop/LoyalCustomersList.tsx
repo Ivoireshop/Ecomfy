@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,10 +20,14 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { normalizeToE164 } from "@/lib/phoneCountries";
+import { ListPagination } from "@/components/ListPagination";
+import { usePagedList } from "@/hooks/usePagedList";
+import {
+  fetchAllLoyalCustomers, fetchLoyalCustomersPage, loyalCustomersCsv, repeatRate,
+  type CustomerLoyaltyProfile, type LoyaltyFilter, type LoyaltyStats,
+} from "@/lib/loyalCustomers";
 
-const PAGE_SIZE = 1000;
-// Une commande annulée ou retournée n'est ni une vente ni une preuve de fidélité.
-const EXCLUDED_STATUSES = new Set(["cancelled", "returned"]);
+const CUSTOMERS_PAGE_SIZE = 20;
 
 // "+225 07 00 00 00 00", "0700000000" et "00225 0700000000" désignent le même client :
 // on compare les 8 derniers chiffres (longueur nationale minimale des pays gérés).
@@ -37,13 +41,6 @@ const toWhatsAppNumber = (raw: string) => {
   const e164 = normalizeToE164(raw);
   if (e164) return e164.replace(/\D/g, "");
   return raw.trim().replace(/^\+/, "").replace(/^00/, "").replace(/\D/g, "");
-};
-
-// Neutralise l'interprétation d'une cellule comme formule dans Excel / Sheets (un numéro "+225…" reste intact).
-const csvCell = (value: string | number) => {
-  let s = String(value ?? "");
-  if (/^([=@\t\r]|[+-].*[^\d\s().+-])/.test(s)) s = `'${s}`;
-  return `"${s.replace(/"/g, '""')}"`;
 };
 
 interface ShopPromoCode {
@@ -64,19 +61,6 @@ const promoDiscountLabel = (p: ShopPromoCode) =>
     ? `${Number(p.discount_amount).toLocaleString("fr-FR")} FCFA`
     : `${p.discount_percentage}%`;
 
-export interface CustomerLoyaltyProfile {
-  id: string;
-  customer_name: string;
-  customer_phone: string;
-  customer_email: string | null;
-  delivery_city: string | null;
-  order_count: number;
-  total_spent: number;
-  last_order_date: string;
-  first_order_date: string;
-  tier: "platine" | "or" | "argent" | "bronze";
-}
-
 interface LoyalCustomersListProps {
   shopId: string;
   shopSlug?: string;
@@ -85,14 +69,27 @@ interface LoyalCustomersListProps {
 }
 
 export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = "#0E7C66" }: LoyalCustomersListProps) {
-  const [customers, setCustomers] = useState<CustomerLoyaltyProfile[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
-  const [tierFilter, setTierFilter] = useState<"all" | "repeating" | "platine" | "or" | "argent" | "bronze">("all");
+  const [tierFilter, setTierFilter] = useState<LoyaltyFilter>("all");
+  // Null tant qu'aucune lecture n'a réussi : on n'affiche pas « 0 » pour un nombre inconnu.
+  const [stats, setStats] = useState<LoyaltyStats | null>(null);
+  // Augmente à chaque changement de commande : la page affichée est relue.
+  const [revision, setRevision] = useState(0);
+  const [exporting, setExporting] = useState(false);
+  const listTop = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  // Ignore la réponse d'un chargement lancé avant un autre (rafale d'évènements realtime).
-  const loadSeq = useRef(0);
+
+  const list = usePagedList<CustomerLoyaltyProfile>({
+    pageSize: CUSTOMERS_PAGE_SIZE,
+    search,
+    filterKey: JSON.stringify([shopId, tierFilter]),
+    refreshKey: revision,
+    fetchPage: async ({ page, pageSize, search: query }) => {
+      const result = await fetchLoyalCustomersPage({ shopId, search: query, tier: tierFilter }, page, pageSize);
+      setStats(result.stats);
+      return result;
+    },
+  });
 
   // Promo Broadcast Modal state
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerLoyaltyProfile | null>(null);
@@ -119,187 +116,29 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
     setShopCodes((data as ShopPromoCode[]) || []);
   };
 
-  // `silent` : rechargement en arrière-plan (realtime, actualisation), la liste et la modale restent affichées.
-  const loadCustomers = async (silent = false) => {
-    const seq = ++loadSeq.current;
-    if (!silent) setLoading(true);
-    try {
-      // PostgREST plafonne chaque réponse (1 000 lignes) : on pagine pour ne pas tronquer l'historique.
-      const orders: any[] = [];
-      for (let from = 0; ; from += PAGE_SIZE) {
-        const { data, error } = await supabase
-          .from("orders")
-          .select("id, customer_name, customer_phone, customer_email, customer_city, total, created_at, order_status")
-          .eq("shop_id", shopId)
-          .order("created_at", { ascending: false })
-          .order("id", { ascending: false })
-          .range(from, from + PAGE_SIZE - 1);
-        if (error) throw error;
-        orders.push(...(data || []));
-        if (!data || data.length < PAGE_SIZE) break;
-      }
-
-      if (seq !== loadSeq.current) return;
-
-      // Group orders by clean phone number or email
-      const customerMap = new Map<string, {
-        name: string;
-        phone: string;
-        email: string | null;
-        city: string | null;
-        count: number;
-        totalSpent: number;
-        lastDate: string;
-        firstDate: string;
-      }>();
-
-      // Les commandes arrivent de la plus récente à la plus ancienne : la première rencontrée fixe le nom et le numéro à jour.
-      orders.forEach((o) => {
-        if (EXCLUDED_STATUSES.has(o.order_status)) return;
-
-        const rawPhone = (o.customer_phone || "").trim();
-        const email = (o.customer_email || "").trim().toLowerCase();
-        // Sans téléphone ni e-mail, impossible de distinguer deux clients homonymes : on ne les regroupe pas.
-        const key = phoneKey(rawPhone) || email;
-        if (!key) return;
-
-        const amount = Number(o.total) || 0;
-        const date = o.created_at;
-
-        const existing = customerMap.get(key);
-        if (existing) {
-          existing.count += 1;
-          existing.totalSpent += amount;
-          if (new Date(date).getTime() > new Date(existing.lastDate).getTime()) {
-            existing.lastDate = date;
-          }
-          if (new Date(date).getTime() < new Date(existing.firstDate).getTime()) {
-            existing.firstDate = date;
-          }
-          if (!existing.city && o.customer_city) {
-            existing.city = o.customer_city;
-          }
-          if (!existing.email && o.customer_email) {
-            existing.email = o.customer_email;
-          }
-          if (!existing.phone && rawPhone) {
-            existing.phone = rawPhone;
-          }
-        } else {
-          customerMap.set(key, {
-            name: (o.customer_name || "").trim() || "Client",
-            phone: rawPhone,
-            email: o.customer_email || null,
-            city: o.customer_city || null,
-            count: 1,
-            totalSpent: amount,
-            lastDate: date,
-            firstDate: date,
-          });
-        }
-      });
-
-      // Convert map to loyalty profiles array with Tiers
-      const profiles: CustomerLoyaltyProfile[] = Array.from(customerMap.entries()).map(([key, c]) => {
-        let tier: "platine" | "or" | "argent" | "bronze" = "bronze";
-        if (c.count >= 5) tier = "platine";
-        else if (c.count >= 3) tier = "or";
-        else if (c.count === 2) tier = "argent";
-
-        return {
-          id: key,
-          customer_name: c.name,
-          customer_phone: c.phone,
-          customer_email: c.email,
-          delivery_city: c.city,
-          order_count: c.count,
-          total_spent: c.totalSpent,
-          last_order_date: c.lastDate,
-          first_order_date: c.firstDate,
-          tier,
-        };
-      });
-
-      // Sort by order count descending, then total spent
-      profiles.sort((a, b) => b.order_count - a.order_count || b.total_spent - a.total_spent);
-
-      setCustomers(profiles);
-    } catch (err: any) {
-      if (seq !== loadSeq.current) return;
-      console.error("Error loading customer loyalty data:", err);
-      toast({ title: "Erreur de chargement", description: err.message, variant: "destructive" });
-    } finally {
-      if (seq === loadSeq.current) setLoading(false);
-    }
-  };
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadCustomers(true);
-    setRefreshing(false);
-  };
-
   useEffect(() => {
-    loadCustomers();
-
     // Une commande groupée (plusieurs lignes à la fois) déclenche plusieurs évènements : un seul rechargement.
     let timer: ReturnType<typeof setTimeout> | undefined;
     const channel = supabase
       .channel(`orders-loyalty-${shopId}_${Math.random().toString(36).substring(2, 8)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `shop_id=eq.${shopId}` }, () => {
         clearTimeout(timer);
-        timer = setTimeout(() => loadCustomers(true), 500);
+        timer = setTimeout(() => setRevision((v) => v + 1), 500);
       })
       .subscribe();
 
     return () => {
       clearTimeout(timer);
-      loadSeq.current++;
       supabase.removeChannel(channel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopId]);
 
-  // Compute Loyalty Statistics
-  const totalCustomersCount = customers.length;
-  const repeatCustomersCount = customers.filter(c => c.order_count >= 2).length;
-  const platineCount = customers.filter(c => c.tier === "platine").length;
-  const orCount = customers.filter(c => c.tier === "or").length;
-  const argentCount = customers.filter(c => c.tier === "argent").length;
-  const bronzeCount = customers.filter(c => c.tier === "bronze").length;
+  const shown = (n: number | undefined) => n ?? "–";
 
-  const totalRepeatRevenue = customers
-    .filter(c => c.order_count >= 2)
-    .reduce((sum, c) => sum + c.total_spent, 0);
-
-  // Une décimale : 4 clients fidèles sur 1 105 donnent 0,4 % et non « 0 % ».
-  const repeatRatio = totalCustomersCount > 0 ? Math.round((repeatCustomersCount / totalCustomersCount) * 1000) / 10 : 0;
-
-  // Filtered Customers List
-  const filteredCustomers = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    // Recherche de numéro uniquement si la saisie ressemble à un numéro (sinon « jean #7 » trouverait tout numéro contenant 7).
-    const qDigits = /^[\d\s+().-]+$/.test(q) ? q.replace(/\D/g, "") : "";
-    return customers.filter(c => {
-      // Tier Filter
-      if (tierFilter === "repeating" && c.order_count < 2) return false;
-      if (tierFilter === "platine" && c.tier !== "platine") return false;
-      if (tierFilter === "or" && c.tier !== "or") return false;
-      if (tierFilter === "argent" && c.tier !== "argent") return false;
-      if (tierFilter === "bronze" && c.tier !== "bronze") return false;
-
-      // Search Query
-      if (!q) return true;
-      return (
-        c.customer_name.toLowerCase().includes(q) ||
-        c.customer_phone.toLowerCase().includes(q) ||
-        // "07 00 00" doit retrouver "0700000000" quel que soit le formatage du numéro enregistré
-        (qDigits.length > 0 && c.customer_phone.replace(/\D/g, "").includes(qDigits)) ||
-        (c.customer_email || "").toLowerCase().includes(q) ||
-        (c.delivery_city || "").toLowerCase().includes(q)
-      );
-    });
-  }, [customers, search, tierFilter]);
+  const changePage = (page: number) => {
+    list.setPage(page);
+    listTop.current?.scrollIntoView({ block: "start" });
+  };
 
   // Prepare default WhatsApp Promo Message
   const buildPromoMessage = (c: CustomerLoyaltyProfile, code: string, discount: string) => {
@@ -376,32 +215,31 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
     window.location.href = `sms:+${phone}?body=${encodeURIComponent(msgText)}`;
   };
 
-  const handleExportCSV = () => {
-    if (filteredCustomers.length === 0) return;
-    const headers = ["Nom", "Telephone", "Email", "Ville", "Commandes", "Total Dépensé (FCFA)", "Niveau Fidélité", "Dernière Commande"];
-    const rows = filteredCustomers.map(c => [
-      csvCell(c.customer_name),
-      csvCell(c.customer_phone),
-      csvCell(c.customer_email || ""),
-      csvCell(c.delivery_city || ""),
-      c.order_count,
-      c.total_spent,
-      csvCell(c.tier.toUpperCase()),
-      csvCell(new Date(c.last_order_date).toLocaleDateString("fr-FR")),
-    ]);
-
-    // Point-virgule + BOM UTF-8 : Excel (réglages français) sépare les colonnes et affiche les accents correctement.
-    const csvContent = "﻿" + [headers.map(csvCell).join(";"), ...rows.map(r => r.join(";"))].join("\r\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `clients_fideles_${shopSlug || "ecomfy"}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    toast({ title: "Export réussi", description: `${filteredCustomers.length} clients exportés en CSV.` });
+  // Tous les clients correspondant à la recherche et au niveau, pas seulement la page affichée.
+  const handleExportCSV = async () => {
+    setExporting(true);
+    try {
+      const customers = await fetchAllLoyalCustomers({ shopId, search: search.trim(), tier: tierFilter });
+      if (customers.length === 0) {
+        toast({ title: "Aucun client à exporter" });
+        return;
+      }
+      const blob = new Blob([loyalCustomersCsv(customers)], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `clients_fideles_${shopSlug || "ecomfy"}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast({ title: "Export réussi", description: `${customers.length} clients exportés en CSV.` });
+    } catch (error) {
+      console.error("Failed to export loyal customers", error);
+      toast({ title: "Export impossible", description: "La liste des clients n'a pas pu être lue.", variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
   };
 
   const getTierBadge = (tier: CustomerLoyaltyProfile["tier"], count: number) => {
@@ -433,15 +271,6 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16 text-slate-500 font-inter">
-        <Loader2 className="h-6 w-6 animate-spin text-[#0E7C66] mr-2" />
-        <span>Identification des clients fidèles en cours...</span>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6 font-inter">
 
@@ -464,22 +293,22 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
           <Button
             size="sm"
             variant="outline"
-            onClick={handleRefresh}
-            disabled={refreshing}
+            onClick={list.reload}
+            disabled={list.loading}
             className="rounded-full text-xs font-bold gap-1.5"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-3.5 w-3.5 ${list.loading ? "animate-spin" : ""}`} />
             <span>Actualiser</span>
           </Button>
 
           <Button
             size="sm"
             onClick={handleExportCSV}
-            disabled={filteredCustomers.length === 0}
+            disabled={exporting || list.loading || !!list.error || list.total === 0}
             className="rounded-full bg-[#0E7C66] hover:bg-[#0A6352] text-white text-xs font-bold gap-1.5 shadow-md"
           >
-            <Download className="h-3.5 w-3.5" />
-            <span>Exporter CSV ({filteredCustomers.length})</span>
+            {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+            <span>Exporter CSV ({list.loading || list.error ? "–" : list.total})</span>
           </Button>
         </div>
       </div>
@@ -490,7 +319,7 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
           <CardHeader className="pb-2">
             <CardDescription className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Clients Distincts</CardDescription>
             <CardTitle className="text-2xl font-space font-extrabold text-slate-900 flex items-center justify-between">
-              <span>{totalCustomersCount}</span>
+              <span>{shown(stats?.customers)}</span>
               <Users className="h-5 w-5 text-slate-400" />
             </CardTitle>
           </CardHeader>
@@ -503,12 +332,12 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
           <CardHeader className="pb-2">
             <CardDescription className="text-xs font-bold uppercase tracking-wider text-emerald-700">Clients Fidèles (2+ Cmds)</CardDescription>
             <CardTitle className="text-2xl font-space font-extrabold text-emerald-800 flex items-center justify-between">
-              <span>{repeatCustomersCount}</span>
-              <Badge className="bg-emerald-600 text-white text-xs font-bold">{repeatRatio.toLocaleString("fr-FR")}% Taux de Fidélité</Badge>
+              <span>{shown(stats?.repeating)}</span>
+              <Badge className="bg-emerald-600 text-white text-xs font-bold">{stats ? repeatRate(stats).toLocaleString("fr-FR") : "–"}% Taux de Fidélité</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-xs text-emerald-700 font-semibold">{totalRepeatRevenue.toLocaleString()} FCFA générés</p>
+            <p className="text-xs text-emerald-700 font-semibold">{stats ? Number(stats.repeat_revenue).toLocaleString("fr-FR") : "–"} FCFA générés</p>
           </CardContent>
         </Card>
 
@@ -516,12 +345,12 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
           <CardHeader className="pb-2">
             <CardDescription className="text-xs font-bold uppercase tracking-wider text-amber-700">Membres VIP (Or & Platine)</CardDescription>
             <CardTitle className="text-2xl font-space font-extrabold text-amber-800 flex items-center justify-between">
-              <span>{platineCount + orCount}</span>
+              <span>{stats ? stats.platine + stats.or : "–"}</span>
               <Crown className="h-5 w-5 text-amber-500" />
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-xs text-amber-700 font-semibold">{platineCount} VIP Platine (5+ commandes)</p>
+            <p className="text-xs text-amber-700 font-semibold">{shown(stats?.platine)} VIP Platine (5+ commandes)</p>
           </CardContent>
         </Card>
 
@@ -529,7 +358,7 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
           <CardHeader className="pb-2">
             <CardDescription className="text-xs font-bold uppercase tracking-wider text-slate-400">Clients Argent (2 Cmds)</CardDescription>
             <CardTitle className="text-2xl font-space font-extrabold text-slate-900 flex items-center justify-between">
-              <span>{argentCount}</span>
+              <span>{shown(stats?.argent)}</span>
               <Award className="h-5 w-5 text-slate-400" />
             </CardTitle>
           </CardHeader>
@@ -558,7 +387,7 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
             onClick={() => setTierFilter("all")}
             className={`rounded-full text-xs font-bold ${tierFilter === "all" ? "bg-slate-900 text-white" : ""}`}
           >
-            Tous ({customers.length})
+            Tous ({shown(stats?.customers)})
           </Button>
 
           <Button
@@ -567,7 +396,7 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
             onClick={() => setTierFilter("repeating")}
             className={`rounded-full text-xs font-bold ${tierFilter === "repeating" ? "bg-[#0E7C66] text-white" : ""}`}
           >
-            ⭐ Clients Fidèles 2+ ({repeatCustomersCount})
+            ⭐ Clients Fidèles 2+ ({shown(stats?.repeating)})
           </Button>
 
           <Button
@@ -576,7 +405,7 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
             onClick={() => setTierFilter("platine")}
             className={`rounded-full text-xs font-bold ${tierFilter === "platine" ? "bg-purple-600 text-white" : ""}`}
           >
-            💎 Platine (5+) ({platineCount})
+            💎 Platine (5+) ({shown(stats?.platine)})
           </Button>
 
           <Button
@@ -585,7 +414,7 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
             onClick={() => setTierFilter("or")}
             className={`rounded-full text-xs font-bold ${tierFilter === "or" ? "bg-amber-500 text-white" : ""}`}
           >
-            🥇 Or (3-4) ({orCount})
+            🥇 Or (3-4) ({shown(stats?.or)})
           </Button>
 
           <Button
@@ -594,7 +423,7 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
             onClick={() => setTierFilter("argent")}
             className={`rounded-full text-xs font-bold ${tierFilter === "argent" ? "bg-slate-700 text-white" : ""}`}
           >
-            🥈 Argent (2) ({argentCount})
+            🥈 Argent (2) ({shown(stats?.argent)})
           </Button>
 
           <Button
@@ -603,21 +432,36 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
             onClick={() => setTierFilter("bronze")}
             className={`rounded-full text-xs font-bold ${tierFilter === "bronze" ? "bg-slate-500 text-white" : ""}`}
           >
-            1ère commande ({bronzeCount})
+            1ère commande ({shown(stats?.bronze)})
           </Button>
         </div>
       </div>
 
       {/* Loyal Customers Cards List */}
-      <div className="space-y-3">
-        {filteredCustomers.length === 0 ? (
+      <div ref={listTop} className="space-y-3 scroll-mt-4">
+        {list.loading ? (
+          <div className="flex items-center justify-center py-16 text-slate-500">
+            <Loader2 className="h-6 w-6 animate-spin text-[#0E7C66] mr-2" />
+            <span>Identification des clients fidèles en cours...</span>
+          </div>
+        ) : list.error ? (
+          <Card className="rounded-2xl border-rose-200 p-8 text-center">
+            <p className="font-bold text-sm text-slate-700">Impossible de charger les clients</p>
+            <p className="text-xs text-slate-500 mt-1">Vérifiez votre connexion puis réessayez.</p>
+            <Button size="sm" variant="outline" className="mt-3 rounded-full text-xs font-bold" onClick={list.reload}>Réessayer</Button>
+          </Card>
+        ) : list.rows.length === 0 ? (
           <Card className="rounded-2xl border-slate-200 p-12 text-center text-slate-500">
             <Heart className="h-10 w-10 mx-auto text-slate-300 mb-2" />
             <p className="font-bold text-sm text-slate-700">Aucun client correspondant trouvé</p>
-            <p className="text-xs text-slate-400 mt-1">Dès que vos clients passeront commande, ils apparaîtront ici automatiquement.</p>
+            <p className="text-xs text-slate-400 mt-1">
+              {list.search || tierFilter !== "all"
+                ? "Modifiez la recherche ou le niveau de fidélité."
+                : "Dès que vos clients passeront commande, ils apparaîtront ici automatiquement."}
+            </p>
           </Card>
         ) : (
-          filteredCustomers.map((c) => (
+          list.rows.map((c) => (
             <Card key={c.id} className="rounded-2xl border-slate-200 hover:border-slate-300 transition-all p-4 bg-white shadow-sm hover:shadow">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 
@@ -705,6 +549,9 @@ export function LoyalCustomersList({ shopId, shopSlug, shopName, primaryColor = 
               </div>
             </Card>
           ))
+        )}
+        {!list.loading && !list.error && (
+          <ListPagination page={list.page} pageSize={list.pageSize} total={list.total} onPageChange={changePage} />
         )}
       </div>
 
