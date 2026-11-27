@@ -224,7 +224,7 @@ export default function AffiliateSpace() {
           <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-700 via-emerald-600 to-teal-800 p-6 md:p-8 text-white shadow-lg">
             <div className="relative z-10 max-w-3xl space-y-3">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-emerald-200 text-xs font-semibold uppercase tracking-wider">
-                <Sparkles className="w-3.5 h-3.5" /> Programme Ambassadeur Offciel
+                <Sparkles className="w-3.5 h-3.5" /> Programme Ambassadeur Officiel
               </div>
               <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
                 Gagnez <span className="text-emerald-300 font-black">20% de commission</span> sur chaque abonnement recommandé !

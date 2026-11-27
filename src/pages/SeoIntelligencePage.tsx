@@ -351,7 +351,7 @@ function SeoDashboard({ shop: currentShop, products, shops, onSelectShop, onRelo
         )}
 
         {/* Sub-Navigation Tabs Header */}
-        <div className="overflow-x-auto pb-2 scrollbar-thin">
+        <div className="overflow-x-auto pb-2 [scrollbar-width:thin] [scrollbar-color:#334155_transparent]">
           <div className="flex items-center gap-2 min-w-max border-b border-slate-800 pb-3">
             {[
               { id: "overview", label: "Vue d'ensemble", icon: BarChart3 },
