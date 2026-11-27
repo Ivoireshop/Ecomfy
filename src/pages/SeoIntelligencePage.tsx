@@ -3,7 +3,6 @@
 // Design clean, responsive font scaling, green glowing pulse dots, and 100% real-time data integrity.
 
 import { useEffect, useRef, useState } from "react";
-import { Header } from "@/components/Header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -74,7 +73,6 @@ export default function SeoIntelligencePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#090D16] text-slate-100">
-        <Header />
         <div className="flex items-center justify-center py-32 gap-3 text-slate-400 text-sm">
           <Loader2 className="w-5 h-5 animate-spin" /> Chargement de votre boutique...
         </div>
@@ -85,7 +83,6 @@ export default function SeoIntelligencePage() {
   if (error || !shop) {
     return (
       <div className="min-h-screen bg-[#090D16] text-slate-100">
-        <Header />
         <div className="max-w-xl mx-auto px-4 py-24 text-center space-y-4">
           <Store className="w-10 h-10 mx-auto text-slate-500" />
           <h1 className="text-xl font-space font-bold text-white">
@@ -272,8 +269,6 @@ function SeoDashboard({ shop: currentShop, products, shops, onSelectShop, onRelo
 
   return (
     <div className="min-h-screen bg-[#090D16] text-slate-100 font-inter selection:bg-[#0E7C66] selection:text-white">
-      <Header />
-
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* Banner Hero */}
