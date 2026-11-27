@@ -61,35 +61,10 @@ import { closePaymentWindow, openPaymentWindow, redirectToPaymentUrl } from "@/l
 import { prepareImageForUpload, formatSize } from "@/lib/imageCompress";
 import { cacheInvalidate } from "@/lib/shopCache";
 import { useDeliveryEvents } from "@/hooks/useDeliveryEvents";
-
-interface Product {
-  id: string;
-  slug?: string | null;
-  name: string;
-  description: string | null;
-  short_description: string | null;
-  price: number;
-  compare_at_price: number | null;
-  category: string;
-  stock_quantity: number;
-  is_published: boolean;
-  is_digital: boolean;
-  is_featured: boolean;
-  display_order: number;
-  currency: string | null;
-  sku: string | null;
-  weight: number | null;
-  created_at?: string;
-  product_images?: { id: string; image_url: string; is_primary: boolean; display_order: number }[];
-}
-
-type ProductImageRow = { id: string; image_url: string; is_primary: boolean; display_order: number };
-
-const sortProductImages = (images?: ProductImageRow[] | null) =>
-  [...(images || [])].sort((a, b) => {
-    if (!!a.is_primary !== !!b.is_primary) return a.is_primary ? -1 : 1;
-    return (a.display_order ?? 0) - (b.display_order ?? 0);
-  });
+import {
+  fetchShopCatalog, fetchShopProductNames, sortProductImages,
+  type ProductImageRow, type ShopProduct as Product, type ShopProductName,
+} from "@/lib/shopProducts";
 
 interface Order {
   id: string;
@@ -180,7 +155,11 @@ const ShopEditor = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [shop, setShop] = useState<any>(null);
-  const [products, setProducts] = useState<Product[]>([]);
+  // Le tableau des produits lit ses pages lui-même ; l'éditeur ne garde que leur nombre. `productsRevision` change
+  // après chaque écriture : le tableau (et le catalogue des écrans qui en ont besoin) se relisent.
+  const [productCount, setProductCount] = useState(0);
+  const [productsRevision, setProductsRevision] = useState(0);
+  const productsChanged = useCallback(() => setProductsRevision((v) => v + 1), []);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -269,7 +248,7 @@ const ShopEditor = () => {
     const [shopRes, secretsRes, productsRes] = await Promise.all([
       supabase.from("shops").select("*").eq("id", id).single() as any,
       (supabase as any).from("shop_secrets").select("*").eq("shop_id", id).maybeSingle(),
-      passive ? Promise.resolve({ data: null }) : (supabase.from("products").select("*, product_images(*)").eq("shop_id", id).order("display_order") as any),
+      passive ? Promise.resolve({ count: null }) : (supabase.from("products").select("id", { count: "exact", head: true }).eq("shop_id", id) as any),
     ]);
     // Boutique restreinte : la base refuse la lecture directe de `orders` et ne livre que des commandes masquées
     // (noms, téléphones, adresses, notes), via get_shop_orders_secure. Pas d'articles ni de livraisons dans ce cas.
@@ -321,12 +300,8 @@ const ShopEditor = () => {
         setShop(freshShop);
       }
     }
-    if (productsRes.data) {
-      setProducts((productsRes.data as Product[]).map(product => ({
-        ...product,
-        product_images: sortProductImages(product.product_images),
-      })));
-    }
+    if (typeof productsRes.count === "number") setProductCount(productsRes.count);
+    if (!passive) productsChanged();
     if (ordersRes.data) {
       let finalOrders = ordersRes.data;
       if (finalOrders.length > 0 && !isShopRowRestricted(shopRes.data)) {
@@ -392,7 +367,7 @@ const ShopEditor = () => {
       setOrders(finalOrders);
     }
     setLoading(false);
-  }, [id]);
+  }, [id, productsChanged]);
 
   // Un seul rechargement à la fois. `fetchData` est appelé de partout (retour d'onglet, alertes de livraison, fermeture
   // d'un éditeur, après chaque action) : sans ce regroupement, plusieurs rechargements complets tournaient en parallèle.
@@ -491,6 +466,24 @@ const ShopEditor = () => {
     }, 30000);
     return () => { cancelled = true; clearInterval(timer); };
   }, [activeSection, id, fetchVisits]);
+
+  // Catalogue complet : lu seulement à l'ouverture d'un écran qui en a besoin, puis relu après une modification.
+  const [catalog, setCatalog] = useState<{ shopId: string; products: Product[] } | null>(null);
+  const [productNames, setProductNames] = useState<{ shopId: string; products: ShopProductName[] } | null>(null);
+  useEffect(() => {
+    if (!id) return;
+    const needsCatalog = activeSection === "shop-themes" || activeSection === "homepage" || activeSection === "ai-optimizer";
+    if (!needsCatalog && activeSection !== "statistics") return;
+    let cancelled = false;
+    const load = needsCatalog
+      ? fetchShopCatalog(id).then((products) => { if (!cancelled) setCatalog({ shopId: id, products }); })
+      : fetchShopProductNames(id).then((products) => { if (!cancelled) setProductNames({ shopId: id, products }); });
+    load.catch((error) => {
+      console.error("Failed to load shop products", error);
+      if (!cancelled) toast({ title: "Produits non chargés", description: "Vérifiez votre connexion puis rouvrez cette page.", variant: "destructive" });
+    });
+    return () => { cancelled = true; };
+  }, [activeSection, id, productsRevision]);
 
   useEffect(() => {
     (async () => {
@@ -1102,12 +1095,6 @@ const ShopEditor = () => {
         }
       : prev
     );
-    setProducts(prev => prev.map(product => ({
-      ...product,
-      product_images: sortProductImages((product.product_images || [])
-        .filter(img => img.id !== imageId)
-        .map((img, idx) => product.id === productId && imageToDelete?.is_primary && idx === 0 ? { ...img, is_primary: true } : img)),
-    })));
     fetchData();
   };
 
@@ -1133,7 +1120,7 @@ const ShopEditor = () => {
       return idx < 0 ? img : { ...img, display_order: idx, is_primary: idx === 0 };
     }));
     setEditingProduct(prev => prev?.id === productId ? { ...prev, product_images: apply(prev.product_images) } : prev);
-    setProducts(prev => prev.map(product => product.id === productId ? { ...product, product_images: apply(product.product_images) } : product));
+    productsChanged();
     invalidatePublicCaches();
   };
 
@@ -1160,17 +1147,13 @@ const ShopEditor = () => {
       ? { ...prev, product_images: sortProductImages((prev.product_images || []).map(img => ({ ...img, is_primary: img.id === imageId, display_order: img.id === imageId ? 0 : img.display_order }))) }
       : prev
     );
-    setProducts(prev => prev.map(product => product.id === productId
-      ? { ...product, product_images: sortProductImages((product.product_images || []).map(img => ({ ...img, is_primary: img.id === imageId, display_order: img.id === imageId ? 0 : img.display_order }))) }
-      : product
-    ));
     invalidatePublicCaches();
     toast({ title: "Image principale mise à jour" });
     fetchData();
   };
 
-  const deleteProduct = async (productId: string) => {
-    const productToDelete = products.find(p => p.id === productId);
+  const deleteProduct = async (productToDelete: Product) => {
+    const productId = productToDelete.id;
 
     // Une commande garde la référence du produit : la base refuse de le supprimer. Avant, ce refus n'arrivait
     // qu'après la suppression de ses images, avis et réglages (la fiche restait, vidée). On vérifie donc d'abord.
@@ -1183,18 +1166,14 @@ const ShopEditor = () => {
       return;
     }
     if ((orderCount ?? 0) > 0) {
-      const hide = productToDelete?.is_published
+      const hide = productToDelete.is_published
         ? confirm(`Ce produit figure dans ${orderCount} commande(s) : il ne peut pas être supprimé sans effacer votre historique.\n\nLe masquer de la boutique à la place ?`)
         : (alert(`Ce produit figure dans ${orderCount} commande(s) : il ne peut pas être supprimé. Il est déjà masqué de la boutique.`), false);
-      if (hide) await toggleProductStatus(productId, true);
+      if (hide) await toggleProductStatus(productToDelete);
       return;
     }
 
     if (!confirm("Voulez-vous vraiment supprimer ce produit ? Cette action est irréversible.")) return;
-
-    // Optimistic removal from UI state
-    const previousProducts = [...products];
-    setProducts(prev => prev.filter(p => p.id !== productId));
 
     try {
       // Le produit d'abord : images, avis, thème, vidéos… partent avec lui (ON DELETE CASCADE). Rien d'autre n'est
@@ -1203,7 +1182,6 @@ const ShopEditor = () => {
 
       if (error) {
         console.error("Failed to delete product record:", error);
-        setProducts(previousProducts); // Restore state on error
         toast({
           title: "Erreur lors de la suppression",
           description: error.code === "23503"
@@ -1215,18 +1193,18 @@ const ShopEditor = () => {
       }
 
       // Fichiers d'images : seulement une fois le produit réellement supprimé (nettoyage sans conséquence si une étape échoue).
-      const paths = (productToDelete?.product_images || [])
+      const paths = (productToDelete.product_images || [])
         .map(img => img.image_url?.split('/shop-images/').pop()?.split('?')[0])
         .filter(Boolean) as string[];
       if (paths.length > 0) {
         try { await supabase.storage.from("shop-images").remove(paths); } catch (e) { console.error("Failed to purge product images", e); }
       }
 
+      productsChanged();
       invalidatePublicCaches();
       toast({ title: "Produit supprimé avec succès ✓" });
     } catch (e: any) {
       console.error("Product deletion exception:", e);
-      setProducts(previousProducts);
       toast({
         title: "Erreur",
         description: e?.message || "Erreur inattendue lors de la suppression.",
@@ -1237,37 +1215,35 @@ const ShopEditor = () => {
     }
   };
 
-  const toggleProductStatus = async (productId: string, currentPublishedState: boolean) => {
-    const nextPublishedState = !currentPublishedState;
-    const target = products.find(p => p.id === productId);
-    if (nextPublishedState && target && !(Number(target.price) > 0)) {
+  /** Renvoie false si la visibilité n'a pas changé (le tableau annule alors son affichage anticipé). */
+  const toggleProductStatus = async (product: Product): Promise<boolean> => {
+    const nextPublishedState = !product.is_published;
+    if (nextPublishedState && !(Number(product.price) > 0)) {
       toast({ title: "Prix manquant", description: PUBLISHED_PRICE_ERROR, variant: "destructive" });
-      return;
+      return false;
     }
-    // Optimistic UI state update
-    setProducts(prev => prev.map(p => p.id === productId ? { ...p, is_published: nextPublishedState } : p));
 
     const { error } = await supabase
       .from("products")
       .update({ is_published: nextPublishedState })
-      .eq("id", productId);
+      .eq("id", product.id);
 
     if (error) {
       console.error("Failed to toggle product published state:", error);
-      // Rollback on error
-      setProducts(prev => prev.map(p => p.id === productId ? { ...p, is_published: currentPublishedState } : p));
       toast({
         title: "Erreur de modification",
         description: "Impossible de modifier la visibilité du produit.",
         variant: "destructive"
       });
-      return;
+      return false;
     }
 
+    productsChanged();
     invalidatePublicCaches();
     toast({
       title: nextPublishedState ? "Produit activé & visible sur la boutique" : "Produit désactivé (masqué)",
     });
+    return true;
   };
 
   const uploadProductImage = async (
@@ -1337,13 +1313,7 @@ const ShopEditor = () => {
             : (prev.product_images || []);
           return { ...prev, product_images: sortProductImages([...previous, insertedImage]) };
         });
-        setProducts(prev => prev.map(product => {
-          if (product.id !== productId) return product;
-          const previous = shouldBePrimary
-            ? (product.product_images || []).map(img => ({ ...img, is_primary: false }))
-            : (product.product_images || []);
-          return { ...product, product_images: sortProductImages([...previous, insertedImage]) };
-        }));
+        productsChanged();
       }
 
       if (refresh) fetchData();
@@ -1384,6 +1354,7 @@ const ShopEditor = () => {
   if (!shop) return <div className="min-h-screen flex items-center justify-center"><p>Boutique introuvable</p></div>;
 
   const primaryColor = shop.primary_color || "#2563eb";
+  const catalogProducts = catalog?.shopId === shop.id ? catalog.products : null;
   // Les commandes annulées ou retournées ne sont pas du chiffre d'affaires.
   const totalRevenue = orders.reduce((sum, o) => sum + (EXCLUDED_FROM_REVENUE.has(o.order_status) ? 0 : o.total), 0);
 
@@ -1429,7 +1400,7 @@ const ShopEditor = () => {
     onSectionChange: (s: ActiveSection) => { setActiveSection(s); setMobileSidebarOpen(false); },
     unreadOrders,
     pendingReviews,
-    productCount: products.length,
+    productCount,
     isActivated: !!isActivated,
     onBack: () => navigate("/shop-manager"),
     onSave: saveShop,
@@ -1627,11 +1598,11 @@ const ShopEditor = () => {
         <div className="px-4 md:px-8 py-6 md:py-8">
           <Suspense fallback={<SectionFallback />}>
           {activeSection === "overview" && (
-            <ShopOverview orders={orders} productCount={products.length} totalRevenue={totalRevenue} unreadOrders={unreadOrders} onViewAllOrders={() => setActiveSection("orders")} isRestricted={isRestricted} />
+            <ShopOverview orders={orders} productCount={productCount} totalRevenue={totalRevenue} unreadOrders={unreadOrders} onViewAllOrders={() => setActiveSection("orders")} isRestricted={isRestricted} />
           )}
 
           {activeSection === "statistics" && (
-            <ShopStatistics orders={orders} products={products} primaryColor={primaryColor} visits={visits} monthlyGoal={shop.monthly_goal || 1000000} codDeliveryRate={shop.cod_delivery_rate ?? 100} />
+            <ShopStatistics orders={orders} products={productNames?.shopId === shop.id ? productNames.products : []} primaryColor={primaryColor} visits={visits} monthlyGoal={shop.monthly_goal || 1000000} codDeliveryRate={shop.cod_delivery_rate ?? 100} />
           )}
 
           {activeSection === "theme" && (
@@ -1642,20 +1613,23 @@ const ShopEditor = () => {
 
           {activeSection === "shop-themes" && (
             <StoreRestrictedLockScreen shopId={shop.id} isRestricted={isRestricted}>
-              <ShopThemesManager
-                shop={shop}
-                setShop={setShop}
-                products={products}
-                onCustomize={() => setActiveSection("theme")}
-                onOpenVisualEditor={() => setShowVisualEditor(true)}
-              />
+              {catalogProducts ? (
+                <ShopThemesManager
+                  shop={shop}
+                  setShop={setShop}
+                  products={catalogProducts}
+                  onCustomize={() => setActiveSection("theme")}
+                  onOpenVisualEditor={() => setShowVisualEditor(true)}
+                />
+              ) : <SectionFallback />}
             </StoreRestrictedLockScreen>
           )}
 
           {activeSection === "products" && (
             <StoreRestrictedLockScreen shopId={shop.id} isRestricted={isRestricted}>
               <ProductsTable
-                products={products}
+                shopId={shop.id}
+                revision={productsRevision}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
                 onAddProduct={() => { resetProductForm(); setEditingProduct(null); setShowProductEditor(true); }}
@@ -1669,7 +1643,6 @@ const ShopEditor = () => {
                 }}
                 onDeleteProduct={deleteProduct}
                 onToggleStatus={toggleProductStatus}
-                onUploadImage={uploadProductImage}
                 onPreviewProduct={
                   shop?.is_activated && shop?.is_published
                     ? (product) => {
@@ -1679,12 +1652,9 @@ const ShopEditor = () => {
                       }
                     : undefined
                 }
-                primaryColor={primaryColor}
-                orders={orders}
                 shopSlug={shop.slug}
-                shopId={shop.id}
                 stockQrEnabled={!!shop.stock_qr_enabled}
-                onStockChanged={() => { void fetchDataNow(true); }}
+                onStockChanged={productsChanged}
               />
             </StoreRestrictedLockScreen>
           )}
@@ -1838,13 +1808,13 @@ const ShopEditor = () => {
             </div>
           )}
 
-          {activeSection === "homepage" && (
+          {activeSection === "homepage" && (catalogProducts ? (
             <HomepageBuilder
               shop={shop}
               setShop={setShop}
-              products={products as any}
+              products={catalogProducts}
             />
-          )}
+          ) : <SectionFallback />)}
 
           {activeSection === "settings" && (
             <StoreRestrictedLockScreen shopId={shop.id} isRestricted={isRestricted}>
@@ -1868,13 +1838,13 @@ const ShopEditor = () => {
             <ShopFinances shopId={shop.id} shop={shop} orders={orders as any} />
           )}
 
-          {activeSection === "ai-optimizer" && (
+          {activeSection === "ai-optimizer" && (catalogProducts ? (
             <ProductAIOptimizer
               shop={shop as any}
-              products={products as any}
+              products={catalogProducts as any}
               onShopUpdate={(patch) => setShop((s: any) => ({ ...s, ...patch }))}
             />
-          )}
+          ) : <SectionFallback />)}
 
           {activeSection === "assistant" && (
             <ShopAssistantSettings shopId={shop.id} isActivated={!!shop.is_activated} />

@@ -1,104 +1,87 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Plus, Eye, Edit, Trash2, Copy, Package, Image as ImageIcon, Upload, ExternalLink, Link2, MoreVertical, SlidersHorizontal, Power, QrCode, ScanLine, History } from "lucide-react";
+import { Search, Plus, Eye, Edit, Trash2, Copy, Package, ExternalLink, Link2, MoreVertical, SlidersHorizontal, Power, QrCode, ScanLine, History, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { ProductStockQrDialog } from "./ProductStockQrDialog";
+import { ProductThumb } from "./ProductThumb";
 import { StockQrScanner } from "./StockQrScanner";
 import { StockHistoryDialog } from "./StockHistoryDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ListPagination } from "@/components/ListPagination";
+import { usePagedList } from "@/hooks/usePagedList";
+import { fetchShopProductsPage, type ProductSort, type ProductStatusFilter, type ShopProduct as Product } from "@/lib/shopProducts";
 
-interface Product {
-  id: string;
-  slug?: string | null;
-  name: string;
-  description: string | null;
-  short_description: string | null;
-  price: number;
-  compare_at_price: number | null;
-  category: string;
-  stock_quantity: number;
-  is_published: boolean;
-  is_digital: boolean;
-  is_featured: boolean;
-  display_order: number;
-  currency: string | null;
-  sku: string | null;
-  weight: number | null;
-  created_at?: string;
-  product_images?: { id: string; image_url: string; is_primary: boolean; display_order: number }[];
-}
+const PRODUCTS_PAGE_SIZE = 20;
 
 interface ProductsTableProps {
-  products: Product[];
+  shopId: string;
+  /** Change après chaque écriture sur les produits : la page affichée est relue. */
+  revision: number;
   searchQuery: string;
   onSearchChange: (q: string) => void;
   onAddProduct: () => void;
   onEditProduct: (product: Product) => void;
-  onDeleteProduct: (id: string) => void;
-  onToggleStatus?: (id: string, currentPublishedState: boolean) => void;
-  onUploadImage: (productId: string, file: File) => void;
+  onDeleteProduct: (product: Product) => void;
+  /** Renvoie false si la visibilité n'a pas changé. */
+  onToggleStatus: (product: Product) => Promise<boolean>;
   onPreviewProduct?: (product: Product) => void;
-  primaryColor: string;
-  orders: { id?: string; products_summary?: string | null; order_items?: { product_id: string; quantity: number }[] }[];
   shopSlug?: string;
-  shopId?: string;
   /** Stock par QR code activé pour cette boutique (Paramètres). */
   stockQrEnabled?: boolean;
   onStockChanged?: () => void;
 }
 
 export function ProductsTable({
-  products, searchQuery, onSearchChange, onAddProduct,
-  onEditProduct, onDeleteProduct, onToggleStatus, onUploadImage, onPreviewProduct, primaryColor, orders, shopSlug, shopId, stockQrEnabled, onStockChanged,
+  shopId, revision, searchQuery, onSearchChange, onAddProduct,
+  onEditProduct, onDeleteProduct, onToggleStatus, onPreviewProduct, shopSlug, stockQrEnabled, onStockChanged,
 }: ProductsTableProps) {
   const [qrProduct, setQrProduct] = useState<Product | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyProduct, setHistoryProduct] = useState<{ id: string; name: string } | null>(null);
   const openHistory = (p: { id: string; name: string } | null) => { setHistoryProduct(p); setHistoryOpen(true); };
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<ProductStatusFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("recent");
+  const [sortBy, setSortBy] = useState<ProductSort>("recent");
+  const [categories, setCategories] = useState<string[]>([]);
 
-  // Count distinct orders per product (1 order = 1, even if multiple units).
-  // Fallback: many legacy orders have no order_items rows but reference the
-  // product in products_summary text — match by product name (case-insensitive).
-  const normalize = (s: string) =>
-    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-  const productByNorm: Record<string, string> = {};
-  products.forEach(p => {
-    if (p.name) productByNorm[normalize(p.name)] = p.id;
+  const list = usePagedList({
+    pageSize: PRODUCTS_PAGE_SIZE,
+    search: searchQuery,
+    filterKey: JSON.stringify([shopId, statusFilter, categoryFilter, sortBy]),
+    refreshKey: revision,
+    fetchPage: async ({ page, pageSize, search }) => {
+      const result = await fetchShopProductsPage({
+        shopId, page, pageSize, search, sort: sortBy, status: statusFilter,
+        category: categoryFilter === "all" ? null : categoryFilter,
+      });
+      setCategories(result.categories);
+      return result;
+    },
   });
-  const orderCounts: Record<string, number> = {};
-  orders.forEach(o => {
-    const counted = new Set<string>();
-    o.order_items?.forEach(item => {
-      if (item.product_id && !counted.has(item.product_id)) {
-        counted.add(item.product_id);
-        orderCounts[item.product_id] = (orderCounts[item.product_id] || 0) + 1;
-      }
-    });
-    // Repli par nom sur products_summary uniquement quand la commande n'a aucune ligne d'article. Avec des lignes, le
-    // rapprochement par nom comptait « Sac » dans une commande de « Sac à dos » (faux positifs).
-    const summary = !o.order_items?.length && o.products_summary ? normalize(o.products_summary) : "";
-    if (summary) {
-      Object.entries(productByNorm).forEach(([nname, pid]) => {
-        if (counted.has(pid)) return;
-        if (summary.includes(nname)) {
-          counted.add(pid);
-          orderCounts[pid] = (orderCounts[pid] || 0) + 1;
-        }
+
+  // Visibilité affichée dès le clic, avant la réponse du serveur ; oubliée dès que la page est relue.
+  const [pendingVisibility, setPendingVisibility] = useState<Record<string, boolean>>({});
+  useEffect(() => { setPendingVisibility({}); }, [list.rows]);
+  const rows = list.rows.map((p) => (p.id in pendingVisibility ? { ...p, is_published: pendingVisibility[p.id] } : p));
+
+  const toggleStatus = async (product: Product) => {
+    if (product.id in pendingVisibility) return;
+    setPendingVisibility((prev) => ({ ...prev, [product.id]: !product.is_published }));
+    if (!(await onToggleStatus(product))) {
+      setPendingVisibility((prev) => {
+        const next = { ...prev };
+        delete next[product.id];
+        return next;
       });
     }
-  });
-
-  const categories = Array.from(new Set(products.map(p => p.category).filter(Boolean))) as string[];
+  };
 
   // Stock vide (null) = illimité, comme sur la fiche publique : ce n'est pas une rupture.
   const hasStock = (p: Product) => p.stock_quantity !== null && p.stock_quantity !== undefined;
@@ -106,28 +89,7 @@ export function ProductsTable({
   const stockLabel = (p: Product) => !hasStock(p) ? "Illimité" : p.stock_quantity <= 0 ? "Rupture" : p.stock_quantity;
   const stockTone = (p: Product) => isOutOfStock(p) ? "text-destructive font-semibold" : hasStock(p) && p.stock_quantity < 5 ? "text-orange-500" : "text-muted-foreground";
 
-  const query = searchQuery.trim().toLowerCase();
-  const hasActiveFilter = !!query || statusFilter !== "all" || categoryFilter !== "all";
-
-  const filtered = products
-    .filter(p => !query
-      || (p.name || "").toLowerCase().includes(query)
-      || (p.sku || "").toLowerCase().includes(query)
-      || (p.category || "").toLowerCase().includes(query))
-    .filter(p => statusFilter === "all"
-      || (statusFilter === "published" && p.is_published)
-      || (statusFilter === "draft" && !p.is_published)
-      || (statusFilter === "out_of_stock" && isOutOfStock(p)))
-    .filter(p => categoryFilter === "all" || p.category === categoryFilter)
-    .sort((a, b) => {
-      if (sortBy === "name_asc") return (a.name || "").localeCompare(b.name || "", "fr");
-      if (sortBy === "name_desc") return (b.name || "").localeCompare(a.name || "", "fr");
-      if (sortBy === "price_asc") return a.price - b.price;
-      if (sortBy === "price_desc") return b.price - a.price;
-      if (sortBy === "orders_desc") return (orderCounts[b.id] || 0) - (orderCounts[a.id] || 0);
-      if (sortBy === "stock_asc") return (hasStock(a) ? a.stock_quantity : Infinity) - (hasStock(b) ? b.stock_quantity : Infinity);
-      return (new Date(b.created_at || 0).getTime()) - (new Date(a.created_at || 0).getTime());
-    });
+  const hasActiveFilter = !!searchQuery.trim() || statusFilter !== "all" || categoryFilter !== "all";
 
   const copyProductLink = async (slug: string) => {
     const url = `https://ecomfy.cloud/shop/${shopSlug}/p/${slug}`;
@@ -140,7 +102,8 @@ export function ProductsTable({
   };
 
   const formatPrice = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
-  const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString("fr-FR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
+  const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString("fr-FR") : "—";
+  const formatDateTime = (d?: string) => d ? new Date(d).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }) : undefined;
 
   return (
     <div className="space-y-4">
@@ -148,12 +111,12 @@ export function ProductsTable({
       <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
         <h2 className="text-xl font-bold">Produits</h2>
         <div className="flex gap-2">
-          {stockQrEnabled && shopId && (
+          {stockQrEnabled && (
             <Button variant="outline" className="gap-2" onClick={() => setScannerOpen(true)}>
               <ScanLine className="h-4 w-4" /> Scanner le stock
             </Button>
           )}
-          {stockQrEnabled && shopId && (
+          {stockQrEnabled && (
             <Button variant="outline" className="gap-2" onClick={() => openHistory(null)}>
               <History className="h-4 w-4" /> Historique du stock
             </Button>
@@ -163,10 +126,10 @@ export function ProductsTable({
           </Button>
         </div>
       </div>
-      {stockQrEnabled && shopId && (
+      {stockQrEnabled && (
         <StockQrScanner open={scannerOpen} shopId={shopId} onClose={() => setScannerOpen(false)} onStockChanged={onStockChanged} />
       )}
-      {stockQrEnabled && shopId && (
+      {stockQrEnabled && (
         <StockHistoryDialog open={historyOpen} shopId={shopId} product={historyProduct} onClose={() => setHistoryOpen(false)} />
       )}
       <ProductStockQrDialog product={qrProduct} onClose={() => setQrProduct(null)} />
@@ -184,7 +147,7 @@ export function ProductsTable({
             />
           </div>
           <div className="grid grid-cols-3 md:flex md:flex-row gap-2">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as ProductStatusFilter)}>
               <SelectTrigger className="h-9 md:w-[140px] text-xs"><SelectValue placeholder="Statut" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous statuts</SelectItem>
@@ -200,7 +163,7 @@ export function ProductsTable({
                 {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={sortBy} onValueChange={setSortBy}>
+            <Select value={sortBy} onValueChange={(v) => setSortBy(v as ProductSort)}>
               <SelectTrigger className="h-9 md:w-[170px] text-xs"><SelectValue placeholder="Trier" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="recent">Plus récents</SelectItem>
@@ -216,7 +179,16 @@ export function ProductsTable({
         </div>
       </Card>
 
-      {filtered.length === 0 ? (
+      {list.loading ? (
+        <Card className="p-12 flex justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-label="Chargement des produits" />
+        </Card>
+      ) : list.error ? (
+        <Card className="p-12 text-center space-y-3">
+          <p className="text-sm text-destructive">Les produits n'ont pas pu être chargés.</p>
+          <Button variant="outline" onClick={list.reload}>Réessayer</Button>
+        </Card>
+      ) : rows.length === 0 ? (
         <Card className="p-12 text-center">
           <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="font-semibold mb-1">{hasActiveFilter ? "Aucun résultat" : "Aucun produit"}</h3>
@@ -240,19 +212,13 @@ export function ProductsTable({
         <Card className="overflow-hidden">
           {/* Mobile card list */}
           <div className="md:hidden divide-y">
-            {filtered.map((product) => {
+            {rows.map((product) => {
               const img = product.product_images?.[0]?.image_url;
-              const prodOrders = orderCounts[product.id] || 0;
+              const prodOrders = product.order_count;
               return (
                 <div key={product.id} className="p-3 flex gap-3 items-start">
                   <div className="h-16 w-16 rounded-lg bg-muted overflow-hidden shrink-0">
-                    {img ? (
-                      <img src={img} alt="" loading="lazy" className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="h-full w-full flex items-center justify-center">
-                        <ImageIcon className="h-5 w-5 text-muted-foreground/40" />
-                      </div>
-                    )}
+                    <ProductThumb src={img} lazy />
                   </div>
                   <div className="flex-1 min-w-0">
                     <button
@@ -273,7 +239,7 @@ export function ProductsTable({
                       <div className="flex items-center gap-1.5 ml-auto sm:ml-0 bg-muted/40 px-2 py-0.5 rounded-full border">
                         <Switch
                           checked={product.is_published}
-                          onCheckedChange={() => onToggleStatus?.(product.id, product.is_published)}
+                          onCheckedChange={() => toggleStatus(product)}
                         />
                         <span className={`text-[10px] font-bold ${product.is_published ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400"}`}>
                           {product.is_published ? "Actif" : "Masqué"}
@@ -298,7 +264,7 @@ export function ProductsTable({
                       <DropdownMenuItem onClick={() => onEditProduct(product)}>
                         <Edit className="h-4 w-4 mr-2" /> Modifier
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onToggleStatus?.(product.id, product.is_published)}>
+                      <DropdownMenuItem onClick={() => toggleStatus(product)}>
                         <Power className="h-4 w-4 mr-2" /> {product.is_published ? "Désactiver" : "Activer"}
                       </DropdownMenuItem>
                       {onPreviewProduct && (
@@ -323,7 +289,7 @@ export function ProductsTable({
                       )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
-                        onClick={() => onDeleteProduct(product.id)}
+                        onClick={() => onDeleteProduct(product)}
                         className="text-destructive focus:text-destructive"
                       >
                         <Trash2 className="h-4 w-4 mr-2" /> Supprimer
@@ -337,7 +303,7 @@ export function ProductsTable({
 
           {/* Desktop table */}
           <div className="hidden md:block overflow-x-auto">
-            <Table>
+            <Table className="[&_th]:px-2 [&_td]:px-2">
               <TableHeader>
                 <TableRow className="bg-muted/30">
                   <TableHead className="w-12 whitespace-nowrap text-xs"></TableHead>
@@ -345,30 +311,24 @@ export function ProductsTable({
                   <TableHead className="text-right whitespace-nowrap text-xs">Prix</TableHead>
                   <TableHead className="text-center whitespace-nowrap text-xs">Inventaire</TableHead>
                   <TableHead className="text-center whitespace-nowrap text-xs">Commandes</TableHead>
-                  <TableHead className="text-center whitespace-nowrap text-xs">Visibilité (Actif/Masqué)</TableHead>
-                  <TableHead className="whitespace-nowrap text-xs">Date de création</TableHead>
+                  <TableHead className="text-center whitespace-nowrap text-xs">Visibilité</TableHead>
+                  <TableHead className="whitespace-nowrap text-xs">Créé le</TableHead>
                   <TableHead className="text-center whitespace-nowrap text-xs">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((product) => {
+                {rows.map((product) => {
                   const img = product.product_images?.[0]?.image_url;
-                  const prodOrders = orderCounts[product.id] || 0;
+                  const prodOrders = product.order_count;
                   return (
                     <TableRow key={product.id} className="group hover:bg-muted/20">
                       <TableCell>
                         <div className="h-12 w-12 rounded-lg bg-muted overflow-hidden shrink-0">
-                          {img ? (
-                            <img src={img} alt="" className="h-full w-full object-cover" />
-                          ) : (
-                            <div className="h-full w-full flex items-center justify-center">
-                              <ImageIcon className="h-5 w-5 text-muted-foreground/40" />
-                            </div>
-                          )}
+                          <ProductThumb src={img} />
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="min-w-[180px]">
+                        <div className="min-w-[140px]">
                           <p className="font-medium text-sm line-clamp-2">{product.name}</p>
                           {product.category && (
                             <p className="text-xs text-muted-foreground mt-0.5">{product.category}</p>
@@ -395,14 +355,14 @@ export function ProductsTable({
                         <div className="flex items-center justify-center gap-2">
                           <Switch
                             checked={product.is_published}
-                            onCheckedChange={() => onToggleStatus?.(product.id, product.is_published)}
+                            onCheckedChange={() => toggleStatus(product)}
                           />
                           <span className={`text-xs font-bold ${product.is_published ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400"}`}>
                             {product.is_published ? "Actif" : "Masqué"}
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap" title={formatDateTime(product.created_at)}>
                         {formatDate(product.created_at)}
                       </TableCell>
                       <TableCell>
@@ -436,7 +396,7 @@ export function ProductsTable({
                           <Button variant="ghost" size="icon" className="h-8 w-8" title="Modifier" onClick={() => onEditProduct(product)}>
                             <Edit className="h-4 w-4 text-muted-foreground" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Supprimer" onClick={() => onDeleteProduct(product.id)}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Supprimer" onClick={() => onDeleteProduct(product)}>
                             <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
                           </Button>
                         </div>
@@ -447,9 +407,13 @@ export function ProductsTable({
               </TableBody>
             </Table>
           </div>
-          <div className="px-4 py-3 border-t text-xs text-muted-foreground">
-            Afficher 1 - {filtered.length} de {filtered.length} résultats
-          </div>
+          {list.total > list.pageSize ? (
+            <ListPagination className="px-4 py-3 border-t" page={list.page} pageSize={list.pageSize} total={list.total} onPageChange={list.setPage} />
+          ) : (
+            <div className="px-4 py-3 border-t text-xs text-muted-foreground">
+              {list.total} résultat{list.total > 1 ? "s" : ""}
+            </div>
+          )}
         </Card>
       )}
     </div>
