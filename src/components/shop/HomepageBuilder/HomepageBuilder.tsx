@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { DeviceType, HomepageConfig, HomepageSection, SectionType } from "./types";
 import { HOMEPAGE_TEMPLATES } from "./templates";
 import { HomepageRenderer } from "./HomepageRenderer";
+import { PreviewFrame } from "./PreviewFrame";
 import { SectionControls } from "./SectionControls";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -560,20 +561,22 @@ export const HomepageBuilder: React.FC<HomepageBuilderProps> = ({
         {/* Center Frame: Live Responsive Canvas */}
         <main className="flex-1 bg-slate-200/70 p-4 md:p-8 flex items-center justify-center overflow-auto relative">
           <div
-            className={`bg-white shadow-2xl transition-all duration-300 rounded-2xl overflow-y-auto border border-slate-300/80 ${
+            className={`bg-white shadow-2xl transition-all duration-300 rounded-2xl overflow-hidden border border-slate-300/80 ${
               device === "mobile"
-                ? "w-[375px] h-[720px]"
+                ? "w-[375px] max-w-full h-[720px] shrink-0"
                 : device === "tablet"
-                ? "w-[768px] h-[850px]"
+                ? "w-[768px] max-w-full h-[850px] shrink-0"
                 : "w-full max-w-5xl h-full"
             }`}
           >
-            <HomepageRenderer
-              config={config}
-              shop={shop}
-              products={products}
-              primaryColor={shop?.primary_color || "#0E7C66"}
-            />
+            <PreviewFrame width={device === "mobile" ? 375 : device === "tablet" ? 768 : 1024} title="Aperçu de la page d'accueil">
+              <HomepageRenderer
+                config={config}
+                shop={shop}
+                products={products}
+                primaryColor={shop?.primary_color || "#0E7C66"}
+              />
+            </PreviewFrame>
           </div>
         </main>
 
