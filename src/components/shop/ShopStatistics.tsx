@@ -1,31 +1,18 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
   TrendingUp, ShoppingCart, DollarSign, Package, Monitor, 
-  Smartphone, Tablet, Globe, Clock, Target, Activity, Users, Filter, ArrowUpRight, TrendingDown
+  Smartphone, Tablet, Globe, Clock, Target, Activity, Users, Filter, ArrowUpRight, TrendingDown, Loader2
 } from "lucide-react";
 import { TrafficGlobe } from "./TrafficGlobe";
 import { TrackingReconciliation } from "./TrackingReconciliation";
+import { fetchShopStatistics, salesChart, type ShopStatsData, type StatsPeriod } from "@/lib/shopOrderStats";
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, BarChart, Bar, ComposedChart, Line
 } from "recharts";
-
-interface Order {
-  id: string;
-  order_number: string;
-  customer_name: string;
-  customer_city?: string | null;
-  customer_phone?: string | null;
-  customer_country?: string | null;
-  total: number;
-  order_status: string;
-  payment_status: string;
-  created_at: string;
-  order_items?: { product_id: string; product_name: string; quantity: number; total_price: number }[];
-}
 
 interface Product {
   id: string;
@@ -34,7 +21,9 @@ interface Product {
 }
 
 interface ShopStatisticsProps {
-  orders: Order[];
+  /** Boutique dont les ventes sont lues ; `ordersRevision` change quand ses commandes changent. */
+  ordersShopId: string;
+  ordersRevision: number;
   products: Product[];
   primaryColor: string;
   monthlyGoal: number;
@@ -45,6 +34,12 @@ interface ShopStatisticsProps {
 }
 
 interface Trend { label: string; up: boolean }
+
+// Valeurs en attendant la première réponse : rien n'est affiché avec.
+const NO_SALES: ShopStatsData = {
+  period: "30d", count: 0, revenue: 0, awaitingTotal: 0, firstOrderAt: null, previousCount: 0, previousRevenue: 0,
+  monthRevenue: 0, days: [], hours: [], countries: [], products: [],
+};
 
 type SourceKind = "facebook" | "google" | "instagram" | "tiktok" | "other";
 
@@ -150,11 +145,32 @@ function TrendBadge({ trend, onColor = false }: { trend: Trend | null; onColor?:
   );
 }
 
-export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, codDeliveryRate = 100, shopId, visits = [] }: ShopStatisticsProps) {
+export function ShopStatistics({ ordersShopId, ordersRevision, products, primaryColor, monthlyGoal, codDeliveryRate = 100, shopId, visits = [] }: ShopStatisticsProps) {
   const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
   const compactNumber = (n: number) => new Intl.NumberFormat("fr-FR", { notation: "compact", maximumFractionDigits: 1 }).format(n);
   const funnelWidth = (n: number) => (trafficMetrics.visitors > 0 ? Math.min((n / trafficMetrics.visitors) * 100, 100) : 0);
-  const [period, setPeriod] = useState<"today" | "7d" | "30d" | "all">("30d");
+  const [period, setPeriod] = useState<StatsPeriod>("30d");
+  const [loaded, setLoaded] = useState<{ shopId: string; data: ShopStatsData } | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => setAttempt((a) => a + 1), []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setFailed(false);
+    fetchShopStatistics(ordersShopId, period)
+      .then((data) => { if (!cancelled) setLoaded({ shopId: ordersShopId, data }); })
+      .catch((error) => {
+        console.error("Failed to load shop statistics", error);
+        if (!cancelled) setFailed(true);
+      });
+    return () => { cancelled = true; };
+  }, [ordersShopId, period, ordersRevision, attempt]);
+
+  const current = loaded && loaded.shopId === ordersShopId ? loaded.data : null;
+  const data = current ?? NO_SALES;
+  // Tant que la période choisie n'est pas arrivée, tout (visites comprises) reste sur la période affichée.
+  const shownPeriod = current?.period ?? period;
 
   // Define icon helper for traffic sources
   const renderSourceIcon = (name: string) => {
@@ -206,38 +222,23 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, co
     );
   };
 
-  // Les commandes annulées ou retournées ne sont pas des ventes.
-  const sales = useMemo(
-    () => orders.filter(o => o.order_status !== "cancelled" && o.order_status !== "returned"),
-    [orders]
-  );
-
   // Fenêtre de la période choisie et fenêtre précédente de même durée (pour les tendances).
   // « Tout » n'a pas de période précédente.
   const ranges = useMemo(() => {
-    if (period === "all") return { start: null as Date | null, prevStart: null as Date | null };
+    if (shownPeriod === "all") return { start: null as Date | null, prevStart: null as Date | null };
     const start = new Date();
     start.setHours(0, 0, 0, 0);
-    const days = period === "today" ? 1 : period === "7d" ? 7 : 30;
+    const days = shownPeriod === "today" ? 1 : shownPeriod === "7d" ? 7 : 30;
     start.setDate(start.getDate() - (days - 1));
     const prevStart = new Date(start);
     prevStart.setDate(prevStart.getDate() - days);
     return { start, prevStart };
-  }, [period]);
+  }, [shownPeriod]);
 
   const inRange = (iso: string, from: Date | null, to?: Date | null) => {
     const t = new Date(iso).getTime();
     return (!from || t >= from.getTime()) && (!to || t < to.getTime());
   };
-
-  const filteredOrders = useMemo(
-    () => sales.filter(o => inRange(o.created_at, ranges.start)),
-    [sales, ranges]
-  );
-  const previousOrders = useMemo(
-    () => (ranges.start && ranges.prevStart ? sales.filter(o => inRange(o.created_at, ranges.prevStart, ranges.start)) : []),
-    [sales, ranges]
-  );
 
   const filteredVisits = useMemo(
     () => visits.filter(v => inRange(v.visited_at, ranges.start)),
@@ -263,40 +264,29 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, co
   };
 
   const stats = useMemo(() => {
-    const totalRevenue = filteredOrders.reduce((a, o) => a + o.total, 0);
-    const orderCount = filteredOrders.length;
-    const avgOrder = orderCount ? totalRevenue / orderCount : 0;
-    const prevRevenue = previousOrders.reduce((a, o) => a + o.total, 0);
-    const prevAvg = previousOrders.length ? prevRevenue / previousOrders.length : 0;
+    const avgOrder = data.count ? data.revenue / data.count : 0;
+    const prevAvg = data.previousCount ? data.previousRevenue / data.previousCount : 0;
 
     return {
-      totalRevenue,
+      totalRevenue: data.revenue,
       avgOrder,
-      orderCount,
-      trendRev: percentTrend(totalRevenue, prevRevenue),
+      orderCount: data.count,
+      trendRev: percentTrend(data.revenue, data.previousRevenue),
       trendAOV: percentTrend(avgOrder, prevAvg),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredOrders, previousOrders, ranges]);
+  }, [data, ranges]);
 
   // Estimation à part (le chiffre d'affaires affiché reste celui des commandes enregistrées) : parmi les commandes de
   // la période, celles ni livrées ni payées d'avance ne sont pas encore encaissées ; le taux de délivrabilité réglé
   // par le marchand donne la part qu'on peut raisonnablement en attendre.
   const awaitingDelivery = useMemo(() => {
     const rate = Math.min(100, Math.max(0, codDeliveryRate));
-    const total = filteredOrders
-      .filter(o => o.order_status !== "delivered" && o.payment_status !== "paid")
-      .reduce((a, o) => a + o.total, 0);
-    return { total, expected: Math.round((total * rate) / 100), rate };
-  }, [filteredOrders, codDeliveryRate]);
+    return { total: data.awaitingTotal, expected: Math.round((data.awaitingTotal * rate) / 100), rate };
+  }, [data, codDeliveryRate]);
 
   // Objectif mensuel : le chiffre d'affaires du MOIS en cours, quelle que soit la période affichée.
-  const monthRevenue = useMemo(() => {
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-    return sales.filter(o => inRange(o.created_at, startOfMonth)).reduce((a, o) => a + o.total, 0);
-  }, [sales]);
+  const monthRevenue = data.monthRevenue;
 
   const countSessions = (list: { session_id?: string | null }[]) =>
     new Set(list.map((v, i) => v.session_id || `visit-${i}`)).size;
@@ -307,65 +297,22 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, co
     const pageViews = filteredVisits.length;
     const viewedProduct = countSessions(filteredVisits.filter(v => v.product_id));
     const rate = (n: number, v: number) => (v > 0 ? Math.min((n / v) * 100, 100) : 0);
-    const conversion = rate(filteredOrders.length, visitors);
+    const conversion = rate(data.count, visitors);
 
     // Écart de taux de conversion en points, seulement si la période précédente a des visites mesurées.
     let conversionTrend: Trend | null = null;
     if (ranges.start && previousVisits) {
       const prevVisitors = countSessions(previousVisits);
       if (prevVisitors > 0 && visitors > 0) {
-        const diff = conversion - rate(previousOrders.length, prevVisitors);
+        const diff = conversion - rate(data.previousCount, prevVisitors);
         conversionTrend = { label: `${diff >= 0 ? "+" : "-"}${Math.abs(diff).toFixed(1)} pt`, up: diff >= 0 };
       }
     }
 
-    return { visitors, pageViews, conversionRate: conversion.toFixed(2), conversionTrend, viewedProduct, purchases: filteredOrders.length };
-  }, [filteredOrders, previousOrders, filteredVisits, previousVisits, ranges]);
+    return { visitors, pageViews, conversionRate: conversion.toFixed(2), conversionTrend, viewedProduct, purchases: data.count };
+  }, [data, filteredVisits, previousVisits, ranges]);
 
-  // Clé de jour en heure LOCALE (toISOString donnait le jour UTC et décalait les ventes de fin de soirée).
-  const dayKey = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
-  const chartData = useMemo(() => {
-    // « Aujourd'hui » : un seul point par jour ne trace ni courbe ni aire, on détaille donc par heure.
-    if (period === "today") {
-      const hours = Array.from({ length: new Date().getHours() + 1 }, (_, h) => ({ date: `${h}h`, commandes: 0, ventes: 0, panier_moyen: 0 }));
-      filteredOrders.forEach(o => {
-        const slot = hours[new Date(o.created_at).getHours()];
-        if (slot) { slot.commandes += 1; slot.ventes += o.total; }
-      });
-      hours.forEach(h => { h.panier_moyen = h.commandes ? h.ventes / h.commandes : 0; });
-      return hours;
-    }
-
-    const byDay = new Map<string, Order[]>();
-    filteredOrders.forEach(o => {
-      const key = dayKey(new Date(o.created_at));
-      const list = byDay.get(key);
-      if (list) list.push(o); else byDay.set(key, [o]);
-    });
-
-    let dayCount = period === "7d" ? 7 : 30;
-    if (period === "all" && filteredOrders.length > 0) {
-      const first = Math.min(...filteredOrders.map(o => new Date(o.created_at).getTime()));
-      dayCount = Math.min(Math.max(Math.ceil((Date.now() - first) / 86400000) + 1, 7), 90);
-    }
-
-    const days: { date: string; commandes: number; ventes: number; panier_moyen: number }[] = [];
-    for (let i = dayCount - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const dayOrders = byDay.get(dayKey(d)) || [];
-      const ventes = dayOrders.reduce((sum, o) => sum + o.total, 0);
-      days.push({
-        date: d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" }),
-        commandes: dayOrders.length,
-        ventes,
-        panier_moyen: dayOrders.length ? ventes / dayOrders.length : 0,
-      });
-    }
-    return days;
-  }, [filteredOrders, period]);
+  const chartData = useMemo(() => salesChart(data), [data]);
 
   const realtimeVisitors = useMemo(() => {
     const fifteenMinsAgo = new Date(Date.now() - 15 * 60000);
@@ -447,29 +394,24 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, co
     });
     sessionsByCountry.forEach((set, key) => { byCountry.get(key)!.visitors = set.size; });
 
-    filteredOrders.forEach(o => {
-      const e = entry(canonicalCountry(o.customer_country).key ? o.customer_country : guessCountryFromPhone(o.customer_phone));
-      e.orders += 1;
-      e.revenue += o.total;
+    data.countries.forEach(group => {
+      const e = entry(canonicalCountry(group.country).key ? group.country : guessCountryFromPhone(group.phone));
+      e.orders += group.count;
+      e.revenue += group.total;
     });
 
     // « Non spécifié » toujours en dernier, le reste par chiffre d'affaires puis visiteurs.
     return Array.from(byCountry.values()).sort((a, b) =>
       (a.countryKey === "" ? 1 : 0) - (b.countryKey === "" ? 1 : 0) || b.revenue - a.revenue || b.visitors - a.visitors);
-  }, [filteredVisits, filteredOrders]);
+  }, [filteredVisits, data]);
 
   const maxCountryVisitors = Math.max(0, ...countryStats.map(c => c.visitors));
 
   // Peak Hours (Heures d'affluence)
-  const peakHoursData = useMemo(() => {
-    const hours = Array.from({ length: 24 }, (_, i) => ({ hour: `${i}h`, orders: 0, revenue: 0 }));
-    filteredOrders.forEach(o => {
-      const h = new Date(o.created_at).getHours();
-      hours[h].orders += 1;
-      hours[h].revenue += o.total;
-    });
-    return hours.filter(h => h.orders > 0);
-  }, [filteredOrders]);
+  const peakHoursData = useMemo(
+    () => data.hours.map(h => ({ hour: `${h.hour}h`, orders: h.count, revenue: h.total })),
+    [data],
+  );
 
   const peakMax = Math.max(0, ...peakHoursData.map(h => h.orders));
 
@@ -481,14 +423,8 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, co
       return acc;
     }, {});
 
-    filteredOrders.forEach(o => {
-      o.order_items?.forEach(item => {
-        // Produit supprimé : product_id est nul, on regroupe alors par nom plutôt que tout mélanger sous « null ».
-        const key = item.product_id || `name:${item.product_name}`;
-        if (!map[key]) map[key] = { name: item.product_name, views: 0, orders: 0, revenue: 0 };
-        map[key].orders += item.quantity;
-        map[key].revenue += item.total_price;
-      });
+    data.products.forEach(product => {
+      map[product.key] = { name: product.name, views: 0, orders: product.quantity, revenue: product.revenue };
     });
 
     Object.entries(productViews).forEach(([productId, views]) => {
@@ -503,13 +439,32 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, co
       .map(product => ({ ...product, views: Math.max(product.views, product.orders) }))
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 4);
-  }, [filteredOrders, filteredVisits, products]);
+  }, [data, filteredVisits, products]);
 
   const maxProductRevenue = Math.max(1, ...topProducts.map(x => x.revenue));
   const PIE_COLORS = [primaryColor, "#0f172a", "#3b82f6", "#10b981", "#8b5cf6"];
 
+  if (!current) {
+    return failed ? (
+      <Card className="p-8 text-center space-y-3">
+        <p className="text-sm text-muted-foreground">Les statistiques n'ont pas pu être chargées.</p>
+        <Button variant="outline" size="sm" onClick={retry}>Réessayer</Button>
+      </Card>
+    ) : (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" aria-label="Chargement des statistiques" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 pb-12 font-inter">
+      {failed && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Les chiffres n'ont pas pu être actualisés.
+          <Button variant="outline" size="sm" onClick={retry}>Réessayer</Button>
+        </div>
+      )}
       {/* Header & Period Selector */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -526,7 +481,8 @@ export function ShopStatistics({ orders, products, primaryColor, monthlyGoal, co
         </div>
         
         {/* Premium Segmented Control */}
-        <div className="flex bg-slate-100/80 p-1 rounded-xl border border-slate-200/60 shadow-sm">
+        <div className="flex items-center bg-slate-100/80 p-1 rounded-xl border border-slate-200/60 shadow-sm">
+          {shownPeriod !== period && !failed && <Loader2 className="mx-2 h-4 w-4 animate-spin text-slate-400" aria-label="Chargement" />}
           {[
             { id: "today", label: "Aujourd'hui" },
             { id: "7d", label: "7 Jours" },

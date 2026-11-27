@@ -185,7 +185,7 @@ const ShopEditor = () => {
   const [collabRoles, setCollabRoles] = useState<string[] | null>(null);
   const lastPassiveRefreshRef = useRef(0);
   // Compteurs et chiffre d'affaires calculés par la base ; relus après chaque changement de commande.
-  const { summary: orderSummary, failed: orderSummaryFailed, refresh: refreshOrderSummary } = useShopOrderSummary(id);
+  const { summary: orderSummary, revision: orderSummaryRevision, failed: orderSummaryFailed, refresh: refreshOrderSummary } = useShopOrderSummary(id);
   const unreadOrders = orderSummary?.unreadCount ?? 0;
   const summaryShopRef = useRef<string>();
 
@@ -1617,7 +1617,7 @@ const ShopEditor = () => {
           )}
 
           {activeSection === "statistics" && (
-            <ShopStatistics orders={orders} products={productNames?.shopId === shop.id ? productNames.products : []} primaryColor={primaryColor} visits={visits} monthlyGoal={shop.monthly_goal || 1000000} codDeliveryRate={shop.cod_delivery_rate ?? 100} />
+            <ShopStatistics ordersShopId={shop.id} ordersRevision={orderSummaryRevision} products={productNames?.shopId === shop.id ? productNames.products : []} primaryColor={primaryColor} visits={visits} monthlyGoal={shop.monthly_goal || 1000000} codDeliveryRate={shop.cod_delivery_rate ?? 100} />
           )}
 
           {activeSection === "theme" && (
@@ -1850,7 +1850,7 @@ const ShopEditor = () => {
           )}
 
           {activeSection === "finances" && (
-            <ShopFinances shopId={shop.id} shop={shop} orders={orders as any} />
+            <ShopFinances shopId={shop.id} shop={shop} ordersRevision={orderSummaryRevision} />
           )}
 
           {activeSection === "ai-optimizer" && (catalogProducts ? (

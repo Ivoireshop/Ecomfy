@@ -44,13 +44,6 @@ export const isInPeriod = (value: string | null | undefined, startKey: string | 
   return !startKey || day >= startKey;
 };
 
-export const VALIDATED_STATUSES = ["confirmed", "processing", "shipped", "delivered"];
-
-/** Une commande livrée est encaissée sauf si son paiement est remboursé ou en échec. */
-export function isCashedIn(o: { order_status: string; payment_status?: string | null }): boolean {
-  return o.order_status === "delivered" && !["refunded", "failed"].includes(String(o.payment_status || "").toLowerCase());
-}
-
 /** Cellule CSV : guillemets doublés, et préfixe qui neutralise les formules (=, +, -, @) que Excel exécuterait. */
 export function csvCell(value: unknown): string {
   let s = String(value ?? "");

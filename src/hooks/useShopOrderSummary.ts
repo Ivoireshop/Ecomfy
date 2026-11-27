@@ -8,6 +8,8 @@ import { fetchShopOrderSummary, type ShopOrderSummary } from "@/lib/shopOrderSum
 export function useShopOrderSummary(shopId: string | undefined) {
   const [state, setState] = useState<{ shopId: string; summary: ShopOrderSummary } | null>(null);
   const [failed, setFailed] = useState(false);
+  // Avance à chaque relecture demandée : les Statistiques et les Finances relisent alors leurs chiffres.
+  const [revision, setRevision] = useState(0);
   const request = useRef(0);
   const timer = useRef<number>();
 
@@ -27,7 +29,10 @@ export function useShopOrderSummary(shopId: string | undefined) {
 
   const refresh = useCallback(() => {
     window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => { void load(); }, 300);
+    timer.current = window.setTimeout(() => {
+      setRevision((r) => r + 1);
+      void load();
+    }, 300);
   }, [load]);
 
   /** Abandonne la lecture et la relecture en attente (changement de boutique, fermeture). */
@@ -42,5 +47,5 @@ export function useShopOrderSummary(shopId: string | undefined) {
     return cancel;
   }, [load, cancel]);
 
-  return { summary: state && state.shopId === shopId ? state.summary : null, failed, refresh };
+  return { summary: state && state.shopId === shopId ? state.summary : null, revision, failed, refresh };
 }

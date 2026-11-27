@@ -15,11 +15,11 @@ import { AdAccountsManager } from "@/components/shop/AdAccountsManager";
 import { XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, ComposedChart, Area, Bar } from "recharts";
 import { readFunctionError } from "@/lib/functionError";
 import {
-  type FinancePeriod, VALIDATED_STATUSES, csvCell, dayOf, isCashedIn, isInPeriod, isValidEmail,
+  type FinancePeriod, csvCell, dayOf, isInPeriod, isValidEmail,
   localDayKey, periodStartKey, toFcfa, whatsappDigits,
 } from "@/lib/shopFinance";
+import { fetchShopCashedOrders, fetchShopFinanceDaily, financeTotals, type CashedOrder, type FinanceDay } from "@/lib/shopOrderStats";
 
-interface Order { id: string; order_number?: string; total: number; order_status: string; payment_status: string; created_at: string; }
 interface Expense { id: string; shop_id: string; category: string; amount: number; description: string | null; expense_date: string; created_at: string; }
 
 const CATEGORIES: { value: string; label: string; icon: any; color: string }[] = [
@@ -35,10 +35,11 @@ const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(Math.round(Numb
 interface Props {
   shopId: string;
   shop: any;
-  orders: Order[];
+  /** Change quand les commandes de la boutique changent : leurs montants sont alors relus. */
+  ordersRevision: number;
 }
 
-export function ShopFinances({ shopId, shop, orders }: Props) {
+export function ShopFinances({ shopId, shop, ordersRevision }: Props) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [adSpend, setAdSpend] = useState<{ spend_date: string; amount: number; currency: string; purchases: number | null; purchase_value: number | null }[]>([]);
@@ -95,6 +96,24 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
   };
   useEffect(() => { setLoading(true); reloadAll(); }, [shopId]);
 
+  // Commandes : montants par jour calculés par la base, sur tout l'historique.
+  const [orderData, setOrderData] = useState<{ shopId: string; days: FinanceDay[] } | null>(null);
+  const [ordersFailed, setOrdersFailed] = useState(false);
+  const [ordersAttempt, setOrdersAttempt] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    setOrdersFailed(false);
+    fetchShopFinanceDaily(shopId)
+      .then((days) => { if (!cancelled) setOrderData({ shopId, days }); })
+      .catch((error) => {
+        console.error("Failed to load shop finance orders", error);
+        if (!cancelled) setOrdersFailed(true);
+      });
+    return () => { cancelled = true; };
+  }, [shopId, ordersRevision, ordersAttempt]);
+  const loadedDays = orderData?.shopId === shopId ? orderData.days : null;
+  const orderDays = useMemo(() => loadedDays ?? [], [loadedDays]);
+
   const startKey = useMemo(() => periodStartKey(period), [period]);
 
   const filtered = useMemo(() => {
@@ -108,20 +127,16 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
       ads.push({ spend_date: a.spend_date, amount: converted, purchases: a.purchases, purchaseValue: a.purchase_value === null ? null : toFcfa(a.purchase_value, a.currency) });
     });
     return {
-      orders: orders.filter(o => isInPeriod(o.created_at, startKey)),
+      orderDays: orderDays.filter(d => isInPeriod(d.day, startKey)),
       expenses: expenses.filter(e => isInPeriod(e.expense_date, startKey)),
       platformPayments: payments.filter(p => isInPeriod(p.created_at, startKey)),
       adSpend: ads,
       skippedCurrencies: Array.from(skipped),
     };
-  }, [orders, expenses, payments, adSpend, startKey]);
+  }, [orderDays, expenses, payments, adSpend, startKey]);
 
   const stats = useMemo(() => {
-    const confirmed = filtered.orders.filter(o => VALIDATED_STATUSES.includes(o.order_status));
-    const delivered = filtered.orders.filter(o => o.order_status === "delivered");
-
-    const cashIn = filtered.orders.filter(isCashedIn).reduce((s, o) => s + Number(o.total || 0), 0);
-    const revenue = confirmed.reduce((s, o) => s + Number(o.total || 0), 0);
+    const { count, confirmedCount, deliveredCount, cashIn, revenue } = financeTotals(filtered.orderDays, null);
 
     const expByCat: Record<string, number> = {};
     filtered.expenses.forEach(e => { expByCat[e.category] = (expByCat[e.category] || 0) + Number(e.amount); });
@@ -150,12 +165,12 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
     // Margins & Advanced Metrics
     const margin = cashIn > 0 ? (profit / cashIn) * 100 : 0;
     const roas = adSpendTotal > 0 ? (cashIn / adSpendTotal) : 0;
-    const cac = confirmed.length > 0 ? (adSpendTotal / confirmed.length) : 0; // Coût publicitaire par commande validée
+    const cac = confirmedCount > 0 ? (adSpendTotal / confirmedCount) : 0; // Coût publicitaire par commande validée
 
     return {
-      ordersCount: filtered.orders.length,
-      confirmedCount: confirmed.length,
-      deliveredCount: delivered.length,
+      ordersCount: count,
+      confirmedCount,
+      deliveredCount,
       revenue, cashIn, totalExpenses, operatingExpenses, platformFees, commissionDue, profit, margin, expByCat, adSpendTotal,
       roas, cac, metaPurchases, metaRoas, metaSynced: metaDays.length > 0
     };
@@ -170,7 +185,7 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
 
     if (monthly) {
       const days = [
-        ...orders.map(o => dayOf(o.created_at)), ...expenses.map(e => dayOf(e.expense_date)),
+        ...orderDays.map(d => d.day), ...expenses.map(e => dayOf(e.expense_date)),
         ...payments.map(p => dayOf(p.created_at)), ...adSpend.map(a => dayOf(a.spend_date)),
       ].filter(Boolean).sort();
       const first = days.length ? new Date(`${days[0].slice(0, 7)}-01T12:00:00`) : today;
@@ -188,7 +203,7 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
     }
 
     const slot = (value: string) => map[bucketOf(value)];
-    filtered.orders.forEach(o => { const s = slot(o.created_at); if (s && isCashedIn(o)) s.cashIn += Number(o.total || 0); });
+    filtered.orderDays.forEach(d => { const s = slot(d.day); if (s) s.cashIn += d.cashIn; });
     filtered.expenses.forEach(e => { const s = slot(e.expense_date); if (s) s.expenses += Number(e.amount); });
     filtered.adSpend.forEach(a => { const s = slot(a.spend_date); if (s) s.expenses += Number(a.amount); });
     filtered.platformPayments.forEach(p => { const s = slot(p.created_at); if (s) s.expenses += Number(p.amount); });
@@ -203,7 +218,7 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
         sorties: map[key].expenses,
       };
     });
-  }, [filtered, orders, expenses, payments, adSpend, period, startKey]);
+  }, [filtered, orderDays, expenses, payments, adSpend, period, startKey]);
 
   const addExpense = async () => {
     const amount = Math.round(Number(form.amount));
@@ -234,10 +249,23 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
     setExpenses(prev => prev.filter(e => e.id !== id));
   };
 
-  const exportAccountingReport = () => {
+  const [exporting, setExporting] = useState(false);
+  const exportAccountingReport = async () => {
+    // Le détail des ventes encaissées n'est lu qu'au moment de l'export, en entier.
+    setExporting(true);
+    let cashedOrders: CashedOrder[];
+    try {
+      cashedOrders = await fetchShopCashedOrders(shopId, startKey);
+    } catch (error) {
+      console.error("Failed to load cashed orders", error);
+      toast({ title: "Export impossible", description: "Les ventes n'ont pas pu être lues. Réessayez.", variant: "destructive" });
+      return;
+    } finally {
+      setExporting(false);
+    }
     const rows: { date: string, type: string, category: string, desc: string, in: number, out: number }[] = [];
 
-    filtered.orders.filter(isCashedIn).forEach(o => {
+    cashedOrders.forEach(o => {
       rows.push({ date: dayOf(o.created_at), type: "Vente encaissée", category: "Commande", desc: o.order_number || `CMD-${o.id.split('-')[0]}`, in: Math.round(Number(o.total || 0)), out: 0 });
     });
     filtered.expenses.forEach(e => {
@@ -364,7 +392,7 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
     toast({ title: "E-mail envoyé", description: "Vérifiez votre boîte de réception (et les courriers indésirables)." });
   };
 
-  if (loading) return <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (loading || (!loadedDays && !ordersFailed)) return <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
 
   return (
     <div className="space-y-6 font-inter pb-12">
@@ -396,10 +424,10 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
         </div>
       </div>
 
-      {loadFailed && (
+      {(loadFailed || ordersFailed) && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
           <span>Une partie des données financières n'a pas pu être chargée : les montants affichés peuvent être incomplets.</span>
-          <Button size="sm" variant="outline" className="shrink-0 border-red-200" onClick={() => { setLoading(true); reloadAll(); }}>Réessayer</Button>
+          <Button size="sm" variant="outline" className="shrink-0 border-red-200" onClick={() => { setLoading(true); setOrdersAttempt(a => a + 1); reloadAll(); }}>Réessayer</Button>
         </div>
       )}
       {filtered.skippedCurrencies.length > 0 && (
@@ -420,8 +448,8 @@ export function ShopFinances({ shopId, shop, orders }: Props) {
             <Bell className="h-4 w-4 mr-2 text-orange-500" /> Alertes & Rapports
           </Button>
           <div className="flex-1" />
-          <Button variant="outline" className="font-bold border-slate-200 text-slate-700 shadow-sm" onClick={exportAccountingReport}>
-            <Download className="h-4 w-4 mr-2" /> Exporter Fiche Comptable (.csv)
+          <Button variant="outline" className="font-bold border-slate-200 text-slate-700 shadow-sm" onClick={exportAccountingReport} disabled={exporting || ordersFailed}>
+            {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />} Exporter Fiche Comptable (.csv)
           </Button>
         </div>
       </Card>
