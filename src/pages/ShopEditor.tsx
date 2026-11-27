@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo, useRef, lazy, Suspense } from "react";
+import { useEffect, useState, useCallback, useRef, lazy, Suspense } from "react";
 import { PaymentNetworks } from "@/components/ecomfy-pay/PaymentMethodLogo";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,7 +24,6 @@ import { BillingBanner } from "@/components/shop/BillingBanner";
 import { BillingAlertBanner } from "@/components/shop/BillingAlertBanner";
 import { StoreRestrictedLockScreen } from "@/components/shop/StoreRestrictedLockScreen";
 import { useBillingSystem } from "@/hooks/useBillingSystem";
-import { isShopRowRestricted } from "@/lib/billingSystem";
 import { triggerSeoAutoIndex } from "@/lib/seoAutoIndex";
 import { ShopPaymentCountdown } from "@/components/shop/ShopPaymentCountdown";
 import { ShopPaymentGate } from "@/components/shop/ShopPaymentGate";
@@ -66,23 +65,6 @@ import {
   type ProductImageRow, type ShopProduct as Product, type ShopProductName,
 } from "@/lib/shopProducts";
 import { useShopOrderSummary } from "@/hooks/useShopOrderSummary";
-
-interface Order {
-  id: string;
-  order_number: string;
-  customer_name: string;
-  customer_phone: string;
-  customer_email: string | null;
-  customer_address: string | null;
-  customer_city: string | null;
-  total: number;
-  payment_method: string;
-  payment_status: string;
-  order_status: string;
-  is_read: boolean;
-  created_at: string;
-  order_items?: { id: string; product_name: string; quantity: number; unit_price: number; total_price: number; product_image_url: string | null; product_id: string }[];
-}
 
 // Colonnes lues dans shop_visits pour la page Statistiques (lecture complète et lecture des nouvelles visites).
 const VISIT_COLUMNS = "visited_at, product_id, session_id, visitor_country, referrer, device_type";
@@ -159,7 +141,6 @@ const ShopEditor = () => {
   const [productCount, setProductCount] = useState(0);
   const [productsRevision, setProductsRevision] = useState(0);
   const productsChanged = useCallback(() => setProductsRevision((v) => v + 1), []);
-  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
@@ -239,8 +220,8 @@ const ShopEditor = () => {
   // Un rechargement (retour sur l'onglet, fermeture d'un éditeur…) ne doit jamais écraser des réglages non enregistrés :
   // un marchand qui règle ses couleurs puis regarde sa vitrine dans un autre onglet les perdait tous.
   // `passive` = rechargement automatique (retour sur l'onglet) : ne relit pas les produits, seules les commandes et la
-  // boutique peuvent changer « en dehors » du marchand. Chaque rechargement complet coûte plusieurs dizaines de requêtes
-  // (jusqu'à 5 pages de commandes avec articles, livraisons par lots de 100).
+  // boutique peuvent changer « en dehors » du marchand. Les écrans des commandes relisent eux-mêmes leurs données
+  // quand la révision des indicateurs avance.
   const fetchDataNow = useCallback(async (passive = false) => {
     if (!id) return;
     // La première lecture des indicateurs est faite par leur propre hook.
@@ -254,31 +235,6 @@ const ShopEditor = () => {
       (supabase as any).from("shop_secrets").select("*").eq("shop_id", id).maybeSingle(),
       passive ? Promise.resolve({ count: null }) : (supabase.from("products").select("id", { count: "exact", head: true }).eq("shop_id", id) as any),
     ]);
-    // Boutique restreinte : la base refuse la lecture directe de `orders` et ne livre que des commandes masquées
-    // (noms, téléphones, adresses, notes), via get_shop_orders_secure. Pas d'articles ni de livraisons dans ce cas.
-    let ordersRes: { data: any[] | null; error: any };
-    if (isShopRowRestricted(shopRes.data)) {
-      const rpcRes = await (supabase as any).rpc("get_shop_orders_secure", { _shop_id: id });
-      ordersRes = {
-        data: rpcRes.data ? (rpcRes.data as any[]).slice(0, 5000).map(o => ({ ...o, order_items: [] })) : null,
-        error: rpcRes.error,
-      };
-    } else {
-      // PostgREST plafonne chaque réponse (1 000 lignes) quel que soit .limit() : on lit par pages jusqu'à 5000 commandes.
-      const rows: any[] = [];
-      ordersRes = { data: rows, error: null };
-      for (let from = 0; from < 5000; from += 1000) {
-        const page = await (supabase.from("orders").select("*, order_items(*)").eq("shop_id", id)
-          .order("created_at", { ascending: false }).order("id", { ascending: false })
-          .range(from, from + 999) as any);
-        if (page.error) { ordersRes = { data: null, error: page.error }; break; }
-        rows.push(...(page.data || []));
-        if (!page.data || page.data.length < 1000) break;
-      }
-    }
-    if (ordersRes.error) {
-      console.error("FAILED TO FETCH ORDERS:", ordersRes.error);
-    }
     if (shopRes.data) {
       const secrets = (secretsRes as any)?.data || {};
       const freshShop = {
@@ -306,70 +262,6 @@ const ShopEditor = () => {
     }
     if (typeof productsRes.count === "number") setProductCount(productsRes.count);
     if (!passive) productsChanged();
-    if (ordersRes.data) {
-      let finalOrders = ordersRes.data;
-      if (finalOrders.length > 0 && !isShopRowRestricted(shopRes.data)) {
-        try {
-          // Par lots : avec jusqu'à 5000 commandes, un seul .in() dépasse la longueur d'URL
-          // autorisée, la requête échoue et le suivi de livraison disparaît silencieusement.
-          const orderIds: string[] = finalOrders.map((o: any) => o.id);
-          const chunks: string[][] = [];
-          for (let i = 0; i < orderIds.length; i += 100) chunks.push(orderIds.slice(i, i + 100));
-          // 3 lots à la fois au plus (10 requêtes simultanées pour 1 000 commandes saturaient la base).
-          const results: Awaited<ReturnType<typeof fetchDeliveryChunk>>[] = [];
-          const fetchDeliveryChunk = (chunk: string[]) => supabase.from("order_deliveries").select("*").in("order_id", chunk);
-          for (let i = 0; i < chunks.length; i += 3) {
-            results.push(...(await Promise.all(chunks.slice(i, i + 3).map(fetchDeliveryChunk))));
-          }
-          const failed = results.find(r => r.error);
-          if (failed?.error) console.error("Failed to fetch order deliveries", failed.error);
-          // Le nom du prestataire vient de la vue publique : `delivery_providers` n'est lisible que par son propriétaire.
-          const providerIds = Array.from(new Set(results.flatMap(r => (r.data || []).map((d: any) => d.provider_id)).filter(Boolean)));
-          const providerNames = new Map<string, any>();
-          if (providerIds.length > 0) {
-            const { data: providers } = await (supabase as any).from("delivery_providers_public").select("id, company_name").in("id", providerIds);
-            (providers || []).forEach((p: any) => providerNames.set(p.id, p));
-          }
-          // Nom et téléphone du livreur : absents de delivery_company_members, lus dans le profil via une fonction
-          // qui ne répond que pour les livreurs affectés aux commandes de l'appelant.
-          const driverIds = Array.from(new Set(results.flatMap(r => (r.data || []).map((d: any) => d.driver_id)).filter(Boolean)));
-          const driverContacts = new Map<string, any>();
-          for (let i = 0; i < driverIds.length; i += 500) {
-            const { data: contacts } = await (supabase as any).rpc("get_delivery_driver_contacts", { _member_ids: driverIds.slice(i, i + 500) });
-            (contacts || []).forEach((c: any) => driverContacts.set(c.member_id, c));
-          }
-          // Argent encaissé à la livraison (une ligne par livraison livrée sur commande non payée en ligne).
-          const deliveryIds: string[] = results.flatMap(r => (r.data || []).map(d => d.id));
-          const paymentsByDelivery = new Map<string, { delivery_id: string; amount_collected: number; status: string }>();
-          for (let i = 0; i < deliveryIds.length; i += 100) {
-            const { data: pays } = await supabase
-              .from("delivery_payments")
-              .select("delivery_id, amount_collected, status")
-              .in("delivery_id", deliveryIds.slice(i, i + 100));
-            (pays || []).forEach(p => paymentsByDelivery.set(p.delivery_id, p));
-          }
-          const deliveriesByOrder = new Map<string, any[]>();
-          results.forEach(r => (r.data || []).forEach((d: any) => {
-            const list = deliveriesByOrder.get(d.order_id) || [];
-            const contact = d.driver_id ? driverContacts.get(d.driver_id) : null;
-            list.push({
-              ...d,
-              payment: paymentsByDelivery.get(d.id) || null,
-              provider: providerNames.get(d.provider_id) || null,
-              driver: d.driver_id ? { id: d.driver_id, name: contact?.full_name || "Livreur", phone: contact?.phone || "" } : null,
-            });
-            deliveriesByOrder.set(d.order_id, list);
-          }));
-          finalOrders = finalOrders.map((o: any) => ({
-            ...o,
-            order_deliveries: deliveriesByOrder.get(o.id) || [],
-          }));
-        } catch (e) {
-          console.error("Failed to fetch order deliveries", e);
-        }
-      }
-      setOrders(finalOrders);
-    }
     setLoading(false);
   }, [id, productsChanged, refreshOrderSummary]);
 
@@ -502,30 +394,19 @@ const ShopEditor = () => {
 
   useEffect(() => {
     if (!id) return;
+    // Un évènement rejoué (reconnexion) n'annonce pas deux fois la même commande.
+    const announcedOrders = new Set<string>();
     const channel = supabase.channel(`shop-orders-${id}_${Math.random().toString(36).substring(2, 8)}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders", filter: `shop_id=eq.${id}` }, (payload) => {
-        const newOrder = payload.new as Order;
+        const newOrder = payload.new as { id: string; customer_name: string; order_number: string };
         refreshOrderSummary();
-        let isDuplicate = false;
-        setOrders(prev => {
-          isDuplicate = prev.some(o => o.id === newOrder.id);
-          return isDuplicate ? prev : [newOrder, ...prev];
-        });
-        if (!isDuplicate) {
+        if (!announcedOrders.has(newOrder.id)) {
+          announcedOrders.add(newOrder.id);
           toast({ title: "🛒 Nouvelle commande !", description: `${newOrder.customer_name} - ${newOrder.order_number}` });
         }
-        // L'événement n'embarque ni les articles ni le total final (calculés par triggers juste après l'insertion).
-        (async () => {
-          const { data } = await supabase.from("orders").select("*, order_items(*)").eq("id", newOrder.id).maybeSingle();
-          if (data) setOrders(prev => prev.map(o => o.id === newOrder.id ? { ...o, ...(data as any) } : o));
-          // Le total vient d'être calculé : les indicateurs sont relus une seconde fois.
-          refreshOrderSummary();
-        })();
       })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders", filter: `shop_id=eq.${id}` }, (payload) => {
-        const updatedOrder = payload.new as Order;
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders", filter: `shop_id=eq.${id}` }, () => {
         refreshOrderSummary();
-        setOrders(prev => prev.map(o => o.id === updatedOrder.id ? { ...o, ...updatedOrder } : o));
       })
       .subscribe();
     // Realtime shop status — auto-unlock after payment confirmation
@@ -560,8 +441,7 @@ const ShopEditor = () => {
     const refresh = () => {
       if (showProductEditorRef.current) return;
       const now = Date.now();
-      // 30 s (et non 3 s) : chaque rechargement relit toutes les commandes ; passer d'un onglet à l'autre ne doit pas
-      // les relire à chaque fois.
+      // 30 s (et non 3 s) : passer d'un onglet à l'autre ne doit pas tout relire à chaque fois.
       if (now - lastPassiveRefreshRef.current < 30000) return;
       lastPassiveRefreshRef.current = now;
       void fetchData({ passive: true });
@@ -1334,30 +1214,27 @@ const ShopEditor = () => {
     }
   };
 
-  const updateOrderStatus = async (orderId: string, status: string) => {
-    const previous = orders.find(o => o.id === orderId);
-    // Mise à jour immédiate de l'écran, annulée si le serveur refuse.
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, order_status: status, is_read: true } : o));
+  // La liste des commandes affiche le changement tout de suite et l'annule si l'on renvoie false.
+  const updateOrderStatus = async (orderId: string, status: string): Promise<boolean> => {
     const { error } = await supabase.from("orders").update({ order_status: status, is_read: true }).eq("id", orderId);
     if (error) {
-      if (previous) setOrders(prev => prev.map(o => o.id === orderId ? { ...o, order_status: previous.order_status, is_read: previous.is_read } : o));
       toast({ title: "Statut non modifié", description: error.message || "Vous n'avez peut-être pas les droits sur cette commande.", variant: "destructive" });
-      return;
+      return false;
     }
     toast({ title: "Statut mis à jour" });
-    // Le serveur peut réagir au changement (transfert automatique au livreur) : on recharge.
-    fetchData();
+    // Le serveur peut réagir au changement (transfert automatique au livreur) : on relit.
+    refreshOrderSummary();
+    return true;
   };
 
-  const markOrderRead = async (orderId: string) => {
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, is_read: true } : o));
+  const markOrderRead = async (orderId: string): Promise<boolean> => {
     const { error } = await supabase.from("orders").update({ is_read: true }).eq("id", orderId);
     if (error) {
       console.error("Failed to mark order as read", error);
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, is_read: false } : o));
-      return;
+      return false;
     }
     refreshOrderSummary();
+    return true;
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -1679,7 +1556,7 @@ const ShopEditor = () => {
             const ownerLocked = !!shop?.is_suspended || info.isLocked || info.isFinal;
             return ownerLocked
               ? <LockedOrdersScreen shopId={shop.id} paymentDeadline={shop.payment_deadline} ordersCount={orderSummary?.totalCount ?? 0} isFinal={info.isFinal} />
-              : <OrdersList shopId={shop.id} orders={orders} onUpdateStatus={updateOrderStatus} onMarkRead={markOrderRead} onOrderUpdated={fetchData} isRestricted={isRestricted} />;
+              : <OrdersList key={shop.id} shopId={shop.id} revision={orderSummaryRevision} onUpdateStatus={updateOrderStatus} onMarkRead={markOrderRead} onOrderUpdated={fetchData} isRestricted={isRestricted} />;
           })()}
 
           {activeSection === "abandoned" && shop?.id && (() => {

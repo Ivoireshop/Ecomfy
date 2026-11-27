@@ -1,10 +1,10 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingCart, Phone, MessageCircle, MapPin, Mail, User, Copy, Check, Search, FileSpreadsheet, Printer, Truck, Send, Lock, CreditCard, CalendarDays, Clock, Calendar as CalendarIcon } from "lucide-react";
+import { ShoppingCart, Phone, MessageCircle, MapPin, Mail, User, Copy, Check, Search, FileSpreadsheet, Printer, Truck, Send, Lock, CreditCard, CalendarDays, Clock, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { openDeliveryProof } from "@/lib/deliveryRpc";
 import * as XLSX from "xlsx";
@@ -16,6 +16,11 @@ import { useShopDispatches } from "@/hooks/useShopDispatches";
 import { activeDispatchByOrder } from "@/lib/shopDispatches";
 import { StoreRestrictedLockScreen } from "./StoreRestrictedLockScreen";
 import { ScheduleDeliveryModal } from "./ScheduleDeliveryModal";
+import { ListPagination } from "@/components/ListPagination";
+import { usePagedList } from "@/hooks/usePagedList";
+import {
+  fetchAllShopOrders, fetchShopOrdersPage, type DeliveryDateCounts, type DeliveryDateFilter, type ShopOrder as Order,
+} from "@/lib/shopOrders";
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   new: { label: "Nouveau", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" },
@@ -36,53 +41,21 @@ const DELIVERY_IN_PROGRESS = new Set(["picked_up", "in_transit", "delivered"]);
 import { getOrderScheduleInfo } from "@/lib/utils";
 import { cleanSelectedVariants } from "@/lib/productVariants";
 
-interface Order {
-  id: string;
-  order_number: string;
-  customer_name: string;
-  customer_phone: string;
-  customer_email: string | null;
-  customer_address: string | null;
-  customer_city: string | null;
-  total: number;
-  promo_code?: string | null;
-  discount_amount?: number | null;
-  payment_method: string;
-  payment_status: string;
-  order_status: string;
-  is_read: boolean;
-  created_at: string;
-  products_summary?: string | null;
-  scheduled_delivery_date?: string | null;
-  internal_delivery_note?: string | null;
-  notes?: string | null;
-  order_items?: { id: string; product_name: string; quantity: number; unit_price: number; total_price: number; product_image_url: string | null; selected_variants?: Record<string, string> | null }[];
-  order_deliveries?: {
-    status: string;
-    failure_reason?: string | null;
-    pod_signature_url?: string | null;
-    pod_photo_url?: string | null;
-    payment?: { amount_collected: number; status: "collected_by_driver" | "remitted_to_company" | "remitted_to_shop" } | null;
-    driver?: {
-      name: string;
-      phone: string;
-    } | null;
-    provider?: {
-      company_name: string;
-    } | null;
-  }[] | null;
-}
+const ORDERS_PAGE_SIZE = 20;
 
 interface OrdersListProps {
-  orders: Order[];
   shopId: string;
-  onUpdateStatus: (orderId: string, status: string) => void;
-  onMarkRead: (orderId: string) => void;
+  /** Change quand les commandes de la boutique changent : la page affichée est relue. */
+  revision: number;
+  /** Renvoie false si le statut n'a pas changé. */
+  onUpdateStatus: (orderId: string, status: string) => Promise<boolean>;
+  /** Renvoie false si la commande n'a pas été marquée comme lue. */
+  onMarkRead: (orderId: string) => Promise<boolean>;
   onOrderUpdated?: () => void;
   isRestricted?: boolean;
 }
 
-export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrderUpdated, isRestricted = false }: OrdersListProps) {
+export function OrdersList({ shopId, revision, onUpdateStatus, onMarkRead, onOrderUpdated, isRestricted = false }: OrdersListProps) {
   const fmt = (n: number) => new Intl.NumberFormat("fr-FR").format(n);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -92,29 +65,14 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
   const [tab, setTab] = useState("orders");
   const { dispatches, loading: dispatchesLoading, error: dispatchesError, revision: dispatchesRevision, reload: reloadDispatches } = useShopDispatches(shopId);
   const activeDispatches = useMemo(() => activeDispatchByOrder(dispatches), [dispatches]);
-  
+
   // Delivery Schedule state & modals
   const [scheduleModalOrder, setScheduleModalOrder] = useState<Order | null>(null);
-  const [deliveryFilter, setDeliveryFilter] = useState<string>("all");
-  const [localOrdersState, setLocalOrdersState] = useState<Record<string, { date: string | null; note: string | null }>>({});
-
-  useEffect(() => {
-    // Sync local state when incoming orders prop updates from Supabase Realtime
-    setLocalOrdersState((prev) => {
-      let changed = false;
-      const next = { ...prev };
-      orders.forEach((o) => {
-        if (next[o.id]) {
-          const dbSchedule = getOrderScheduleInfo(o);
-          if (dbSchedule.date === next[o.id].date && dbSchedule.note === next[o.id].note) {
-            delete next[o.id];
-            changed = true;
-          }
-        }
-      });
-      return changed ? next : prev;
-    });
-  }, [orders]);
+  const [deliveryFilter, setDeliveryFilter] = useState<DeliveryDateFilter>("all");
+  // Null tant qu'aucune lecture n'a réussi : on n'affiche pas « 0 » pour un nombre inconnu.
+  const [summary, setSummary] = useState<{ shopTotal: number; counts: DeliveryDateCounts; restricted: boolean } | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const listTop = useRef<HTMLDivElement>(null);
 
   const formatISODate = (d: Date): string => {
     const year = d.getFullYear();
@@ -139,6 +97,53 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
   };
   const tomorrowISO = addDaysISO(todayISO, 1);
   const afterTomorrowISO = addDaysISO(todayISO, 2);
+
+  const list = usePagedList<Order>({
+    pageSize: ORDERS_PAGE_SIZE,
+    search,
+    filterKey: JSON.stringify([shopId, deliveryFilter]),
+    // Les changements de commande et le passage à un nouveau jour relisent la page affichée.
+    refreshKey: `${revision}|${todayISO}`,
+    enabled: !isRestricted,
+    fetchPage: async ({ page, pageSize, search: query }) => {
+      const result = await fetchShopOrdersPage({ shopId, search: query, delivery: deliveryFilter, today: todayISO }, page, pageSize);
+      setSummary({ shopTotal: result.shopTotal, counts: result.counts, restricted: result.restricted });
+      return result;
+    },
+  });
+  const counts: Record<keyof DeliveryDateCounts, number | string> = summary?.counts ?? { today: "–", tomorrow: "–", scheduled: "–", unscheduled: "–" };
+  const shopTotal = summary?.shopTotal ?? "–";
+  const filtering = !!list.search || deliveryFilter !== "all";
+
+  // Statut, lecture et date prévue affichés dès l'action, avant la réponse du serveur ; oubliés à la relecture.
+  const [pending, setPending] = useState<Record<string, Partial<Order>>>({});
+  const [pendingSchedule, setPendingSchedule] = useState<Record<string, { date: string | null; note: string | null }>>({});
+  useEffect(() => { setPending({}); setPendingSchedule({}); }, [list.rows]);
+
+  const rows = list.rows.map((o) => {
+    const merged = { ...o, ...pending[o.id] };
+    const schedule = pendingSchedule[o.id] ?? getOrderScheduleInfo(merged);
+    return { ...merged, scheduled_delivery_date: schedule.date, internal_delivery_note: schedule.note };
+  });
+
+  const applyChange = async (orderId: string, change: Partial<Order>, save: () => Promise<boolean>) => {
+    setPending((prev) => ({ ...prev, [orderId]: { ...prev[orderId], ...change } }));
+    if (!(await save())) {
+      setPending((prev) => {
+        const next = { ...prev };
+        delete next[orderId];
+        return next;
+      });
+    }
+  };
+  const changeStatus = (orderId: string, status: string) =>
+    applyChange(orderId, { order_status: status, is_read: true }, () => onUpdateStatus(orderId, status));
+  const markRead = (orderId: string) => applyChange(orderId, { is_read: true }, () => onMarkRead(orderId));
+
+  const changePage = (page: number) => {
+    list.setPage(page);
+    listTop.current?.scrollIntoView({ block: "start" });
+  };
 
   const getDeliveryBadge = (scheduledDate?: string | null) => {
     if (!scheduledDate) {
@@ -192,67 +197,6 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
       icon: CalendarDays,
     };
   };
-
-  const normalized = (v: string | null | undefined) =>
-    (v || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-  // Compute counts for summary indicator cards
-  const counts = useMemo(() => {
-    let todayCount = 0;
-    let tomorrowCount = 0;
-    let scheduledCount = 0;
-    let unscheduledCount = 0;
-
-    orders.forEach((o) => {
-      const override = localOrdersState[o.id];
-      const schedule = override !== undefined ? override : getOrderScheduleInfo(o);
-      const date = schedule.date;
-      if (!date) {
-        unscheduledCount++;
-      } else {
-        scheduledCount++;
-        if (date === todayISO) todayCount++;
-        if (date === tomorrowISO) tomorrowCount++;
-      }
-    });
-
-    return { todayCount, tomorrowCount, scheduledCount, unscheduledCount };
-  }, [orders, localOrdersState, todayISO, tomorrowISO]);
-
-  const filteredOrders = useMemo(() => {
-    let result = orders.map((o) => {
-      const override = localOrdersState[o.id];
-      const schedule = override !== undefined ? override : getOrderScheduleInfo(o);
-      return {
-        ...o,
-        scheduled_delivery_date: schedule.date,
-        internal_delivery_note: schedule.note,
-      };
-    });
-
-    if (deliveryFilter !== "all") {
-      if (deliveryFilter === "today") {
-        result = result.filter((o) => o.scheduled_delivery_date === todayISO);
-      } else if (deliveryFilter === "tomorrow") {
-        result = result.filter((o) => o.scheduled_delivery_date === tomorrowISO);
-      } else if (deliveryFilter === "scheduled") {
-        result = result.filter((o) => !!o.scheduled_delivery_date);
-      } else if (deliveryFilter === "unscheduled") {
-        result = result.filter((o) => !o.scheduled_delivery_date);
-      }
-    }
-
-    const q = normalized(search).trim();
-    if (!q) return result;
-
-    return result.filter((o) => {
-      const hay = [
-        o.order_number, o.customer_name, o.customer_phone, o.customer_email,
-        o.customer_city, o.customer_address, o.internal_delivery_note, o.notes,
-      ].map(normalized).join(" | ");
-      return hay.includes(q);
-    });
-  }, [orders, search, deliveryFilter, localOrdersState, todayISO, tomorrowISO]);
 
   const buildOrderText = (order: Order, sequence: number) => {
     const lines: string[] = [];
@@ -312,18 +256,10 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
     }
   };
 
-  // Numérotation séquentielle : la plus ancienne = #1. Calculée sur TOUTES les commandes
-  // (pas sur la liste filtrée) pour qu'un numéro ne change pas avec la recherche ou le filtre.
-  const sequenceById = useMemo(() => {
-    const map: Record<string, number> = {};
-    [...orders]
-      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-      .forEach((o, i) => { map[o.id] = i + 1; });
-    return map;
-  }, [orders]);
-
-  const buildExportRows = () => {
-    return filteredOrders.map((o) => {
+  const buildExportRows = (orders: Order[]) => {
+    return orders.map((order) => {
+      const schedule = getOrderScheduleInfo(order);
+      const o = { ...order, scheduled_delivery_date: schedule.date, internal_delivery_note: schedule.note };
       const items = o.order_items && o.order_items.length > 0
         ? o.order_items.map((it) => {
             const variants = it.selected_variants && Object.keys(it.selected_variants).length > 0
@@ -333,7 +269,7 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
           }).join(" ; ")
         : (o.products_summary || "");
       return {
-        "N°": sequenceById[o.id],
+        "N°": o.sequence,
         "Référence": o.order_number,
         "Date": new Date(o.created_at).toLocaleString("fr-FR"),
         "Client": o.customer_name,
@@ -350,24 +286,49 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
     });
   };
 
-  const handleExportExcel = () => {
-    if (filteredOrders.length === 0) { toast.error("Aucune commande à exporter"); return; }
+  // Toutes les commandes correspondant à la recherche et au filtre, pas seulement la page affichée.
+  const readExportOrders = () =>
+    fetchAllShopOrders({ shopId, search: search.trim(), delivery: deliveryFilter, today: todayISO });
+
+  const handleExportExcel = async () => {
+    setExporting(true);
     try {
-      const rows = buildExportRows();
+      const orders = await readExportOrders();
+      if (orders.length === 0) { toast.error("Aucune commande à exporter"); return; }
+      const rows = buildExportRows(orders);
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Commandes");
       const stamp = new Date().toISOString().slice(0, 10);
       XLSX.writeFile(wb, `commandes-${stamp}.xlsx`);
       toast.success("Export Excel téléchargé");
-    } catch {
+    } catch (error) {
+      console.error("Failed to export orders", error);
       toast.error("Erreur lors de l'export Excel");
+    } finally {
+      setExporting(false);
     }
   };
 
-  const handlePrint = () => {
-    if (filteredOrders.length === 0) { toast.error("Aucune commande à imprimer"); return; }
-    const rows = buildExportRows();
+  const handlePrint = async () => {
+    // La fenêtre doit s'ouvrir pendant le clic : après la lecture, le navigateur la bloquerait.
+    const w = window.open("", "_blank");
+    if (!w) { toast.error("Activez les pop-ups pour imprimer"); return; }
+    w.document.write("<p style=\"font-family:Arial,sans-serif\">Préparation des commandes…</p>");
+    setExporting(true);
+    let orders: Order[];
+    try {
+      orders = await readExportOrders();
+    } catch (error) {
+      console.error("Failed to print orders", error);
+      w.close();
+      toast.error("Impossible de préparer l'impression");
+      return;
+    } finally {
+      setExporting(false);
+    }
+    if (orders.length === 0) { w.close(); toast.error("Aucune commande à imprimer"); return; }
+    const rows = buildExportRows(orders);
     const headers = Object.keys(rows[0]);
     const now = new Date().toLocaleString("fr-FR");
     const html = `<!doctype html><html><head><meta charset="utf-8"/><title>Commandes</title>
@@ -380,19 +341,18 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
         @media print{ @page{ size:A4 landscape; margin:12mm } }
       </style></head><body>
       <h1>Fiche des commandes</h1>
-      <div class="meta">${filteredOrders.length} commande(s) · Généré le ${now}</div>
+      <div class="meta">${orders.length} commande(s) · Généré le ${now}</div>
       <table><thead><tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr></thead>
       <tbody>${rows.map(r => `<tr>${headers.map(h => `<td>${String((r as any)[h] ?? "").replace(/[<>&"']/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;" }[c] as string))}</td>`).join("")}</tr>`).join("")}</tbody>
       </table>
       <script>window.onload=()=>{setTimeout(()=>{window.print();},300)}<\/script>
       </body></html>`;
-    const w = window.open("", "_blank");
-    if (!w) { toast.error("Activez les pop-ups pour imprimer"); return; }
+    w.document.open();
     w.document.write(html);
     w.document.close();
   };
 
-  if (isRestricted) {
+  if (isRestricted || summary?.restricted) {
     return <StoreRestrictedLockScreen shopId={shopId} isRestricted={true} />;
   }
 
@@ -423,7 +383,7 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
       <TabsList>
-        <TabsTrigger value="orders">Commandes ({orders.length})</TabsTrigger>
+        <TabsTrigger value="orders">Commandes ({shopTotal})</TabsTrigger>
         <TabsTrigger value="deliveries">Livraisons ({dispatches.length})</TabsTrigger>
       </TabsList>
 
@@ -448,7 +408,7 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
             <span className="text-xs font-bold opacity-90">Aujourd'hui</span>
             <Clock className="h-4 w-4 shrink-0" />
           </div>
-          <div className="text-xl font-black mt-1">{counts.todayCount}</div>
+          <div className="text-xl font-black mt-1">{counts.today}</div>
         </button>
 
         <button
@@ -464,7 +424,7 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
             <span className="text-xs font-bold opacity-90">Demain</span>
             <CalendarDays className="h-4 w-4 shrink-0" />
           </div>
-          <div className="text-xl font-black mt-1">{counts.tomorrowCount}</div>
+          <div className="text-xl font-black mt-1">{counts.tomorrow}</div>
         </button>
 
         <button
@@ -480,7 +440,7 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
             <span className="text-xs font-bold opacity-90">Planifiées</span>
             <CalendarDays className="h-4 w-4 shrink-0" />
           </div>
-          <div className="text-xl font-black mt-1">{counts.scheduledCount}</div>
+          <div className="text-xl font-black mt-1">{counts.scheduled}</div>
         </button>
 
         <button
@@ -496,23 +456,23 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
             <span className="text-xs font-bold opacity-90">Non planifiées</span>
             <CalendarDays className="h-4 w-4 shrink-0 opacity-60" />
           </div>
-          <div className="text-xl font-black mt-1">{counts.unscheduledCount}</div>
+          <div className="text-xl font-black mt-1">{counts.unscheduled}</div>
         </button>
       </div>
 
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="text-xl font-bold">Commandes ({filteredOrders.length}{search || deliveryFilter !== "all" ? ` / ${orders.length}` : ""})</h2>
+      <div ref={listTop} className="flex items-center justify-between gap-3 flex-wrap scroll-mt-4">
+        <h2 className="text-xl font-bold">Commandes ({list.loading || list.error ? "–" : list.total}{filtering ? ` / ${shopTotal}` : ""})</h2>
         <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
-          <Select value={deliveryFilter} onValueChange={(v) => setDeliveryFilter(v)}>
+          <Select value={deliveryFilter} onValueChange={(v) => setDeliveryFilter(v as DeliveryDateFilter)}>
             <SelectTrigger className="w-full sm:w-48 h-9 text-xs font-medium">
               <SelectValue placeholder="Filtre livraison" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Toutes les dates</SelectItem>
-              <SelectItem value="today">🚨 Aujourd'hui ({counts.todayCount})</SelectItem>
-              <SelectItem value="tomorrow">⏳ Demain ({counts.tomorrowCount})</SelectItem>
-              <SelectItem value="scheduled">🗓️ Planifiées ({counts.scheduledCount})</SelectItem>
-              <SelectItem value="unscheduled">❓ Non planifiées ({counts.unscheduledCount})</SelectItem>
+              <SelectItem value="today">🚨 Aujourd'hui ({counts.today})</SelectItem>
+              <SelectItem value="tomorrow">⏳ Demain ({counts.tomorrow})</SelectItem>
+              <SelectItem value="scheduled">🗓️ Planifiées ({counts.scheduled})</SelectItem>
+              <SelectItem value="unscheduled">❓ Non planifiées ({counts.unscheduled})</SelectItem>
             </SelectContent>
           </Select>
 
@@ -525,25 +485,34 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
               className="pl-9 h-9 text-xs"
             />
           </div>
-          <Button size="sm" variant="outline" className="h-9" onClick={handleExportExcel}>
-            <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
+          <Button size="sm" variant="outline" className="h-9" onClick={handleExportExcel} disabled={exporting}>
+            {exporting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <FileSpreadsheet className="h-4 w-4 mr-1" />} Excel
           </Button>
-          <Button size="sm" variant="outline" className="h-9" onClick={handlePrint}>
+          <Button size="sm" variant="outline" className="h-9" onClick={handlePrint} disabled={exporting}>
             <Printer className="h-4 w-4 mr-1" /> Imprimer
           </Button>
         </div>
       </div>
-      {filteredOrders.length === 0 ? (
+      {list.loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-label="Chargement des commandes" />
+        </div>
+      ) : list.error ? (
+        <Card className="p-8 text-center space-y-3">
+          <p className="text-sm text-muted-foreground">Les commandes n'ont pas pu être chargées.</p>
+          <Button variant="outline" size="sm" onClick={list.reload}>Réessayer</Button>
+        </Card>
+      ) : rows.length === 0 ? (
         <Card className="p-12 text-center">
           <ShoppingCart className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="font-semibold mb-1">{search || deliveryFilter !== "all" ? "Aucun résultat pour ce filtre" : "Aucune commande"}</h3>
+          <h3 className="font-semibold mb-1">{filtering ? "Aucun résultat pour ce filtre" : "Aucune commande"}</h3>
           <p className="text-sm text-muted-foreground">
-            {search || deliveryFilter !== "all" ? "Essayez de modifier les filtres ou la recherche." : "Les commandes apparaîtront ici en temps réel"}
+            {filtering ? "Essayez de modifier les filtres ou la recherche." : "Les commandes apparaîtront ici en temps réel"}
           </p>
         </Card>
       ) : (
         <div className="grid gap-3 min-[1100px]:grid-cols-2">
-          {filteredOrders.map((order) => {
+          {rows.map((order) => {
             const badgeInfo = getDeliveryBadge(order.scheduled_delivery_date);
             const BadgeIcon = badgeInfo.icon;
             const dispatch = activeDispatches.get(order.id);
@@ -560,13 +529,13 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
               <Card
                 key={order.id}
                 className={`flex min-w-0 flex-col overflow-hidden rounded-xl transition-shadow hover:shadow-md ${!order.is_read ? "border-l-4 border-l-primary" : ""}`}
-                onClick={() => !order.is_read && onMarkRead(order.id)}
+                onClick={() => !order.is_read && markRead(order.id)}
               >
                 {/* En-tête : identité de la commande et montant */}
                 <div className="flex items-start justify-between gap-3 border-b bg-muted/30 px-3 py-2 sm:px-4">
                   <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
                     {!order.is_read && <span className="h-2 w-2 shrink-0 rounded-full bg-primary animate-pulse" aria-label="Non lue" />}
-                    <span className="text-sm font-bold">Commande #{sequenceById[order.id]}</span>
+                    <span className="text-sm font-bold">Commande #{order.sequence}</span>
                     <Badge className={`border-0 px-2 py-0 text-[10px] font-semibold ${status?.color ?? "bg-muted text-foreground"}`}>
                       {status?.label ?? order.order_status}
                     </Badge>
@@ -759,7 +728,7 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
                 {/* Actions : statut et contact à gauche, envoi à droite */}
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-muted/30 px-3 py-2 sm:px-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Select value={order.order_status} onValueChange={(v) => onUpdateStatus(order.id, v)}>
+                    <Select value={order.order_status} onValueChange={(v) => changeStatus(order.id, v)}>
                       <SelectTrigger className="h-8 w-32 bg-background text-xs" aria-label="Statut de la commande"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {Object.entries(STATUS_MAP).map(([key, val]) => (
@@ -795,7 +764,7 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
                       className="h-8 w-8 p-0"
                       title="Copier les informations"
                       aria-label="Copier les informations"
-                      onClick={(e) => { e.stopPropagation(); handleCopy(order, sequenceById[order.id]); }}
+                      onClick={(e) => { e.stopPropagation(); handleCopy(order, order.sequence); }}
                     >
                       {copiedId === order.id ? (
                         <Check className="h-3.5 w-3.5" />
@@ -837,6 +806,9 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
             );
           })}
         </div>
+      )}
+      {!list.loading && !list.error && (
+        <ListPagination page={list.page} pageSize={list.pageSize} total={list.total} onPageChange={changePage} />
       )}
       </TabsContent>
       </Tabs>
@@ -882,7 +854,7 @@ export function OrdersList({ orders, shopId, onUpdateStatus, onMarkRead, onOrder
           onClose={() => setScheduleModalOrder(null)}
           order={scheduleModalOrder}
           onSaveSuccess={(orderId, deliveryDate, note) => {
-            setLocalOrdersState((prev) => ({
+            setPendingSchedule((prev) => ({
               ...prev,
               [orderId]: { date: deliveryDate, note },
             }));
