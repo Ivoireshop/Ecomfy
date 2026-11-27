@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingCart, Phone, MessageCircle, MapPin, Mail, User, Copy, Check, Search, FileSpreadsheet, Printer, Truck, Send, Lock, CreditCard, CalendarDays, Clock, Loader2 } from "lucide-react";
+import { ShoppingCart, Phone, MapPin, Mail, User, Search, FileSpreadsheet, Printer, Truck, Lock, CreditCard, CalendarDays, Clock, Loader2, LayoutGrid, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMemo, useState, useEffect, useRef } from "react";
@@ -21,27 +21,20 @@ import { usePagedList } from "@/hooks/usePagedList";
 import {
   fetchAllShopOrders, fetchShopOrdersPage, type DeliveryDateCounts, type DeliveryDateFilter, type ShopOrder as Order,
 } from "@/lib/shopOrders";
-
-const STATUS_MAP: Record<string, { label: string; color: string }> = {
-  new: { label: "Nouveau", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" },
-  pending: { label: "En attente", color: "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300" },
-  confirmed: { label: "Confirmé", color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" },
-  processing: { label: "En traitement", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300" },
-  shipped: { label: "Expédié", color: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300" },
-  delivered: { label: "Livré", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300" },
-  cancelled: { label: "Annulé", color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300" },
-  returned: { label: "Retourné", color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300" },
-};
-
-// Une commande terminée ou annulée ne peut plus être confiée à un livreur.
-const NOT_SHIPPABLE = new Set(["delivered", "cancelled", "returned"]);
-// Une livraison déjà récupérée, en route ou terminée ne se relance pas (refusé par le serveur).
-const DELIVERY_IN_PROGRESS = new Set(["picked_up", "in_transit", "delivered"]);
+import { OrdersTable } from "./OrdersTable";
+import { deliveryStatusLabel, shippingOptions, STATUS_MAP } from "./orderDisplay";
+import { ContactButtons, OrderMoreMenu, OrderStatusSelect, ShipMenu } from "./OrderActions";
 
 import { getOrderScheduleInfo } from "@/lib/utils";
 import { cleanSelectedVariants } from "@/lib/productVariants";
 
 const ORDERS_PAGE_SIZE = 20;
+
+type OrdersView = "cards" | "list";
+const VIEW_KEY = "ecomfy_orders_view";
+const savedView = (): OrdersView => {
+  try { return window.localStorage.getItem(VIEW_KEY) === "list" ? "list" : "cards"; } catch { return "cards"; }
+};
 
 interface OrdersListProps {
   shopId: string;
@@ -73,6 +66,12 @@ export function OrdersList({ shopId, revision, onUpdateStatus, onMarkRead, onOrd
   const [summary, setSummary] = useState<{ shopTotal: number; counts: DeliveryDateCounts; restricted: boolean } | null>(null);
   const [exporting, setExporting] = useState(false);
   const listTop = useRef<HTMLDivElement>(null);
+  // Cartes ou liste : le choix est retenu sur cet appareil.
+  const [view, setView] = useState<OrdersView>(savedView);
+  const chooseView = (next: OrdersView) => {
+    setView(next);
+    try { window.localStorage.setItem(VIEW_KEY, next); } catch { /* stockage indisponible : choix non retenu */ }
+  };
 
   const formatISODate = (d: Date): string => {
     const year = d.getFullYear();
@@ -139,6 +138,13 @@ export function OrdersList({ shopId, revision, onUpdateStatus, onMarkRead, onOrd
   const changeStatus = (orderId: string, status: string) =>
     applyChange(orderId, { order_status: status, is_read: true }, () => onUpdateStatus(orderId, status));
   const markRead = (orderId: string) => applyChange(orderId, { is_read: true }, () => onMarkRead(orderId));
+
+  // Date de livraison en court, pour la vue en liste.
+  const shortDelivery = (date?: string | null) => {
+    const badge = getDeliveryBadge(date);
+    const text = date ? badge.label.replace(/^Livraison prévue (le )?/, "").replace(/ !$/, "") : "Non définie";
+    return { short: text.charAt(0).toUpperCase() + text.slice(1), className: badge.className };
+  };
 
   const changePage = (page: number) => {
     list.setPage(page);
@@ -485,10 +491,20 @@ export function OrdersList({ shopId, revision, onUpdateStatus, onMarkRead, onOrd
               className="pl-9 h-9 text-xs"
             />
           </div>
-          <Button size="sm" variant="outline" className="h-9" onClick={handleExportExcel} disabled={exporting}>
+          <div role="group" aria-label="Affichage des commandes" className="flex h-9 items-center gap-0.5 rounded-md border bg-background p-0.5">
+            <Button size="icon" variant={view === "cards" ? "secondary" : "ghost"} className="h-8 w-8" aria-pressed={view === "cards"}
+              title="Affichage en cartes" aria-label="Affichage en cartes" onClick={() => chooseView("cards")}>
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button size="icon" variant={view === "list" ? "secondary" : "ghost"} className="h-8 w-8" aria-pressed={view === "list"}
+              title="Affichage en liste" aria-label="Affichage en liste" onClick={() => chooseView("list")}>
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
+          <Button size="sm" className="h-9 bg-emerald-600 text-white hover:bg-emerald-700" onClick={handleExportExcel} disabled={exporting}>
             {exporting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <FileSpreadsheet className="h-4 w-4 mr-1" />} Excel
           </Button>
-          <Button size="sm" variant="outline" className="h-9" onClick={handlePrint} disabled={exporting}>
+          <Button size="sm" className="h-9 bg-slate-800 text-white hover:bg-slate-900" onClick={handlePrint} disabled={exporting}>
             <Printer className="h-4 w-4 mr-1" /> Imprimer
           </Button>
         </div>
@@ -510,20 +526,30 @@ export function OrdersList({ shopId, revision, onUpdateStatus, onMarkRead, onOrd
             {filtering ? "Essayez de modifier les filtres ou la recherche." : "Les commandes apparaîtront ici en temps réel"}
           </p>
         </Card>
+      ) : view === "list" ? (
+        <OrdersTable
+          orders={rows}
+          activeDispatches={activeDispatches}
+          dispatchesLoading={dispatchesLoading}
+          deliveryDate={shortDelivery}
+          copiedId={copiedId}
+          onMarkRead={markRead}
+          onStatusChange={changeStatus}
+          onCopy={(order) => handleCopy(order, order.sequence)}
+          onSchedule={setScheduleModalOrder}
+          onShip={(order) => { setOrderToPush(order.id); setPushModalOpen(true); }}
+          onTransmit={setOrderToDispatch}
+          onShowTracking={() => setTab("deliveries")}
+        />
       ) : (
         <div className="grid gap-3 min-[1100px]:grid-cols-2">
           {rows.map((order) => {
             const badgeInfo = getDeliveryBadge(order.scheduled_delivery_date);
             const BadgeIcon = badgeInfo.icon;
             const dispatch = activeDispatches.get(order.id);
-            // Tant que les courses ne sont pas chargées, aucun envoi n'est proposé : la commande est peut-être déjà confiée.
-            const canSend = !dispatchesLoading && !dispatch && !NOT_SHIPPABLE.has(order.order_status)
-              && !order.order_deliveries?.some((d) => DELIVERY_IN_PROGRESS.has(d.status));
-            // « Expédier » reste disponible pour relancer sa propre livraison, mais elle exclut la transmission.
-            const hasOwnDelivery = !!order.order_deliveries?.some((d) => d.status !== "failed" && d.status !== "returned");
+            const { canSend, canTransmit } = shippingOptions(order, dispatch, dispatchesLoading);
             const items = order.order_items ?? [];
             const status = STATUS_MAP[order.order_status];
-            const phoneDigits = order.customer_phone?.replace(/[^0-9+]/g, "") ?? "";
             const location = [order.customer_city, order.customer_address].filter(Boolean).join(" · ");
             return (
               <Card
@@ -625,13 +651,7 @@ export function OrdersList({ shopId, revision, onUpdateStatus, onMarkRead, onOrd
                         <div key={i} className="flex flex-col justify-between gap-1.5 text-xs sm:flex-row sm:flex-wrap sm:items-center">
                           <div className="flex flex-wrap items-center gap-2">
                             <Badge variant="outline" className="bg-white dark:bg-background">
-                              {delivery.status === "pending" ? (delivery.driver ? "Assigné au livreur" : "En attente d'assignation") :
-                               delivery.status === "assigned" ? "Assigné au livreur" :
-                               delivery.status === "picked_up" ? "Récupéré" :
-                               delivery.status === "in_transit" ? "En route" :
-                               delivery.status === "delivered" ? "Livré" :
-                               delivery.status === "returned" ? "Retourné" :
-                               delivery.status === "failed" ? "Échec" : delivery.status}
+                              {deliveryStatusLabel(delivery.status, !!delivery.driver)}
                             </Badge>
                             {delivery.provider && (
                               <span className="text-xs font-medium text-muted-foreground">via {delivery.provider.company_name}</span>
@@ -726,81 +746,18 @@ export function OrdersList({ shopId, revision, onUpdateStatus, onMarkRead, onOrd
                 </div>
 
                 {/* Actions : statut et contact à gauche, envoi à droite */}
-                <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-muted/30 px-3 py-2 sm:px-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Select value={order.order_status} onValueChange={(v) => changeStatus(order.id, v)}>
-                      <SelectTrigger className="h-8 w-32 bg-background text-xs" aria-label="Statut de la commande"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(STATUS_MAP).map(([key, val]) => (
-                          <SelectItem key={key} value={key}>{val.label}</SelectItem>
-                        ))}
-                        {!STATUS_MAP[order.order_status] && (
-                          <SelectItem value={order.order_status}>{order.order_status}</SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                    {order.customer_phone && (
-                      <>
-                        <Button asChild size="sm" variant="outline" className="h-8 px-2.5 text-xs">
-                          <a href={`tel:${phoneDigits}`} onClick={(e) => e.stopPropagation()}>
-                            <Phone className="mr-1 h-3.5 w-3.5" /> Appeler
-                          </a>
-                        </Button>
-                        <Button asChild size="sm" className="h-8 bg-green-600 px-2.5 text-xs text-white hover:bg-green-700">
-                          <a
-                            href={`https://wa.me/${phoneDigits.replace(/^\+/, "")}?text=${encodeURIComponent(`Bonjour ${order.customer_name}, je vous contacte au sujet de votre commande ${order.order_number}.`)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <MessageCircle className="mr-1 h-3.5 w-3.5" /> WhatsApp
-                          </a>
-                        </Button>
-                      </>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 w-8 p-0"
-                      title="Copier les informations"
-                      aria-label="Copier les informations"
-                      onClick={(e) => { e.stopPropagation(); handleCopy(order, order.sequence); }}
-                    >
-                      {copiedId === order.id ? (
-                        <Check className="h-3.5 w-3.5" />
-                      ) : (
-                        <Copy className="h-3.5 w-3.5" />
-                      )}
-                    </Button>
+                <div className="flex items-center justify-between gap-1 border-t bg-muted/30 px-3 py-2 [container-type:inline-size] sm:px-4">
+                  <div className="flex min-w-0 items-center gap-1">
+                    <OrderStatusSelect order={order} onChange={(v) => changeStatus(order.id, v)} className="w-[112px] shrink" />
+                    <ContactButtons order={order} />
                   </div>
-                  {canSend && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 flex-1 px-2.5 text-xs sm:flex-none"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOrderToPush(order.id);
-                          setPushModalOpen(true);
-                        }}
-                      >
-                        <Send className="mr-1 h-3.5 w-3.5" /> Expédier
-                      </Button>
-                      {!hasOwnDelivery && (
-                        <Button
-                          size="sm"
-                          className="h-8 flex-1 px-2.5 text-xs sm:flex-none"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOrderToDispatch(order);
-                          }}
-                        >
-                          <Truck className="mr-1 h-3.5 w-3.5" /> Transmettre à une structure
-                        </Button>
-                      )}
-                    </div>
-                  )}
+                  <div className="ml-auto flex shrink-0 items-center gap-1">
+                    <ShipMenu canSend={canSend} canTransmit={canTransmit}
+                      onShip={() => { setOrderToPush(order.id); setPushModalOpen(true); }} onTransmit={() => setOrderToDispatch(order)} />
+                    <OrderMoreMenu order={order} copied={copiedId === order.id} onCopy={() => handleCopy(order, order.sequence)}
+                      onSchedule={() => setScheduleModalOrder(order)} onMarkRead={() => markRead(order.id)}
+                      onShowTracking={dispatch ? () => setTab("deliveries") : undefined} />
+                  </div>
                 </div>
               </Card>
             );
